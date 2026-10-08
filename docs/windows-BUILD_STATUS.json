@@ -1,0 +1,13 @@
+{
+  "exitCode": 0,
+  "builder": "electron-builder 26.15.3",
+  "target": "nsis win32 x64",
+  "command": "npx electron-builder --win nsis --x64 --publish never --config.electronDist=<verified cached electron-v44.7.0-win32-x64.zip>",
+  "tests": {
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "nativeAddonsDisabled": true
+  },
+  "packageVerification": true
+}

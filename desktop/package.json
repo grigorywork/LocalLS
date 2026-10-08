@@ -1,0 +1,67 @@
+{
+  "name": "localls-desktop",
+  "version": "0.1.0",
+  "description": "LocalLS \u2014 Windows SSH/SFTP client",
+  "author": "LocalLS",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "node tools/ui-smoke.cjs",
+    "build:win": "electron-builder --win nsis --x64 --publish never",
+    "build:linux-test": "electron-builder --linux dir --x64"
+  },
+  "build": {
+    "appId": "com.localls.desktop",
+    "productName": "LocalLS",
+    "directories": {
+      "output": "artifacts"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "!**/*.node",
+      "!node_modules/cpu-features/**/*",
+      "!node_modules/nan/**/*"
+    ],
+    "asar": true,
+    "afterPack": "tools/after-pack.cjs",
+    "npmRebuild": false,
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "artifactName": "LocalLS-0.1.0-Windows-x64-Setup.exe",
+      "script": "tools/installer.nsi",
+      "warningsAsErrors": false
+    },
+    "linux": {
+      "target": "dir",
+      "icon": "assets/icon.png",
+      "category": "Network"
+    },
+    "publish": []
+  },
+  "dependencies": {
+    "ssh2": "1.17.0"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "playwright": "1.64.0",
+    "resedit": "3.1.0"
+  },
+  "overrides": {
+    "sprintf-js": "1.1.4"
+  }
+}

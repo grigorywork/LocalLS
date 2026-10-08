@@ -1,0 +1,28 @@
+{
+  "installer": {
+    "path": "artifacts/LocalLS-0.1.0-Windows-x64-Setup.exe",
+    "size": 158333417,
+    "sha256": "a9fd290dcd936da037b02ffa354654d9db1f6a8fe5ad3403cccf92b0cdb7ea1b"
+  },
+  "application": {
+    "path": "artifacts/win-unpacked/LocalLS.exe",
+    "size": 246312960,
+    "sha256": "e7813903d3db972cb6c4616372e47434ef70760b36c31f6f18a87b7e7adcf8e7"
+  },
+  "archive": {
+    "path": "artifacts/win-unpacked/resources/app.asar",
+    "size": 472363,
+    "sha256": "7cfdeb2fe87aca1927ba4b5df4ba5fc1e151916963625b1e50a68ba6183ea274"
+  },
+  "package": "localls-desktop",
+  "version": "0.1.0",
+  "architecture": "Windows x64",
+  "appIcon": "cloud + lightning, 6 ICO sizes",
+  "sourceMatchesPackage": true,
+  "installerPE": true,
+  "uninstallerDeletesOnlyManifest": true,
+  "packagedFileCount": 89,
+  "installerExtractionMatches": true,
+  "embeddedUninstallerPE": true,
+  "nativeAddons": 0
+}
