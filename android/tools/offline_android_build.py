@@ -14,7 +14,7 @@ def main():
  ns='http://schemas.android.com/apk/res/android';ET.register_namespace('android',ns)
  manifest=ET.parse(root/'app/src/main/AndroidManifest.xml');m=manifest.getroot();m.set('package','com.bitpoint.homeservercontrol')
  uses=ET.Element('uses-sdk');m.insert(0,uses);uses.set('{'+ns+'}minSdkVersion','24');uses.set('{'+ns+'}targetSdkVersion','37')
- m.set('{'+ns+'}versionCode','9');m.set('{'+ns+'}versionName','0.9.0');m.find('application').set('{'+ns+'}debuggable','true')
+ m.set('{'+ns+'}versionCode','10');m.set('{'+ns+'}versionName','0.9.1');m.find('application').set('{'+ns+'}debuggable','true')
  manifest.write(out/'AndroidManifest.xml',encoding='utf-8',xml_declaration=True)
  run(bt/'aapt2','compile','--dir',root/'app/src/main/res','-o',out/'compiled-res.zip')
  run(bt/'aapt2','link','-I',android,'--manifest',out/'AndroidManifest.xml','--java',out/'generated','--min-sdk-version','24','--target-sdk-version','37','--compile-sdk-version-code','37','--compile-sdk-version-name','17','-o',out/'resources.apk',out/'compiled-res.zip')

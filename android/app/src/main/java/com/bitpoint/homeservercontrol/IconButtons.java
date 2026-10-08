@@ -8,7 +8,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CompoundButton;
 
-/** Compact native controls: the icon is above its small, accessible text label. */
+/** Compact tiles with captions, and menu rows with a leading icon and expandable arrow. */
 final class IconButtons {
     static void decorate(View view) {
         if (view instanceof Button && !(view instanceof CompoundButton)) {
@@ -26,33 +26,51 @@ final class IconButtons {
     static void apply(Button button, int resource) {
         Context context = button.getContext();
         float density = context.getResources().getDisplayMetrics().density;
+        boolean tile = "tile".equals(button.getTag());
+        boolean header = "drawer_header".equals(button.getTag());
+        // Other weighted toolbars keep an icon above its short caption.
+        ViewGroup.LayoutParams params = button.getLayoutParams();
+        if (!header && params != null && params.width == 0) tile = true;
         Drawable icon = context.getDrawable(resource).mutate();
         icon.setTint(context.getColor(R.color.button_text));
-        int size = Math.round(24 * density);
+        int shape = IconShapeCatalog.index(context);
+        if (shape != 0) icon = new IconBadgeDrawable(icon, shape);
+        int size = Math.round((shape == 0 ? 20 : 24) * density);
         icon.setBounds(0, 0, size, size);
-        button.setCompoundDrawables(null, icon, null, null);
-        button.setCompoundDrawablePadding(Math.round(2 * density));
-        button.setTextSize(10);
-        button.setAllCaps(false);
-        button.setGravity(Gravity.CENTER);
-        button.setMaxLines(2);
-        button.setPadding(Math.round(4*density), Math.round(4*density), Math.round(4*density), Math.round(4*density));
-        ViewGroup.LayoutParams params = button.getLayoutParams();
-        if (params != null && params.height > 0 && params.height < Math.round(60*density)) {
-            params.height = Math.round(60*density);
-            button.setLayoutParams(params);
+        Drawable arrow = null;
+        if (header) {
+            arrow = context.getDrawable(button.isSelected() ? R.drawable.ic_action_expand : R.drawable.ic_action_chevron).mutate();
+            arrow.setTint(context.getColor(R.color.button_text));
+            int arrowSize = Math.round(16*density);arrow.setBounds(0,0,arrowSize,arrowSize);
         }
-        button.setMinimumHeight(Math.round(60*density));
+        if (tile) button.setCompoundDrawables(null,icon,null,null);
+        else button.setCompoundDrawablesRelative(icon,null,arrow,null);
+        button.setCompoundDrawablePadding(Math.round((tile?1:8)*density));
+        button.setTextSize(tile?9.5f:12);
+        button.setAllCaps(false);button.setMaxLines(2);
+        button.setGravity(tile?Gravity.CENTER:Gravity.CENTER_VERTICAL|Gravity.START);
+        button.setPadding(Math.round((tile?4:10)*density),Math.round(3*density),Math.round(8*density),Math.round(3*density));
+        int height=Math.round((tile?52:48)*density);
+        if (params!=null && (params.height>0 || params.height==ViewGroup.LayoutParams.WRAP_CONTENT)) {
+            params.height=height;button.setLayoutParams(params);
+        }
+        button.setMinimumHeight(height);
     }
     private static int icon(String name) {
         String id = name.toLowerCase(java.util.Locale.ROOT);
+        if (id.contains("save")) return R.drawable.ic_action_save;
         if (id.contains("minimize")) return R.drawable.ic_action_download;
         if (id.contains("export")) return R.drawable.ic_action_upload;
         if (id.contains("import")) return R.drawable.ic_action_download;
         if (id.contains("download")) return R.drawable.ic_action_download;
         if (id.contains("select")) return R.drawable.ic_action_check;
         if (id.contains("verify")) return R.drawable.ic_action_check;
-        if (id.contains("close") || id.contains("back") || id.contains("cancel")) return R.drawable.ic_action_close;
+        if (id.contains("back")) return R.drawable.ic_action_back;
+        if (id.contains("close") || id.contains("cancel")) return R.drawable.ic_action_close;
+        if (id.contains("restart") || id.contains("refresh")) return R.drawable.ic_action_restart;
+        if (id.contains("wifi")) return R.drawable.ic_action_network;
+        if (id.contains("appearance") || id.contains("shape")) return R.drawable.ic_action_palette;
+        if (id.contains("connection")) return R.drawable.ic_action_network;
         if ((id.contains("server") && !id.contains("password")) || id.contains("agentstatus")) return R.drawable.ic_action_server;
         if (id.contains("restart") || id.contains("refresh")) return R.drawable.ic_action_restart;
         if (id.contains("stop")) return R.drawable.ic_action_stop;

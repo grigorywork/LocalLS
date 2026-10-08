@@ -10,7 +10,10 @@ import android.widget.Toast;
 
 public class SettingsActivity extends BaseActivity {
     private EditText portInput, userInput, passwordInput, agentPortInput, agentTokenInput;
-    private CheckBox savePasswordCheck, saveAgentTokenCheck, backgroundMonitorCheck, autoFallbackCheck;
+    private CheckBox savePasswordCheck, saveAgentTokenCheck, backgroundMonitorCheck;
+
+    private int secretGeneration;
+    private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,7 +28,6 @@ public class SettingsActivity extends BaseActivity {
         savePasswordCheck = findViewById(R.id.settingsSavePasswordCheck);
         saveAgentTokenCheck = findViewById(R.id.settingsSaveAgentTokenCheck);
         backgroundMonitorCheck = findViewById(R.id.settingsBackgroundMonitorCheck);
-        autoFallbackCheck = findViewById(R.id.settingsAutoFallbackCheck);
         load();
 
         findViewById(R.id.settingsBackButton).setOnClickListener(v -> finish());
@@ -41,13 +43,22 @@ public class SettingsActivity extends BaseActivity {
 
         boolean savePassword = prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false);
         savePasswordCheck.setChecked(savePassword);
-        if (savePassword) passwordInput.setText(SecurePrefs.loadPassword(this));
+
 
         boolean saveToken = prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false);
         saveAgentTokenCheck.setChecked(saveToken);
-        if (saveToken) agentTokenInput.setText(SecurePrefs.loadAgentToken(this));
+
         backgroundMonitorCheck.setChecked(prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false));
-        autoFallbackCheck.setChecked(prefs.getBoolean(ServerConfig.KEY_AUTO_FALLBACK, false));
+        final int generation = ++secretGeneration;
+        SecretWorker.execute(() -> {
+            String password = savePassword ? SecurePrefs.loadPassword(this) : "";
+            String token = saveToken ? SecurePrefs.loadAgentToken(this) : "";
+            handler.post(() -> {
+                if (isDestroyed() || isFinishing() || generation != secretGeneration) return;
+                if (passwordInput.length() == 0 && savePasswordCheck.isChecked()) passwordInput.setText(password);
+                if (agentTokenInput.length() == 0 && saveAgentTokenCheck.isChecked()) agentTokenInput.setText(token);
+            });
+        });
     }
 
     private void save() {
@@ -67,22 +78,29 @@ public class SettingsActivity extends BaseActivity {
                 .putBoolean(ServerConfig.KEY_SAVE_PASSWORD, savePasswordCheck.isChecked())
                 .putBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, saveAgentTokenCheck.isChecked())
                 .putBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, backgroundMonitorCheck.isChecked())
-                .putBoolean(ServerConfig.KEY_AUTO_FALLBACK, autoFallbackCheck.isChecked())
                 .remove(ServerConfig.KEY_MONITOR_HAS_STATE)
                 .apply();
 
-        try {
-            if (savePasswordCheck.isChecked()) SecurePrefs.savePassword(this, passwordInput.getText().toString());
-            else SecurePrefs.clearPassword(this);
-            if (saveAgentTokenCheck.isChecked()) SecurePrefs.saveAgentToken(this, agentTokenInput.getText().toString());
-            else SecurePrefs.clearAgentToken(this);
-        } catch (Exception e) {
-            Toast.makeText(this, "Не удалось сохранить секрет в Keystore: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            return;
-        }
+        final boolean keepPassword = savePasswordCheck.isChecked(), keepToken = saveAgentTokenCheck.isChecked();
+        final String password = passwordInput.getText().toString(), token = agentTokenInput.getText().toString();
+        ++secretGeneration;
+        SecretWorker.execute(() -> {
+            boolean saved = false;
+            try {
+                if (keepPassword) SecurePrefs.savePassword(this, password); else SecurePrefs.clearPassword(this);
+                if (keepToken) SecurePrefs.saveAgentToken(this, token); else SecurePrefs.clearAgentToken(this);
+                saved = true;
+            } catch (Exception e) { /* Never display raw Keystore errors. */ }
+            final boolean success = saved;
+            if (!success) prefs.edit().putBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)
+                    .putBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false).apply();
+            handler.post(() -> { if (isUiActive()) Toast.makeText(this, success ? "Настройки сохранены"
+                    : "Не удалось сохранить секрет в Android Keystore", Toast.LENGTH_SHORT).show(); });
+        });
         MonitoringScheduler.setEnabled(this, backgroundMonitorCheck.isChecked());
-        Toast.makeText(this, "Настройки сохранены", Toast.LENGTH_SHORT).show();
     }
+
+    @Override protected void onDestroy() { ++secretGeneration; handler.removeCallbacksAndMessages(null); super.onDestroy(); }
 
     private int parsePort(EditText input, int min, int max) {
         try {

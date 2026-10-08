@@ -16,11 +16,12 @@ final class LiveSpeedPanel {
             if (!running) return;
             TransferSpeedStore.Snapshot sample = TransferSpeedStore.snapshot();
             chart.setValues(sample.values, 0, Math.max(1f, sample.peak * 1.15f));
-            summary.setText(sample.active
+            String text = sample.active
                     ? String.format(Locale.getDefault(), "Сейчас %.2f МБ/с • пик %.2f", sample.current, sample.peak)
                     : sample.peak > 0
                         ? String.format(Locale.getDefault(), "%s • пик %.2f МБ/с", sample.state, sample.peak)
-                        : "Передач пока нет • МБ/с");
+                        : "Передач пока нет • МБ/с";
+            if (!text.contentEquals(summary.getText())) summary.setText(text);
             handler.postDelayed(this, 500);
         }
     };

@@ -31,7 +31,7 @@ public final class TermuxResultReceiver extends BroadcastReceiver {
         }
         int number = Integer.parseInt(port);
         if (number < 1 || number > 65535) { edit.putString("status", "Некорректный порт сервера.").apply(); return; }
-        edit.putString("user", user).putInt("port", number)
+        edit.putString("user", user).putInt("port", number).putString("device_role", "server")
                 .putString("status", "OpenSSH подготовлен. Проверь подключение перед экспортом.").apply();
     }
 }

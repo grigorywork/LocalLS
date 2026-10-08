@@ -65,8 +65,13 @@ public class LocalLSInstrumentedTest {
                 assertEquals(root.getWidth() / 2, drawer.getWidth());
                 assertEquals(root.getWidth(), drawer.getRight());
                 assertEquals(0f, drawer.getTranslationX(), 0.1f);
-                assertTrue(activity.findViewById(R.id.drawerVpnSwitch).isShown());
-                assertTrue(activity.findViewById(R.id.themeChooserButton).isShown());
+                assertFalse(activity.findViewById(R.id.drawerVpnSwitch).isShown());
+                assertFalse(activity.findViewById(R.id.themeChooserButton).isShown());
+                activity.findViewById(R.id.drawerVpnHeader).performClick();
+                assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerVpnPane).getVisibility());
+                activity.findViewById(R.id.drawerAppearanceHeader).performClick();
+                assertEquals(View.GONE, activity.findViewById(R.id.drawerVpnPane).getVisibility());
+                assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerAppearancePane).getVisibility());
                 assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerScrim).getVisibility());
             });
             screenshot("localls-drawer.png");

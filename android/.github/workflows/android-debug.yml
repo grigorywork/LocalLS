@@ -33,14 +33,14 @@ jobs:
       - name: Prepare APK and report
         run: |
           mkdir -p artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk artifacts/LocalLS-v0.9-debug.apk
-          python3 tools/verify_apk.py artifacts/LocalLS-v0.9-debug.apk
-          HASH=$(sha256sum artifacts/LocalLS-v0.9-debug.apk | awk '{print $1}')
-          SIZE=$(stat -c%s artifacts/LocalLS-v0.9-debug.apk)
-          printf '# BUILD REPORT\n\n- Status: BUILD SUCCESSFUL\n- APK: artifacts/LocalLS-v0.9-debug.apk\n- Size: %s bytes\n- SHA-256: %s\n' "$SIZE" "$HASH" > BUILD_REPORT.md
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/LocalLS-v0.9.1-debug.apk
+          python3 tools/verify_apk.py artifacts/LocalLS-v0.9.1-debug.apk
+          HASH=$(sha256sum artifacts/LocalLS-v0.9.1-debug.apk | awk '{print $1}')
+          SIZE=$(stat -c%s artifacts/LocalLS-v0.9.1-debug.apk)
+          printf '# BUILD REPORT\n\n- Status: BUILD SUCCESSFUL\n- APK: artifacts/LocalLS-v0.9.1-debug.apk\n- Size: %s bytes\n- SHA-256: %s\n' "$SIZE" "$HASH" > BUILD_REPORT.md
       - uses: actions/upload-artifact@v4
         with:
           name: LocalLS-v0.9-debug
           path: |
-            artifacts/LocalLS-v0.9-debug.apk
+            artifacts/LocalLS-v0.9.1-debug.apk
             BUILD_REPORT.md

@@ -18,10 +18,14 @@ SSH/SFTP reachability and fingerprint remain separate checks.
 
 First login, tailnet membership and Android VPN consent take place in the client.
 A single Android VPN slot can replace another provider; UI asks before switching.
-Desktop and Realme clients must be configured separately. Local profile is not
+Desktop and server clients must be configured separately. Local profile is not
 changed by the toggle. With an exit node, enable Allow LAN access in Tailscale;
 LocalLS does not silently change the user's exit-node settings or server routing.
 
 Official source consulted on 2026-10-06:
 https://github.com/tailscale/tailscale-android/blob/main/android/src/main/AndroidManifest.xml
 https://github.com/tailscale/tailscale-android/blob/main/android/src/main/java/com/tailscale/ipn/IPNReceiver.java
+
+LocalLS 0.9.1: all VPN controls are in the final expandable VPN/Tailscale drawer section.
+The network screen keeps route, VPN host and fallback inside its own expandable VPN panel.
+General application settings no longer duplicate the fallback switch.

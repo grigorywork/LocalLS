@@ -107,9 +107,23 @@ public class FilesActivity extends BaseActivity {
         }
         renderDownloadSelection();
         renderAttachments();
-        if (TextUtils.isEmpty(password)) promptPassword();
-        else refresh();
-        if (savedInstanceState == null && getIntent().getBooleanExtra(FileAttachments.PICK_ON_OPEN, false)
+        if (TextUtils.isEmpty(password) && getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE)
+                .getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)) {
+            emptyText.setText("Загрузка сохранённого подключения…");
+            SecretWorker.execute(() -> {
+                final String saved = SecurePrefs.loadPassword(this);
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    password = saved;
+                    finishConnectionOpen(savedInstanceState == null);
+                });
+            });
+        } else finishConnectionOpen(savedInstanceState == null);
+    }
+
+    private void finishConnectionOpen(boolean firstOpen) {
+        if (TextUtils.isEmpty(password)) promptPassword(); else refresh();
+        if (firstOpen && getIntent().getBooleanExtra(FileAttachments.PICK_ON_OPEN, false)
                 && !TextUtils.isEmpty(password)) chooseUploads();
     }
 
@@ -151,9 +165,7 @@ public class FilesActivity extends BaseActivity {
         port = prefs.getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT);
         user = prefs.getString(ServerConfig.KEY_USER, ServerConfig.DEFAULT_USER);
         password = SessionPassword.take();
-        if (TextUtils.isEmpty(password) && prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)) {
-            password = SecurePrefs.loadPassword(this);
-        }
+
         fingerprint = HostTrustStore.get(this, host, port);
         currentPath = prefs.getString(KEY_LAST_REMOTE_PATH, ServerConfig.DEFAULT_REMOTE_PATH);
     }

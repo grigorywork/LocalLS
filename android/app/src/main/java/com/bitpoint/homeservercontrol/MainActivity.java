@@ -61,8 +61,16 @@ public class MainActivity extends BaseActivity {
     private final Runnable vpnRefresh = () -> refreshVpnStatus();
     private Object drawerBackCallback; // Avoid resolving the API 33 interface on Android 7–12.
 
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newFixedThreadPool(4);
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private DrawerSections drawerSections;
+    private WifiSetupController wifiSetup;
+    private AlertDialog pendingAgentDialog;
+    private volatile int uiGeneration, secretGeneration;
+    private int quickGeneration, iperfGeneration, agentGeneration;
+    private java.util.concurrent.Future<?> checkTask, quickTask, iperfTask, agentTask;
+    private boolean loadingConfig;
+    private int loadedConfigSignature;
     private boolean checking = false;
     private boolean firstResume = true;
 
@@ -72,7 +80,7 @@ public class MainActivity extends BaseActivity {
 
     private final Runnable autoRefreshRunnable = new Runnable() {
         @Override public void run() {
-            if (autoRefreshCheck != null && autoRefreshCheck.isChecked()) {
+            if (isUiActive() && autoRefreshCheck != null && autoRefreshCheck.isChecked()) {
                 checkServer(false);
                 handler.postDelayed(this, 15_000);
             }
@@ -88,6 +96,11 @@ public class MainActivity extends BaseActivity {
         liveSpeedPanel = new LiveSpeedPanel(findViewById(R.id.dashboardSpeedChart), findViewById(R.id.dashboardSpeedSummary));
         loadConfig();
         wireActions();
+        drawerSections = new DrawerSections(this);
+        wifiSetup = new WifiSetupController(this);
+        findViewById(R.id.drawerVpnHeader).setOnClickListener(v -> {
+            drawerSections.togglePane(R.id.drawerVpnPane); refreshVpnStatus();
+        });
         renderConnectionSummary();
         if (savedInstanceState == null || !savedInstanceState.containsKey(FileAttachments.EXTRA))
             for (Uri uri : FileAttachments.from(getIntent())) FileAttachments.add(attachedFiles, uri);
@@ -103,14 +116,42 @@ public class MainActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
         if (liveSpeedPanel != null) liveSpeedPanel.start();
+        if (wifiSetup != null) wifiSetup.start();
+        handler.removeCallbacks(autoRefreshRunnable);
+        if (autoRefreshCheck.isChecked()) handler.postDelayed(autoRefreshRunnable, 15000);
         renderDashboardLatency();
         refreshVpnStatus();
         if (firstResume) {
             firstResume = false;
             return;
         }
-        loadConfig();
+        if (loadedConfigSignature != configSignature()) {
+            cancelNetworkWork(); invalidateConnectionStats(); loadConfig();
+        }
         renderConnectionSummary();
+    }
+
+    private int configSignature() {
+        SharedPreferences prefs = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE);
+        return java.util.Objects.hash(prefs.getString(ServerConfig.KEY_LOCAL_HOST, ""),
+                prefs.getString(ServerConfig.KEY_VPN_HOST, ""), prefs.getString(ServerConfig.KEY_MODE, ""),
+                prefs.getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT), prefs.getString(ServerConfig.KEY_USER, ""),
+                prefs.getInt(ServerConfig.KEY_AGENT_PORT, ServerConfig.DEFAULT_AGENT_PORT),
+                prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false), prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false),
+                prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false), prefs.getString(ServerConfig.KEY_PASSWORD_CIPHER, ""),
+                prefs.getString(ServerConfig.KEY_AGENT_TOKEN_CIPHER, ""));
+    }
+
+    private void invalidateConnectionStats() {
+        statusText.setText("● НЕ ПРОВЕРЕНО");
+        statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscWarning));
+        statusDetail.setText("Профиль изменён. Нажми «Проверить SSH».");
+        lastSeenFingerprint = ""; lastSeenHost = ""; lastSeenPort = -1;
+        trustKeyButton.setVisibility(View.GONE);
+        fingerprintValue.setVisibility(View.GONE);
+        latencyValue.setText("Отклик SSH: —"); diskValue.setText("Память: —"); uptimeValue.setText("Аптайм: —");
+        sshdValue.setText("sshd: —"); batteryValue.setText("Батарея: —"); temperatureValue.setText("Температура: —");
+        chargingValue.setText("Питание: —"); iperfValue.setText("iperf3: —");
     }
 
     private void bindViews() {
@@ -156,12 +197,22 @@ public class MainActivity extends BaseActivity {
     }
 
     private void wireActions() {
-        findViewById(R.id.minimizeButton).setOnClickListener(v -> minimizeToTray());
         findViewById(R.id.advancedToggleButton).setOnClickListener(v -> openToolsDrawer());
-        findViewById(R.id.drawerCloseButton).setOnClickListener(v -> closeToolsDrawer());
         findViewById(R.id.drawerScrim).setOnClickListener(v -> closeToolsDrawer());
         findViewById(R.id.themeChooserButton).setOnClickListener(v -> chooseTheme());
         findViewById(R.id.serverSetupButton).setOnClickListener(v -> showServerMenu());
+        findViewById(R.id.restartServerButton).setOnClickListener(v -> {
+            if (agentTokenInput.getText().length() == 0) {
+                showServerMenu();
+                findServerView(R.id.agentCredentialsPanel).setVisibility(View.VISIBLE);
+                agentOutputText.setText("Для перезапуска SSH укажи доступ к независимому серверному агенту.");
+            } else confirmAgentAction("restart", "Перезапустить SSH-службу? Активные SSH/SFTP-подключения прервутся.");
+        });
+        findViewById(R.id.localServerQuickButton).setOnClickListener(v -> startActivity(
+                new Intent(this, ServerSetupActivity.class).putExtra("auto_prepare", true)));
+        findViewById(R.id.currentServerSettingsButton).setOnClickListener(v -> showServerMenu());
+        findViewById(R.id.appSettingsButton).setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+        findViewById(R.id.iconShapeButton).setOnClickListener(v -> chooseIconShape());
         findViewById(R.id.serverWizardMenuButton).setOnClickListener(v -> {
             if (serverMenuDialog != null) serverMenuDialog.dismiss();
             startActivity(new Intent(this, ServerSetupActivity.class));
@@ -171,6 +222,9 @@ public class MainActivity extends BaseActivity {
             fields.setVisibility(fields.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
         });
         findViewById(R.id.saveAgentCredentialsButton).setOnClickListener(v -> saveConfig());
+        findViewById(R.id.drawerVpnSettingsButton).setOnClickListener(v -> startActivity(
+                new Intent(this, NetworkActivity.class).putExtra("expand_vpn", true)));
+        findViewById(R.id.drawerVpnSaveButton).setOnClickListener(v -> saveConfig());
         findViewById(R.id.openVpnClientButton).setOnClickListener(v -> openVpnClient());
         findViewById(R.id.vpnHelpButton).setOnClickListener(v -> showVpnHelp());
         ((Switch) findViewById(R.id.drawerVpnSwitch)).setOnCheckedChangeListener((button, checked) -> {
@@ -190,7 +244,9 @@ public class MainActivity extends BaseActivity {
         findViewById(R.id.filesButton).setOnClickListener(v -> openFiles(false));
         findViewById(R.id.attachFilesButton).setOnClickListener(v -> openFiles(attachedFiles.isEmpty()));
         findViewById(R.id.networkButton).setOnClickListener(v -> startActivity(new Intent(this, NetworkActivity.class)));
-        findViewById(R.id.settingsButton).setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+        findViewById(R.id.settingsButton).setOnClickListener(v -> {
+            openToolsDrawer(); drawerSections.open(R.id.drawerSettingsPane);
+        });
         findViewById(R.id.historyButton).setOnClickListener(v -> startActivity(new Intent(this, HistoryActivity.class)));
         findViewById(R.id.diagnosticsButton).setOnClickListener(v -> startActivity(new Intent(this, DiagnosticsActivity.class)));
         findViewById(R.id.exportButton).setOnClickListener(v -> exportDiagnostics());
@@ -201,11 +257,24 @@ public class MainActivity extends BaseActivity {
         });
 
         modeGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            if (!loadingConfig) { cancelNetworkWork(); invalidateConnectionStats(); }
             renderConnectionSummary();
             String mode = checkedId == R.id.vpnModeButton ? "VPN / Tailscale" : "локальный Wi-Fi";
             appendLog("Режим подключения: " + mode + ".");
         });
 
+        android.text.TextWatcher profileWatcher = new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
+            public void onTextChanged(CharSequence text, int start, int before, int count) {
+                if (!loadingConfig) { cancelNetworkWork(); invalidateConnectionStats(); renderConnectionSummary(); }
+            }
+            public void afterTextChanged(android.text.Editable text) { }
+        };
+        localHostInput.addTextChangedListener(profileWatcher);
+        vpnHostInput.addTextChangedListener(profileWatcher);
+        portInput.addTextChangedListener(profileWatcher);
+        userInput.addTextChangedListener(profileWatcher);
+        passwordInput.addTextChangedListener(profileWatcher);
         trustKeyButton.setOnClickListener(v -> trustLastFingerprint());
         findViewById(R.id.forgetKeyButton).setOnClickListener(v -> forgetFingerprint());
 
@@ -230,6 +299,7 @@ public class MainActivity extends BaseActivity {
         findViewById(R.id.agentStopButton).setOnClickListener(v -> confirmAgentAction("stop", "Остановить SSH-сервер? SFTP/WinSCP отключатся."));
 
         backgroundMonitorCheck.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (loadingConfig) return;
             getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE).edit()
                     .putBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, isChecked)
                     .remove(ServerConfig.KEY_MONITOR_HAS_STATE)
@@ -257,6 +327,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private void loadConfig() {
+        loadingConfig = true;
         SharedPreferences prefs = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE);
         localHostInput.setText(prefs.getString(ServerConfig.KEY_LOCAL_HOST, ServerConfig.DEFAULT_LOCAL_HOST));
         vpnHostInput.setText(prefs.getString(ServerConfig.KEY_VPN_HOST, ServerConfig.DEFAULT_VPN_HOST));
@@ -271,16 +342,32 @@ public class MainActivity extends BaseActivity {
 
         boolean savePassword = prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false);
         savePasswordCheck.setChecked(savePassword);
-        if (savePassword) passwordInput.setText(SecurePrefs.loadPassword(this));
+
 
         boolean saveAgentToken = prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false);
         saveAgentTokenCheck.setChecked(saveAgentToken);
-        if (saveAgentToken) agentTokenInput.setText(SecurePrefs.loadAgentToken(this));
+
 
         boolean backgroundMonitor = prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false);
         backgroundMonitorCheck.setChecked(backgroundMonitor);
         historyValue.setText(DiskHistoryStore.render(this, 8));
         if (backgroundMonitor) MonitoringScheduler.setEnabled(this, true);
+        loadingConfig = false;
+        loadedConfigSignature = configSignature();
+        final int generation = ++secretGeneration;
+        final String originalPassword = passwordInput.getText().toString();
+        final String originalToken = agentTokenInput.getText().toString();
+        SecretWorker.execute(() -> {
+            String storedPassword = savePassword ? SecurePrefs.loadPassword(this) : "";
+            String storedToken = saveAgentToken ? SecurePrefs.loadAgentToken(this) : "";
+            handler.post(() -> {
+                if (isDestroyed() || isFinishing() || generation != secretGeneration) return;
+                if (savePassword && savePasswordCheck.isChecked() && originalPassword.contentEquals(passwordInput.getText()))
+                    passwordInput.setText(storedPassword);
+                if (saveAgentToken && saveAgentTokenCheck.isChecked() && originalToken.contentEquals(agentTokenInput.getText()))
+                    agentTokenInput.setText(storedToken);
+            });
+        });
     }
 
     private boolean saveConfig() {
@@ -310,20 +397,27 @@ public class MainActivity extends BaseActivity {
                 .putBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, backgroundMonitorCheck.isChecked())
                 .apply();
 
-        try {
-            if (savePasswordCheck.isChecked()) SecurePrefs.savePassword(this, passwordInput.getText().toString());
-            else SecurePrefs.clearPassword(this);
-
-            if (saveAgentTokenCheck.isChecked()) SecurePrefs.saveAgentToken(this, agentTokenInput.getText().toString());
-            else SecurePrefs.clearAgentToken(this);
-        } catch (Exception e) {
-            Toast.makeText(this, "Не удалось сохранить секрет в Android Keystore", Toast.LENGTH_LONG).show();
-            return false;
-        }
-
+        final boolean keepPassword = savePasswordCheck.isChecked(), keepToken = saveAgentTokenCheck.isChecked();
+        final String password = passwordInput.getText().toString(), token = agentTokenInput.getText().toString();
+        ++secretGeneration;
+        SecretWorker.execute(() -> {
+            boolean saved = false;
+            try {
+                if (keepPassword) SecurePrefs.savePassword(this, password); else SecurePrefs.clearPassword(this);
+                if (keepToken) SecurePrefs.saveAgentToken(this, token); else SecurePrefs.clearAgentToken(this);
+                saved = true;
+            } catch (Exception e) { /* Keystore errors never include secrets in UI/logs. */ }
+            final boolean success = saved;
+            if (!success) prefs.edit().putBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)
+                    .putBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false).apply();
+            handler.post(() -> {
+                if (!isUiActive()) return;
+                appendLog(success ? "Настройки сохранены." : "Не удалось сохранить секрет в Android Keystore.");
+                Toast.makeText(this, success ? "Сохранено" : "Не удалось сохранить секрет в Android Keystore",
+                        Toast.LENGTH_SHORT).show();
+            });
+        });
         renderConnectionSummary();
-        appendLog("Настройки сохранены.");
-        Toast.makeText(this, "Сохранено", Toast.LENGTH_SHORT).show();
         return true;
     }
 
@@ -367,7 +461,8 @@ public class MainActivity extends BaseActivity {
         statusDetail.setText(primaryHost + ":" + port);
         appendLog("Проверяю " + primaryHost + ":" + port + "…");
 
-        executor.execute(() -> {
+        final int generation = uiGeneration;
+        checkTask = executor.submit(() -> {
             String usedHost = primaryHost;
             String trustedFingerprint = HostTrustStore.get(this, usedHost, port);
             ServerStats stats = SshClient.probe(usedHost, port, user, password, trustedFingerprint);
@@ -384,15 +479,17 @@ public class MainActivity extends BaseActivity {
                 }
             }
 
-            if (stats.reachable) ConnectionSelector.rememberWorkingHost(this, usedHost);
+
             final String finalHost = usedHost;
             final ServerStats finalStats = stats;
             handler.post(() -> {
+                if (!isUiActive() || generation != uiGeneration) return;
                 checking = false;
                 checkButton.setEnabled(true);
                 if (!primaryHost.equals(finalHost)) {
                     appendLog("Основной маршрут недоступен. Использован резервный: " + finalHost + ".");
                 }
+                if (finalStats.reachable) ConnectionSelector.rememberWorkingHost(this, finalHost);
                 renderStats(finalStats, finalHost, port, user);
             });
         });
@@ -492,9 +589,12 @@ public class MainActivity extends BaseActivity {
 
         if (!validSshInputs(host, port, user, password)) return;
         commandHelpText.setText(explanation + "\n\nВыполняю…");
-        executor.execute(() -> {
+        final int screen = uiGeneration, request = ++quickGeneration;
+        if (quickTask != null) quickTask.cancel(true);
+        quickTask = executor.submit(() -> {
             SshCommandResult result = SshClient.runCommand(host, port, user, password, trusted, command, 8000);
             handler.post(() -> {
+                if (!isUiActive() || screen != uiGeneration || request != quickGeneration) return;
                 String text = result.success ? result.output : "Ошибка: " + result.error;
                 if (TextUtils.isEmpty(text)) text = "(команда ничего не вывела)";
                 commandHelpText.setText(explanation + "\n\nРезультат:\n" + text);
@@ -523,9 +623,12 @@ public class MainActivity extends BaseActivity {
         appendLog("iperf3: сервер → " + target + ".");
 
         String command = "iperf3 -c '" + target + "' -P 4 -t 5 --format m";
-        executor.execute(() -> {
+        final int screen = uiGeneration, request = ++iperfGeneration;
+        if (iperfTask != null) iperfTask.cancel(true);
+        iperfTask = executor.submit(() -> {
             SshCommandResult result = SshClient.runCommand(host, port, user, password, trusted, command, 15_000);
             handler.post(() -> {
+                if (!isUiActive() || screen != uiGeneration || request != iperfGeneration) return;
                 if (result.success) {
                     iperfOutputText.setText("Результат:\n" + result.output);
                     double speed = MetricHistoryStore.parseIperfMbps(result.output);
@@ -585,7 +688,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private void confirmAgentAction(String action, String message) {
-        new AlertDialog.Builder(this)
+        pendingAgentDialog = new AlertDialog.Builder(this)
                 .setTitle("Управление SSH")
                 .setMessage(message)
                 .setNegativeButton("Отмена", null)
@@ -604,12 +707,16 @@ public class MainActivity extends BaseActivity {
         }
 
         agentOutputText.setText("Агент: выполняю /" + action + "…");
-        executor.execute(() -> {
+        final int screen = uiGeneration, request = ++agentGeneration;
+        if (agentTask != null) agentTask.cancel(true);
+        agentTask = executor.submit(() -> {
             AgentResult result = AgentClient.request(host, port, token, action);
             handler.post(() -> {
+                if (!isUiActive() || screen != uiGeneration || request != agentGeneration) return;
                 if (result.success) {
                     agentOutputText.setText("Агент: " + result.body);
                     appendLog("Агент /" + action + ": успешно.");
+                    Toast.makeText(this, "restart".equals(action) ? "SSH-служба перезапущена" : "Команда выполнена", Toast.LENGTH_SHORT).show();
                     if (!"status".equals(action)) handler.postDelayed(() -> checkServer(false), 1200);
                 } else {
                     agentOutputText.setText("Агент: ошибка — " + result.error);
@@ -733,6 +840,16 @@ public class MainActivity extends BaseActivity {
         else super.onBackPressed();
     }
 
+    private void chooseIconShape() {
+        new AlertDialog.Builder(this).setTitle("Форма значков функций")
+                .setSingleChoiceItems(IconShapeCatalog.NAMES, IconShapeCatalog.index(this), (dialog, selected) -> {
+                    IconShapeCatalog.select(this, selected);
+                    refreshIconStyle();
+                    if (serverManagementPanel != null) IconButtons.decorate(serverManagementPanel);
+                    dialog.dismiss();
+                }).setNegativeButton("Назад", null).show();
+    }
+
     private void chooseTheme() {
         new AlertDialog.Builder(this).setTitle("Цветовая тема")
                 .setSingleChoiceItems(ThemeCatalog.NAMES, ThemeCatalog.index(this), (dialog, selected) -> {
@@ -782,7 +899,8 @@ public class MainActivity extends BaseActivity {
         updatingVpnSwitch = false;
         ((TextView) findViewById(R.id.drawerVpnStatus)).setText(message);
         ((Button) findViewById(R.id.themeChooserButton)).setText("Тема: " + ThemeCatalog.NAMES[ThemeCatalog.index(this)]);
-        if (findViewById(R.id.advancedPanel).getVisibility() == View.VISIBLE || requestedVpn != null)
+        if (isUiActive() && ((findViewById(R.id.advancedPanel).getVisibility() == View.VISIBLE
+                && findViewById(R.id.drawerVpnPane).getVisibility() == View.VISIBLE) || requestedVpn != null))
             handler.postDelayed(vpnRefresh, 1000);
     }
 
@@ -843,16 +961,20 @@ public class MainActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == WifiSetupController.ADD_NETWORK) { wifiSetup.onAddResult(resultCode); return; }
         if (requestCode != REQ_EXPORT_REPORT || resultCode != RESULT_OK || data == null || data.getData() == null) return;
-        try (OutputStream out = getContentResolver().openOutputStream(data.getData(), "w")) {
-            if (out == null) throw new Exception("Не удалось открыть файл");
-            out.write(pendingReport.getBytes(StandardCharsets.UTF_8));
-            out.flush();
-            appendLog("Диагностический отчёт экспортирован.");
-            Toast.makeText(this, "Отчёт сохранён", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "Не удалось сохранить отчёт: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+        final Uri destination = data.getData();
+        final String report = pendingReport;
+        pendingReport = "";
+        executor.execute(() -> {
+            boolean saved = false;
+            try (OutputStream out = getContentResolver().openOutputStream(destination, "w")) {
+                if (out != null) { out.write(report.getBytes(StandardCharsets.UTF_8)); out.flush(); saved = true; }
+            } catch (Exception e) { /* Do not expose provider errors. */ }
+            final boolean success = saved;
+            handler.post(() -> { if (isUiActive()) Toast.makeText(this,
+                    success ? "Отчёт сохранён" : "Не удалось сохранить отчёт", Toast.LENGTH_SHORT).show(); });
+        });
     }
 
     private void requestNotificationPermissionIfNeeded() {
@@ -864,6 +986,7 @@ public class MainActivity extends BaseActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == WifiSetupController.PERMISSION) { wifiSetup.onPermissionResult(grantResults); return; }
         if (requestCode == REQ_NOTIFICATIONS && grantResults.length > 0
                 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Мониторинг продолжит работать, но уведомления Android запрещены", Toast.LENGTH_LONG).show();
@@ -908,9 +1031,26 @@ public class MainActivity extends BaseActivity {
         chart.setValues(recent, 0, Math.max(10f, peak * 1.2f));
     }
 
+    private void cancelNetworkWork() {
+        ++uiGeneration;
+        if (checkTask != null) checkTask.cancel(true);
+        if (quickTask != null) quickTask.cancel(true);
+        if (iperfTask != null) iperfTask.cancel(true);
+        if (agentTask != null) agentTask.cancel(true);
+        checking = false;
+        if (checkButton != null) checkButton.setEnabled(true);
+        if (statusText != null && "● ПРОВЕРКА…".contentEquals(statusText.getText())) {
+            statusText.setText("● ПРОВЕРКА ОТМЕНЕНА");
+            statusDetail.setText("Адрес или экран изменён. Нажми «Проверить SSH».");
+        }
+    }
+
     @Override
     protected void onPause() {
         if (liveSpeedPanel != null) liveSpeedPanel.stop();
+        if (wifiSetup != null) wifiSetup.stop();
+        cancelNetworkWork();
+        handler.removeCallbacks(autoRefreshRunnable);
         handler.removeCallbacks(vpnRefresh);
         super.onPause();
     }
@@ -918,6 +1058,9 @@ public class MainActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         if (serverMenuDialog != null) serverMenuDialog.dismiss();
+        if (pendingAgentDialog != null) pendingAgentDialog.dismiss();
+        if (wifiSetup != null) wifiSetup.destroy();
+        ++secretGeneration;
         if (Build.VERSION.SDK_INT >= 33 && drawerBackCallback != null)
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
                     (android.window.OnBackInvokedCallback) drawerBackCallback);

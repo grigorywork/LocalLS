@@ -25,8 +25,7 @@ public class TrayInstrumentedTest {
                 new Intent(context, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         try {
             instrumentation.runOnMainSync(() -> {
-                activity.findViewById(R.id.advancedToggleButton).performClick();
-                activity.findViewById(R.id.minimizeButton).performClick();
+                activity.minimizeToTray();
             });
             long deadline = System.currentTimeMillis() + 15000;
             StatusBarNotification tray;

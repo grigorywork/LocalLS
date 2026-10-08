@@ -14,10 +14,13 @@ public abstract class BaseActivity extends Activity {
     private static final int REQUEST_LOCAL_NETWORK = 7301;
     private static final int REQUEST_TRAY_NOTIFICATION = 7302;
     private int appliedTheme;
+    private int appliedIconShape;
+    private boolean screenActive;
 
     @Override
     protected void onCreate(Bundle state) {
         appliedTheme = ThemeCatalog.style(this);
+        appliedIconShape = IconShapeCatalog.index(this);
         setTheme(appliedTheme);
         super.onCreate(state);
         if (Build.VERSION.SDK_INT >= 37
@@ -30,8 +33,17 @@ public abstract class BaseActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        screenActive = true;
+        if (appliedIconShape != IconShapeCatalog.index(this)) refreshIconStyle();
         NotificationHelper.clearTray(this);
         if (appliedTheme != ThemeCatalog.style(this) && canRecreateForTheme()) recreate();
+    }
+
+    @Override protected void onPause() { screenActive=false;super.onPause(); }
+    protected boolean isUiActive() { return screenActive && !isFinishing() && !isDestroyed(); }
+    protected void refreshIconStyle() {
+        appliedIconShape=IconShapeCatalog.index(this);
+        IconButtons.decorate(findViewById(android.R.id.content));
     }
 
     protected boolean canRecreateForTheme() { return true; }

@@ -24,8 +24,12 @@ public class NetworkActivity extends BaseActivity {
     private CheckBox autoFallbackCheck;
     private RadioButton localModeButton, vpnModeButton;
     private TextView resultText;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newFixedThreadPool(2);
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    private volatile int requestGeneration;
+    private java.util.concurrent.Future<?> requestTask;
+    private AlertDialog discoveryDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +46,21 @@ public class NetworkActivity extends BaseActivity {
         autoFallbackCheck = findViewById(R.id.networkAutoFallbackCheck);
 
         load();
+        findViewById(R.id.networkVpnHeader).setOnClickListener(v -> {
+            android.view.View pane = findViewById(R.id.networkVpnPane);
+            boolean expanded = pane.getVisibility() != android.view.View.VISIBLE;
+            pane.setVisibility(expanded ? android.view.View.VISIBLE : android.view.View.GONE);
+            v.setSelected(expanded); IconButtons.decorate(v);
+        });
+        if (getIntent().getBooleanExtra("expand_vpn", false)) findViewById(R.id.networkVpnHeader).performClick();
+        modeGroup.setOnCheckedChangeListener((group, id) -> cancelRequest());
+        android.text.TextWatcher watcher = new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            public void onTextChanged(CharSequence s, int start, int before, int count) { cancelRequest(); }
+            public void afterTextChanged(android.text.Editable s) { }
+        };
+        localHostInput.addTextChangedListener(watcher);
+        vpnHostInput.addTextChangedListener(watcher);
         findViewById(R.id.networkBackButton).setOnClickListener(v -> finish());
         findViewById(R.id.networkSaveButton).setOnClickListener(v -> save());
         findViewById(R.id.networkTestButton).setOnClickListener(v -> testConnection());
@@ -91,24 +110,29 @@ public class NetworkActivity extends BaseActivity {
             Toast.makeText(this, "Укажи адрес", Toast.LENGTH_SHORT).show();
             return;
         }
+        cancelRequest();
+        final int generation = requestGeneration;
         resultText.setText("Проверяю " + primary + ":" + port + "…");
         final boolean autoFallback = autoFallbackCheck.isChecked();
-        executor.execute(() -> {
+        requestTask = executor.submit(() -> {
             ProbeResult first = probe(primary, port);
             StringBuilder result = new StringBuilder();
             result.append("Основной: ").append(primary).append(" — ").append(first.message);
-            if (first.ok) ConnectionSelector.rememberWorkingHost(this, primary);
+
 
             if (autoFallback && !TextUtils.isEmpty(alternate) && !alternate.equals(primary)) {
                 ProbeResult second = probe(alternate, port);
                 result.append("\nРезервный: ").append(alternate).append(" — ").append(second.message);
                 if (!first.ok && second.ok) {
-                    ConnectionSelector.rememberWorkingHost(this, alternate);
+
                     result.append("\nАвтопереход сможет использовать резервный маршрут.");
                 }
             }
             final String text = result.toString();
-            handler.post(() -> resultText.setText(text));
+            handler.post(() -> {
+                if (!isUiActive() || generation != requestGeneration) return;
+                resultText.setText(text);
+            });
         });
     }
 
@@ -152,11 +176,14 @@ public class NetworkActivity extends BaseActivity {
     private void discoverLocalServer() {
         int port = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE)
                 .getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT);
+        cancelRequest();
+        final int generation = requestGeneration;
         resultText.setText("Ищу устройства с SSH-портом " + port + " в текущей Wi‑Fi сети…");
         findViewById(R.id.networkDiscoverButton).setEnabled(false);
-        executor.execute(() -> {
+        requestTask = executor.submit(() -> {
             LocalServerDiscovery.Result result = LocalServerDiscovery.discover(port);
             handler.post(() -> {
+                if (!isUiActive() || generation != requestGeneration) return;
                 findViewById(R.id.networkDiscoverButton).setEnabled(true);
                 String own = TextUtils.isEmpty(result.localIp) ? "—" : result.localIp;
                 if (result.hosts.isEmpty()) {
@@ -178,7 +205,7 @@ public class NetworkActivity extends BaseActivity {
                             .setItems(candidates, (d, which) ->
                                     applyDiscoveredHost(candidates[which], port));
                 }
-                dialog.show();
+                discoveryDialog = dialog.show();
                 resultText.setText("IP этого телефона: " + own + "\n" + result.message
                         + "\nКандидаты: " + TextUtils.join(", ", result.hosts));
             });
@@ -210,6 +237,15 @@ public class NetworkActivity extends BaseActivity {
         return TextUtils.isEmpty(m) ? e.getClass().getSimpleName() : m;
     }
 
+    private void cancelRequest() {
+        ++requestGeneration;
+        if (requestTask != null) requestTask.cancel(true);
+        findViewById(R.id.networkDiscoverButton).setEnabled(true);
+        if (discoveryDialog != null) discoveryDialog.dismiss();
+        if (resultText.getText().toString().startsWith("Проверяю ") || resultText.getText().toString().startsWith("Ищу устройства"))
+            resultText.setText("Проверка отменена. Нажми нужную функцию снова.");
+    }
+    @Override protected void onPause() { cancelRequest(); super.onPause(); }
     @Override
     protected void onDestroy() {
         executor.shutdownNow();

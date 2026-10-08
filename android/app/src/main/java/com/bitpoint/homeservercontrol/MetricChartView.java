@@ -39,12 +39,14 @@ public class MetricChartView extends View {
     }
 
     void setLabels(String unit, String windowLabel) {
+        if (this.unit.equals(unit) && this.windowLabel.equals(windowLabel)) return;
         this.unit = unit;
         this.windowLabel = windowLabel;
         invalidate();
     }
 
     void setValues(List<Float> input, float min, float max) {
+        if (values.equals(input) && Float.compare(fixedMin, min)==0 && Float.compare(fixedMax, max)==0) return;
         values.clear();
         if (input != null) values.addAll(input);
         fixedMin = min;

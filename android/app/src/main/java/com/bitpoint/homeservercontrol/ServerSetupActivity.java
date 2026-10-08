@@ -32,7 +32,7 @@ public final class ServerSetupActivity extends BaseActivity {
     private EditText password, confirmation, host;
     private TextView status;
     private CheckBox createPassword;
-    private boolean busy;
+    private boolean busy, quickPrepare;
     private String verifiedFingerprint = "";
     private JSONObject exportProfile;
     private final Runnable refresh = new Runnable() {
@@ -82,6 +82,8 @@ public final class ServerSetupActivity extends BaseActivity {
                 new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE), IMPORT));
         findViewById(R.id.closeServerSetupButton).setOnClickListener(v -> finish());
         showFolder();
+        quickPrepare = state == null && getIntent().getBooleanExtra("auto_prepare", false);
+        if (quickPrepare) handler.post(this::prepareServer);
     }
     @Override protected void onResume() { super.onResume(); handler.removeCallbacks(refresh); handler.post(refresh); }
     @Override protected void onPause() { handler.removeCallbacks(refresh); super.onPause(); }
@@ -117,31 +119,34 @@ public final class ServerSetupActivity extends BaseActivity {
                 || !value.equals(confirmation.getText().toString()))) {
             message("Новый пароль: 8–128 символов; оба поля должны совпадать."); return;
         }
+        if (quickPrepare && !change) { quickPrepare = false; beginPreparation(false, ""); return; }
         new AlertDialog.Builder(this).setTitle(change ? "Задать пароль сервера?" : "Подготовить сервер?")
                 .setMessage(change ? "Пароль Termux будет заменён. Работающие SSH-сеансы и способ автозапуска сохранятся."
                         : "Текущий пароль и работающий sshd сохранятся. OpenSSH установится при необходимости.")
-                .setNegativeButton("Отмена", null).setPositiveButton("Подготовить", (dialog, which) -> {
-                    verifiedFingerprint = "";
-                    findViewById(R.id.exportServerProfileButton).setEnabled(false);
-                    busy = true;
-                    status.setText("Настройка доступа Termux…");
-                    char[] secret = change ? value.toCharArray() : new char[0];
-                    Uri tree = Uri.parse(setup.getString("tree", ""));
-                    worker.execute(() -> {
-                        boolean success = false;
-                        try { TermuxSetup.configure(this, tree, secret); success = true; }
-                        catch (Exception e) { /* No secret-bearing provider errors in logs. */ }
-                        finally { Arrays.fill(secret, '\0'); }
-                        final boolean ready = success;
-                        handler.post(() -> {
-                            if (isFinishing() || isDestroyed()) return;
-                            busy = false;
-                            if (ready) TermuxSetup.run(this);
-                            else message("Не удалось подготовить папку Termux. Выбери её повторно и проверь первый запуск.");
-                        });
-                    });
-                }).show();
+                .setNegativeButton("Отмена", null).setPositiveButton("Подготовить", (dialog, which) -> beginPreparation(change, value)).show();
     }
+    private void beginPreparation(boolean change, String value) {
+        verifiedFingerprint = "";
+        findViewById(R.id.exportServerProfileButton).setEnabled(false);
+        busy = true;
+        status.setText("Настройка доступа Termux…");
+        char[] secret = change ? value.toCharArray() : new char[0];
+        Uri tree = Uri.parse(setup.getString("tree", ""));
+        worker.execute(() -> {
+            boolean success = false;
+            try { TermuxSetup.configure(this, tree, secret); success = true; }
+            catch (Exception e) { /* No secret-bearing provider errors in logs. */ }
+            finally { Arrays.fill(secret, '\0'); }
+            final boolean ready = success;
+            handler.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                busy = false;
+                if (ready) TermuxSetup.run(this);
+                else message("Не удалось подготовить папку Termux. Выбери её повторно и проверь первый запуск.");
+            });
+        });
+    }
+
     private void verify() {
         if (busy || !setup.getString("pending", "").isEmpty()) return;
         final String secret = password.getText().toString();

@@ -35,7 +35,7 @@ public class ServerMenuInstrumentedTest {
                     for (int id : new int[]{R.id.agentStartButton, R.id.agentStopButton, R.id.agentRestartButton, R.id.serverWizardMenuButton}) {
                         Button button = dialog.findViewById(id);
                         assertTrue(button.isShown());
-                        assertNotNull(button.getCompoundDrawables()[1]);
+                        assertTrue(button.getCompoundDrawables()[0] != null || button.getCompoundDrawables()[1] != null);
                     }
                     assertEquals(View.GONE, dialog.findViewById(R.id.agentCredentialsPanel).getVisibility());
                     dialog.findViewById(R.id.agentCredentialsToggleButton).performClick();
