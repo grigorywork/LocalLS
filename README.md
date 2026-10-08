@@ -8,6 +8,10 @@
 
 ## Приложения и сборки
 
+- [Скачать Windows EXE — LocalLS 0.1.0](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-0.1.0-Windows-x64-Setup.exe)
+- [Скачать Android APK — LocalLS 0.9.3](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.3/LocalLS-v0.9.3-debug.apk)
+- [Windows ZIP](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-Windows-x64.zip) и [все сохранённые релизы](https://github.com/grigorywork/LocalLS/releases).
+
 | Приложение | Версия | Система | Установочный файл |
 | --- | --- | --- | --- |
 | LocalLS Android | 0.9.3 | Android 7.0+ (minSdk 24) | `LocalLS-v0.9.3-debug.apk` |
@@ -63,6 +67,8 @@ node tools/verify-package.cjs
 История импортирована из этих снимков при подготовке репозитория; это не восстановленная
 история всех отдельных правок. Прежние Android-версии доступны по тегам и в Releases.
 Исходная рабочая v0.8 сохранена; дальнейшие планы v1.0 находятся в документации приложений.
+
+Публикация и проверка ссылок от 8 октября 2026: [`docs/PUBLICATION_REPORT.md`](docs/PUBLICATION_REPORT.md).
 
 ## Безопасность и права
 
