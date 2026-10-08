@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.HomeServerControl" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:buttonStyle">@style/Widget.HSC.CompactButton</item>
+    </style>
+    <style name="Widget.HSC.CompactButton" parent="android:style/Widget.Material.Button">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingRight">8dp</item>
+        <item name="android:background">@drawable/button_purple</item>
+        <item name="android:textColor">@color/button_text</item>
+    </style>
+    <style name="Widget.HSC.SecondaryButton" parent="Widget.HSC.CompactButton">
+        <item name="android:background">@drawable/button_purple_secondary</item>
+    </style>
+</resources>

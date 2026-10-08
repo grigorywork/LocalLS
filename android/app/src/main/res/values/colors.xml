@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#141019</color>
+    <color name="panel">#211B2A</color>
+    <color name="text_primary">#F4F7FA</color>
+    <color name="text_secondary">#B9AEC8</color>
+    <color name="green">#55D68B</color>
+    <color name="red">#FF6B6B</color>
+    <color name="amber">#FFCA62</color>
+    <color name="accent">#B58AFF</color>
+    <color name="purple_button">#7841D3</color>
+    <color name="purple_secondary">#38244F</color>
+    <color name="stroke">#3B2E4A</color>
+</resources>
