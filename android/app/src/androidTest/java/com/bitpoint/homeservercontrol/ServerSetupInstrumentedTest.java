@@ -19,6 +19,46 @@ import org.junit.runner.RunWith;
 public class ServerSetupInstrumentedTest {
     private final Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
+    @Test public void trailingPropertiesContinuationCannotHideExternalAppsPermission() throws Exception {
+        String previous = "extra-keys=kept" + (char) 92;
+        // Reproduce the former file: allow-external-apps becomes part of extra-keys.
+        assertFalse(TermuxSetup.externalAppsAllowed(previous + "\nallow-external-apps=true\n"));
+        String corrected = TermuxSetup.enableExternalApps(previous);
+        java.util.Properties parsed = new java.util.Properties();
+        parsed.load(new java.io.ByteArrayInputStream(corrected.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        assertEquals("true", parsed.getProperty("allow-external-apps"));
+        assertEquals("kept", parsed.getProperty("extra-keys"));
+        assertTrue(TermuxSetup.externalAppsAllowed(corrected));
+        assertFalse(TermuxSetup.externalAppsAllowed("bad=" + (char) 92 + "u12ZZ\nallow-external-apps=true\n"));
+    }
+
+    @Test public void refusedRunCommandShowsSafeRecoveryAndCodesWithoutRawError() {
+        SharedPreferences prefs = context.getSharedPreferences(TermuxSetup.PREFS, Context.MODE_PRIVATE);
+        String oldStatus = prefs.getString("status", "");
+        String secret = InstrumentationRegistry.getArguments().getString("fixturePassword", "private error sample");
+        try {
+            prefs.edit().putString("pending", "policy-refusal").putLong("pending_at", System.currentTimeMillis()).commit();
+            Bundle denied = new Bundle();
+            denied.putInt("err", 0); denied.putInt("exitCode", -1);
+            denied.putString("errmsg", "allow-external-apps policy refused " + secret);
+            new TermuxResultReceiver().onReceive(context,
+                    new Intent("localls.setup.policy-refusal").putExtra("result", denied));
+            String message = prefs.getString("status", "");
+            assertTrue(message.contains("внешних команд"));
+            assertTrue(message.contains("Код Termux: 0"));
+            assertFalse(message.contains(secret));
+            assertFalse(message.contains("policy refused"));
+            assertEquals("", prefs.getString("pending", ""));
+            assertTrue(TermuxResultReceiver.failureMessage(true, 2, -1, "executable /usr/bin/bash unavailable")
+                    .contains("установки среды"));
+            assertTrue(TermuxResultReceiver.failureMessage(true, 2, -1, "permission denied")
+                    .contains("Разрешения"));
+        } finally {
+            prefs.edit().putString("status", oldStatus).remove("pending")
+                    .remove("last_termux_error").remove("last_exit_code").commit();
+        }
+    }
+
     @Test public void termuxPropertiesPreserveUnrelatedSettingsAndHashMatchesIndependentVector() throws Exception {
         String result = TermuxSetup.enableExternalApps("# preserved\nextra-keys=[['ESC']]\nallow-external-apps=false\n allow-external-apps = false\n");
         assertTrue(result.contains("extra-keys=[['ESC']]"));
@@ -77,7 +117,7 @@ public class ServerSetupInstrumentedTest {
         // Restore setup data after this protocol test; keep an actual OS folder grant intact.
         String oldUser=prefs.getString("user", ""), oldRole=prefs.getString("device_role", "");
         int oldPort=prefs.getInt("port",8022);
-        String oldStatus=prefs.getString("status", "");
+        String oldStatus=prefs.getString("status", ""), oldApplied=prefs.getString("applied_termux_version", "");
         try {
             prefs.edit().putString("pending","official-success").putLong("pending_at",System.currentTimeMillis()).commit();
             Bundle success=new Bundle();success.putInt("err",-1);success.putInt("exitCode",0);
@@ -95,6 +135,7 @@ public class ServerSetupInstrumentedTest {
             assertTrue(prefs.getString("status","").contains("не завершена"));
         } finally {
             prefs.edit().putString("user",oldUser).putInt("port",oldPort).putString("device_role",oldRole)
+                    .putString("applied_termux_version",oldApplied)
                     .putString("status",oldStatus).remove("pending").remove("last_termux_error").remove("last_exit_code").commit();
         }
     }

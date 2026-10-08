@@ -32,7 +32,8 @@ public final class ServerSetupActivity extends BaseActivity {
     private EditText password, confirmation, host;
     private TextView status;
     private CheckBox createPassword;
-    private boolean busy, quickPrepare;
+    private boolean busy, quickPrepare, awaitingReload, leftForReload;
+    private long reloadOpenedAt;
     private String verifiedFingerprint = "";
     private JSONObject exportProfile;
     private final Runnable refresh = new Runnable() {
@@ -53,6 +54,11 @@ public final class ServerSetupActivity extends BaseActivity {
         super.onCreate(state);
         setContentView(R.layout.activity_server_setup);
         setup = getSharedPreferences(TermuxSetup.PREFS, MODE_PRIVATE);
+        if (state != null) {
+            awaitingReload = state.getBoolean("awaiting_termux_reload", false);
+            leftForReload = awaitingReload;
+            reloadOpenedAt = state.getLong("termux_reload_opened_at", 0);
+        }
         if (state != null && state.containsKey("public_export_profile")) {
             try { exportProfile = new JSONObject(state.getString("public_export_profile")); }
             catch (Exception e) { exportProfile = null; }
@@ -68,6 +74,16 @@ public final class ServerSetupActivity extends BaseActivity {
             confirmation.setText("");
         });
         findViewById(R.id.prepareTermuxButton).setOnClickListener(v -> openTermux());
+        findViewById(R.id.termuxHelpButton).setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Доступ к Termux")
+                .setMessage("1. Открой Termux один раз и дождись установки среды.\n2. Выбери корневую папку Termux в этом мастере.\n3. В разрешениях LocalLS разреши выполнение команд Termux.\n4. Нажми «Подготовить сервер».\n\nПри ERROR RUN_COMMAND прочитай текст окна Termux. Не удаляй данные Termux: в них находится существующий сервер.")
+                .setNegativeButton("Понятно", null)
+                .setNeutralButton("Termux", (dialog, which) -> openTermux())
+                .setPositiveButton("Разрешения", (dialog, which) -> {
+                    try { startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:" + getPackageName()))); }
+                    catch (RuntimeException e) { message("Открой системные настройки → Приложения → LocalLS → Разрешения."); }
+                }).show());
         findViewById(R.id.selectTermuxFolderButton).setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
@@ -85,8 +101,19 @@ public final class ServerSetupActivity extends BaseActivity {
         quickPrepare = state == null && getIntent().getBooleanExtra("auto_prepare", false);
         if (quickPrepare) handler.post(this::prepareServer);
     }
-    @Override protected void onResume() { super.onResume(); handler.removeCallbacks(refresh); handler.post(refresh); }
-    @Override protected void onPause() { handler.removeCallbacks(refresh); super.onPause(); }
+    @Override protected void onResume() {
+        super.onResume(); handler.removeCallbacks(refresh); handler.post(refresh);
+        if (awaitingReload && leftForReload) {
+            awaitingReload = leftForReload = false;
+            if (System.currentTimeMillis() - reloadOpenedAt < 3200) {
+                setup.edit().putString("status", "Termux был закрыт слишком быстро. Нажми «Подготовить сервер» и вернись из Termux через несколько секунд.").apply();
+            } else handler.post(() -> { if (isUiActive() && !busy && setup.getString("pending", "").isEmpty()) TermuxSetup.run(this); });
+        }
+    }
+    @Override protected void onPause() {
+        if (awaitingReload) leftForReload = true;
+        handler.removeCallbacks(refresh); super.onPause();
+    }
     @Override protected void onDestroy() { handler.removeCallbacks(refresh); worker.shutdownNow(); password.setText(""); confirmation.setText(""); super.onDestroy(); }
     @Override protected boolean canRecreateForTheme() { return !busy; }
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
@@ -97,6 +124,8 @@ public final class ServerSetupActivity extends BaseActivity {
         }
     }
     @Override protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean("awaiting_termux_reload", awaitingReload);
+        state.putLong("termux_reload_opened_at", reloadOpenedAt);
         if (exportProfile != null) state.putString("public_export_profile", exportProfile.toString());
         super.onSaveInstanceState(state);
     }
@@ -133,16 +162,37 @@ public final class ServerSetupActivity extends BaseActivity {
         char[] secret = change ? value.toCharArray() : new char[0];
         Uri tree = Uri.parse(setup.getString("tree", ""));
         worker.execute(() -> {
-            boolean success = false;
-            try { TermuxSetup.configure(this, tree, secret); success = true; }
-            catch (Exception e) { /* No secret-bearing provider errors in logs. */ }
+            String failure = "";
+            try { TermuxSetup.configure(this, tree, secret); }
+            catch (TermuxSetup.ExternalAppsNotEnabledException e) {
+                failure = "Доступ к внешним командам не подтверждён в настройках Termux. Выбери его папку повторно. Если ошибка остаётся, пришли текст окна ERROR RUN_COMMAND без пароля.";
+            }
+            catch (Exception e) { failure = "Не удалось подготовить папку Termux. Выбери её повторно и проверь первый запуск."; }
             finally { Arrays.fill(secret, '\0'); }
-            final boolean ready = success;
+            final String problem = failure;
             handler.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 busy = false;
-                if (ready) TermuxSetup.run(this);
-                else message("Не удалось подготовить папку Termux. Выбери её повторно и проверь первый запуск.");
+                if (problem.isEmpty()) {
+                    if (TermuxSetup.needsSettingsReload(this)) {
+                        new AlertDialog.Builder(this).setTitle("Применить доступ в Termux")
+                                .setMessage("Termux нужно обновить настройки в памяти. Открой его кнопкой ниже, подожди несколько секунд и вернись в LocalLS кнопкой «Назад». Если первый раз скрылась клавиатура, нажми «Назад» ещё раз. Вводить команды не нужно. Работающая SSH-служба сохранится.")
+                                .setNegativeButton("Позже", null).setPositiveButton("Открыть и применить", (dialog, which) -> {
+                                    awaitingReload = true; leftForReload = false;
+                                    reloadOpenedAt = System.currentTimeMillis();
+                                    try { TermuxSetup.openForSettingsReload(this); }
+                                    catch (RuntimeException e) {
+                                        awaitingReload = false;
+                                        message("Не удалось открыть Termux. Открой его через значок приложения и повтори.");
+                                    }
+                                }).show();
+                    } else TermuxSetup.run(this);
+                }
+                else {
+                    setup.edit().putString("status", problem).apply();
+                    status.setText(problem);
+                    message(problem);
+                }
             });
         });
     }

@@ -14,7 +14,7 @@ def main():
  ns='http://schemas.android.com/apk/res/android';ET.register_namespace('android',ns)
  manifest=ET.parse(root/'app/src/main/AndroidManifest.xml');m=manifest.getroot();m.set('package','com.bitpoint.homeservercontrol')
  uses=ET.Element('uses-sdk');m.insert(0,uses);uses.set('{'+ns+'}minSdkVersion','24');uses.set('{'+ns+'}targetSdkVersion','37')
- m.set('{'+ns+'}versionCode','11');m.set('{'+ns+'}versionName','0.9.2');m.find('application').set('{'+ns+'}debuggable','true')
+ m.set('{'+ns+'}versionCode','12');m.set('{'+ns+'}versionName','0.9.3');m.find('application').set('{'+ns+'}debuggable','true')
  manifest.write(out/'AndroidManifest.xml',encoding='utf-8',xml_declaration=True)
  run(bt/'aapt2','compile','--dir',root/'app/src/main/res','-o',out/'compiled-res.zip')
  run(bt/'aapt2','link','-I',android,'--manifest',out/'AndroidManifest.xml','--java',out/'generated','--min-sdk-version','24','--target-sdk-version','37','--compile-sdk-version-code','37','--compile-sdk-version-name','17','-o',out/'resources.apk',out/'compiled-res.zip')
@@ -34,7 +34,7 @@ def main():
      result.writestr(name,archive.read(name));written.add(name)
   for dex in sorted((out/'dex').glob('*.dex')):result.write(dex,dex.name)
  run(bt/'zipalign','-P','16','-f','4',out/'unsigned.apk',out/'aligned.apk')
- destination=root/'artifacts/LocalLS-v0.9.2-preview.apk'
+ destination=root/'artifacts/LocalLS-v0.9.3-preview.apk'
  run(bt/'apksigner','sign','--ks',a.keystore,'--ks-key-alias','androiddebugkey','--ks-pass','pass:android','--key-pass','pass:android','--out',destination,out/'aligned.apk')
  metadata=verify(destination,sdk);metadata['buildMethod']='Official Android SDK AAPT2 + javac + D8 + zipalign + apksigner; Gradle gate remains blocked';metadata['d8Jar']=str(a.d8_jar or bt/'lib/d8.jar')
  (root/'artifacts/apk-preview-metadata.json').write_text(json.dumps(metadata,indent=2,ensure_ascii=False)+'\n')

@@ -20,7 +20,11 @@ public final class TermuxResultReceiver extends BroadcastReceiver {
         SharedPreferences.Editor edit = prefs.edit().remove("pending")
                 .putInt("last_termux_error", error).putInt("last_exit_code", exit);
         if (result == null || error != -1 || exit != 0) {
-            edit.putString("status", failureMessage(result != null, error, exit)).apply();
+            String detail = result == null ? "" : result.getString("errmsg", "");
+            if (detail != null && detail.contains("allow-external-apps")) edit.remove("applied_termux_version");
+            edit.putString("status", failureMessage(result != null, error, exit,
+                    detail)
+                    + "\nКод Termux: " + error + "; завершение: " + exit).apply();
             return;
         }
         String output = result.getString("stdout", "");
@@ -36,12 +40,26 @@ public final class TermuxResultReceiver extends BroadcastReceiver {
         int number = Integer.parseInt(port);
         if (number < 1 || number > 65535) { edit.putString("status", "Некорректный порт сервера.").apply(); return; }
         edit.putString("user", user).putInt("port", number).putString("device_role", "server")
+                .putString("applied_termux_version", TermuxSetup.version(context))
                 .putString("status", "OpenSSH подготовлен. Проверь подключение перед экспортом.").apply();
     }
-    private static String failureMessage(boolean received, int error, int exit) {
+    static String failureMessage(boolean received, int error, int exit, String rawError) {
         String prefix = "Подготовка не завершена. ";
         if (!received) return prefix + "Termux не вернул результат. Проверь первый запуск и повтори.";
-        if (error != -1) return prefix + "Termux отклонил команду. Проверь разрешение выполнения команд и первый запуск.";
+        if (error != -1) {
+            // Inspect only known markers; never return or persist raw Termux errors.
+            String detail = rawError == null ? "" : rawError.substring(0, Math.min(rawError.length(), 16384))
+                    .toLowerCase(java.util.Locale.ROOT);
+            if (detail.contains("allow-external-apps"))
+                return prefix + "Termux не применил разрешение внешних команд. Нажми «Подготовить сервер»: мастер откроет Termux для обновления настроек. Вернись кнопкой «Назад» через несколько секунд.";
+            if (detail.contains("executable") || detail.contains("/usr/bin/bash"))
+                return prefix + "Termux не может открыть исполняемый файл. Открой Termux и дождись установки среды; затем повтори.";
+            if (detail.contains("permission") || detail.contains("разрешени"))
+                return prefix + "Termux отказал в доступе. Проверь LocalLS → Разрешения → Выполнение команд Termux.";
+            if (detail.contains("working directory") || detail.contains("working-directory"))
+                return prefix + "Termux не может открыть домашнюю папку. Открой Termux, затем повторно выбери его корневую папку.";
+            return prefix + "Termux отклонил RUN_COMMAND. Открой Termux и проверь текст его уведомления; затем вернись и повтори.";
+        }
         if (exit == 40) return prefix + "Не удалось обновить список пакетов. Проверь интернет и повтори.";
         if (exit == 41) return prefix + "Не удалось установить OpenSSH. Проверь интернет и свободное место.";
         return prefix + "Команда Termux завершилась с ошибкой. Проверь среду Termux и повтори.";

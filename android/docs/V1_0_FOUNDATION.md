@@ -1,8 +1,8 @@
 # Основа LocalLS v1.0
 
-Рабочая Home Server Control v0.8 сохранена отдельно. Новая LocalLS v0.9.2 имеет
-тот же applicationId com.bitpoint.homeservercontrol, versionCode 11, versionName 0.9.2
-и minSdk 24. v1.0 разрабатывать отдельно; versionCode должен быть больше 11.
+Рабочая Home Server Control v0.8 сохранена отдельно. Новая LocalLS v0.9.3 имеет
+тот же applicationId com.bitpoint.homeservercontrol, versionCode 12, versionName 0.9.3
+и minSdk 24. v1.0 разрабатывать отдельно; versionCode должен быть больше 12.
 Проверенные APK и SHA-256 фиксируются в соответствующих BUILD_REPORT.md.
 
 ## Уже подготовлено

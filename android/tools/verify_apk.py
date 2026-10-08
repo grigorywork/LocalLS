@@ -36,18 +36,18 @@ def verify(apk, sdk):
     if "launchable-activity: name='com.bitpoint.homeservercontrol.MainActivity'" not in badging:
         raise ValueError("Launcher missing")
     run(aapt, "dump", "xmltree", apk, "AndroidManifest.xml")
-    signature = run(signer, "verify", "--verbose", "--min-sdk-version", "24", "--max-sdk-version", "29", apk)
+    signature = run(signer, "verify", "--verbose", "--min-sdk-version", "24", "--max-sdk-version", "36", apk)
     run(align, "-c", "-P", "16", "4", apk)
     return {"apk": str(apk), "bytes": apk.stat().st_size,
             "sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
             "package": package, "minSdk": minimum, "targetSdk": target,
-            "manifest": "valid", "signature": "verified for API 24–29",
+            "manifest": "valid", "signature": "verified for API 24–36",
             "zipAlignment": "valid", "signatureDetails": signature.strip()}
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("apk", nargs="?", default="artifacts/LocalLS-v0.9.2-debug.apk")
+    parser.add_argument("apk", nargs="?", default="artifacts/LocalLS-v0.9.3-debug.apk")
     parser.add_argument("--sdk", default=os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT"))
     args = parser.parse_args()
     if not args.sdk:

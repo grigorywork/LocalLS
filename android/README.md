@@ -1,8 +1,25 @@
-# LocalLS v0.9.2
+# LocalLS v0.9.3
 
 Android-пульт и SFTP-проводник для личного сервера на Termux/OpenSSH.
 Продолжение Home Server Control; рабочая v0.8 сохранена отдельно.
 Название и значок обновлены: облако с золотой молнией.
+
+## Проверка доступа и диагностика 0.9.3
+
+Мастер проверяет разрешение внешних команд стандартным Properties parser до записи
+и повторным чтением файла после записи, прежде чем вызывать RUN_COMMAND. Исправлен
+случай продолжения последней строки: разрешение больше не становится частью
+предыдущего значения. Некорректный файл не меняется и новый пароль не записывается.
+
+Отказ RUN_COMMAND показывает фиксированные инструкции по известным признакам
+Termux и числовые коды. Сырой errmsg, stdout/stderr и секреты не сохраняются.
+Кнопка «Помощь с доступом Termux» открывает Termux или системные разрешения LocalLS.
+В Termux 0.119 настройки разрешений кэшируются. При первой подготовке мастер
+открывает Termux, отправляет штатный пакетный reload_style без пересоздания Activity
+и продолжает RUN_COMMAND после возвращения кнопкой «Назад». В Termux нужно подождать
+несколько секунд, вводить команды не требуется. Процесс и схема запуска sshd не меняются.
+Версия Termux отмечается применённой только после фактического успешного callback.
+Реальный policy refusal очищает эту отметку, чтобы повторная подготовка применила настройки.
 
 ## Исправления 0.9.2
 
@@ -136,15 +153,15 @@ foreground service, CPU/Wi-Fi locks, история, mkdir/rename/удалени
 
 JDK 17, Gradle 9.6.0, AGP 9.4.1, Android Platform android-37.0, Build Tools 36.0.0.
 minSdk 24, compileSdk/targetSdk 37. applicationId com.bitpoint.homeservercontrol
-сохранён для обновления поверх предыдущего APK; versionCode 11, versionName 0.9.2.
+сохранён для обновления поверх предыдущего APK; versionCode 12, versionName 0.9.3.
 
 ```bash
 python3 tools/audit_project.py
 ./gradlew clean assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
 mkdir -p artifacts
-cp app/build/outputs/apk/debug/app-debug.apk artifacts/LocalLS-v0.9.2-debug.apk
+cp app/build/outputs/apk/debug/app-debug.apk artifacts/LocalLS-v0.9.3-debug.apk
 python3 tools/verify_apk.py --sdk "$ANDROID_SDK_ROOT"
-adb install -r artifacts/LocalLS-v0.9.2-debug.apk
+adb install -r artifacts/LocalLS-v0.9.3-debug.apk
 ```
 
 На Windows: `gradlew.bat clean assembleDebug`; bootstrap scripts находятся в tools.
@@ -181,10 +198,10 @@ adb install -r artifacts/LocalLS-v0.9.2-debug.apk
 `tools/offline_android_build.py`: реальные AAPT2, javac, D8, zipalign и apksigner.
 Нужны уже установленные SDK/JDK, кэшированные runtime JAR и debug keystore.
 Для Kotlin 2.3.21 применяется D8 9.4.24 из официального cached AGP builder 9.4.1.
-Создаётся `artifacts/LocalLS-v0.9.2-preview.apk`, читаемый Android build-tools.
+Создаётся `artifacts/LocalLS-v0.9.3-preview.apk`, читаемый Android build-tools.
 Это настоящий Android APK, однако SDK-сборка не подменяет обязательный Gradle gate.
 7 октября 2026 дополнительный сетевой доступ позволил повторить полную Gradle-сборку:
-`BUILD SUCCESSFUL`. Актуальные функции теперь входят в `artifacts/LocalLS-v0.9.2-debug.apk`;
+`BUILD SUCCESSFUL`. Актуальные функции теперь входят в `artifacts/LocalLS-v0.9.3-debug.apk`;
 preview не заменяет итоговый APK. SHA, версии, реальные результаты
 проверок и ограничения устройств указаны в BUILD_REPORT.md.
 

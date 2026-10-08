@@ -44,7 +44,52 @@ final class TermuxSetup {
         for (String line : properties.split("\\r?\\n")) {
             if (!line.matches("\\s*allow-external-apps\\s*[=:].*")) result.append(line).append('\n');
         }
-        return result.append("allow-external-apps=true\n").toString();
+        // Android Properties skips blank continuation lines. Remove an unmatched
+        // EOF escape (the parser already discards it) before appending a new key.
+        int end = result.length();
+        while (end > 0 && (result.charAt(end - 1) == '\n' || result.charAt(end - 1) == '\r')) end--;
+        int slash = end;
+        while (slash > 0 && result.charAt(slash - 1) == '\\') slash--;
+        if ((end - slash) % 2 == 1) result.deleteCharAt(end - 1);
+        return result.append("\nallow-external-apps=true\n").toString();
+    }
+
+    static boolean externalAppsAllowed(String properties) {
+        java.util.Properties parsed = new java.util.Properties();
+        try {
+            parsed.load(new java.io.StringReader(properties));
+            return "true".equalsIgnoreCase(parsed.getProperty("allow-external-apps", ""));
+        } catch (java.io.IOException | IllegalArgumentException e) { return false; }
+    }
+
+    static final class ExternalAppsNotEnabledException extends java.io.IOException { }
+
+    static String version(Context context) {
+        try {
+            String name = context.getPackageManager().getPackageInfo(PACKAGE, 0).versionName;
+            return name == null ? "unknown" : name;
+        }
+        catch (android.content.pm.PackageManager.NameNotFoundException e) { return ""; }
+    }
+
+    static boolean needsSettingsReload(Context context) {
+        String version = version(context);
+        boolean cached = !version.matches("(?:v)?0\\.11[0-8](?:\\..*)?");
+        return cached && !version.equals(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString("applied_termux_version", ""));
+    }
+
+    static void openForSettingsReload(Context context) {
+        Intent launch = context.getPackageManager().getLaunchIntentForPackage(PACKAGE);
+        if (launch == null) throw new IllegalStateException();
+        context.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        // The official receiver processes reloads only while Termux is visible.
+        // Refresh in place: neither recreate the Activity nor stop its service.
+        android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+        Context app = context.getApplicationContext();
+        for (long delay : new long[]{300, 800, 1600, 3000}) handler.postDelayed(() ->
+                app.sendBroadcast(new Intent("com.termux.app.reload_style").setPackage(PACKAGE)
+                        .putExtra("com.termux.app.TermuxActivity.EXTRA_RECREATE_ACTIVITY", false)), delay);
     }
 
     static byte[] passwordHash(char[] password) throws Exception {
@@ -61,7 +106,19 @@ final class TermuxSetup {
         Uri root = DocumentsContract.buildDocumentUriUsingTree(tree, HOME);
         Uri dir = child(context, tree, root, ".termux", true);
         Uri properties = child(context, tree, dir, "termux.properties", false);
-        String previous;
+        String previous = readProperties(context, properties);
+        String enabled = enableExternalApps(previous);
+        if (!externalAppsAllowed(enabled)) throw new ExternalAppsNotEnabledException();
+        write(context, properties, enabled.getBytes(StandardCharsets.UTF_8));
+        if (!externalAppsAllowed(readProperties(context, properties))) throw new ExternalAppsNotEnabledException();
+        if (password.length > 0) {
+            byte[] hash = passwordHash(password);
+            try { write(context, child(context, tree, root, ".termux_authinfo", false), hash); }
+            finally { Arrays.fill(hash, (byte) 0); }
+        }
+    }
+
+    private static String readProperties(Context context, Uri properties) throws Exception {
         try (InputStream stream = context.getContentResolver().openInputStream(properties)) {
             if (stream == null) throw new java.io.IOException();
             java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
@@ -72,13 +129,7 @@ final class TermuxSetup {
             }
             byte[] data = buffer.toByteArray();
             if (data.length > 65536) throw new IllegalArgumentException("Слишком большой файл настроек Termux.");
-            previous = new String(data, StandardCharsets.UTF_8);
-        }
-        write(context, properties, enableExternalApps(previous).getBytes(StandardCharsets.UTF_8));
-        if (password.length > 0) {
-            byte[] hash = passwordHash(password);
-            try { write(context, child(context, tree, root, ".termux_authinfo", false), hash); }
-            finally { Arrays.fill(hash, (byte) 0); }
+            return new String(data, StandardCharsets.UTF_8);
         }
     }
 
@@ -122,11 +173,16 @@ final class TermuxSetup {
                 .putExtra("com.termux.RUN_COMMAND_BACKGROUND_CUSTOM_LOG_LEVEL", "0")
                 .putExtra("com.termux.RUN_COMMAND_COMMAND_LABEL", "LocalLS: подготовка сервера")
                 .putExtra("com.termux.RUN_COMMAND_PENDING_INTENT", callback);
-        try { context.startService(command); }
+        try {
+            if (context.startService(command) == null) throw new IllegalStateException();
+        }
         catch (RuntimeException e) {
             callback.cancel();
+            String message = e instanceof SecurityException
+                    ? "Android запретил RUN_COMMAND. Разреши выполнение команд Termux в настройках LocalLS → Разрешения и повтори."
+                    : "Не удалось запустить RUN_COMMAND. Открой Termux, дождись подготовки среды, вернись в LocalLS и повтори.";
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("pending")
-                    .putString("status", "Не удалось обратиться к Termux. Проверь разрешение и первый запуск.").apply();
+                    .putString("status", message).apply();
         }
     }
 }
