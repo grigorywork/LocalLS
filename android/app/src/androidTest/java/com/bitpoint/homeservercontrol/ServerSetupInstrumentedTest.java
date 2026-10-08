@@ -72,6 +72,33 @@ public class ServerSetupInstrumentedTest {
         assertTrue(prefs.getString("status", "").contains("не завершена"));
     }
 
+    @Test public void callbackAcceptsOfficialTermuxSuccessAndRejectsZeroErrorCode() {
+        SharedPreferences prefs=context.getSharedPreferences(TermuxSetup.PREFS, Context.MODE_PRIVATE);
+        // Restore setup data after this protocol test; keep an actual OS folder grant intact.
+        String oldUser=prefs.getString("user", ""), oldRole=prefs.getString("device_role", "");
+        int oldPort=prefs.getInt("port",8022);
+        String oldStatus=prefs.getString("status", "");
+        try {
+            prefs.edit().putString("pending","official-success").putLong("pending_at",System.currentTimeMillis()).commit();
+            Bundle success=new Bundle();success.putInt("err",-1);success.putInt("exitCode",0);
+            success.putString("stdout","USER=u0_a123\nPORT=8022\n");
+            new TermuxResultReceiver().onReceive(context,new Intent("localls.setup.official-success").putExtra("result",success));
+            assertEquals("",prefs.getString("pending",""));
+            assertEquals("u0_a123",prefs.getString("user",""));
+            assertEquals("server",prefs.getString("device_role",""));
+            assertTrue(prefs.getString("status","").contains("OpenSSH подготовлен"));
+            prefs.edit().putString("pending","official-error").putLong("pending_at",System.currentTimeMillis()).commit();
+            success.putInt("err",0);success.putString("stdout","USER=untrusted\nPORT=9000\n");
+            new TermuxResultReceiver().onReceive(context,new Intent("localls.setup.official-error").putExtra("result",success));
+            assertEquals("u0_a123",prefs.getString("user",""));
+            assertEquals(0,prefs.getInt("last_termux_error",-2));
+            assertTrue(prefs.getString("status","").contains("не завершена"));
+        } finally {
+            prefs.edit().putString("user",oldUser).putInt("port",oldPort).putString("device_role",oldRole)
+                    .putString("status",oldStatus).remove("pending").remove("last_termux_error").remove("last_exit_code").commit();
+        }
+    }
+
     @Test public void wizardStartsSafelyAndDoesNotSaveOrRestorePassword() {
         try (ActivityScenario<ServerSetupActivity> scenario = ActivityScenario.launch(ServerSetupActivity.class)) {
             scenario.onActivity(activity -> {

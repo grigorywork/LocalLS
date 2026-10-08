@@ -14,9 +14,13 @@ public final class TermuxResultReceiver extends BroadcastReceiver {
         if (nonce.isEmpty() || !("localls.setup." + nonce).equals(intent.getAction())
                 || System.currentTimeMillis() - prefs.getLong("pending_at", 0) > 1800000) return;
         Bundle result = intent.getBundleExtra("result");
-        SharedPreferences.Editor edit = prefs.edit().remove("pending");
-        if (result == null || result.getInt("err", 0) != 0 || result.getInt("exitCode", -1) != 0) {
-            edit.putString("status", "Подготовка не завершена. Проверь интернет, разрешения Termux и повтори.").apply();
+        // Official Termux Errno.ERRNO_SUCCESS is -1; 0 is an error, not success.
+        int error = result == null ? -2 : result.getInt("err", -1);
+        int exit = result == null ? -1 : result.getInt("exitCode", -1);
+        SharedPreferences.Editor edit = prefs.edit().remove("pending")
+                .putInt("last_termux_error", error).putInt("last_exit_code", exit);
+        if (result == null || error != -1 || exit != 0) {
+            edit.putString("status", failureMessage(result != null, error, exit)).apply();
             return;
         }
         String output = result.getString("stdout", "");
@@ -33,5 +37,13 @@ public final class TermuxResultReceiver extends BroadcastReceiver {
         if (number < 1 || number > 65535) { edit.putString("status", "Некорректный порт сервера.").apply(); return; }
         edit.putString("user", user).putInt("port", number).putString("device_role", "server")
                 .putString("status", "OpenSSH подготовлен. Проверь подключение перед экспортом.").apply();
+    }
+    private static String failureMessage(boolean received, int error, int exit) {
+        String prefix = "Подготовка не завершена. ";
+        if (!received) return prefix + "Termux не вернул результат. Проверь первый запуск и повтори.";
+        if (error != -1) return prefix + "Termux отклонил команду. Проверь разрешение выполнения команд и первый запуск.";
+        if (exit == 40) return prefix + "Не удалось обновить список пакетов. Проверь интернет и повтори.";
+        if (exit == 41) return prefix + "Не удалось установить OpenSSH. Проверь интернет и свободное место.";
+        return prefix + "Команда Termux завершилась с ошибкой. Проверь среду Termux и повтори.";
     }
 }

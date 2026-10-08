@@ -58,7 +58,7 @@ echo '[6/6] Collect artifact'
 APK='app/build/outputs/apk/debug/app-debug.apk'
 [[ -s "$APK" ]] || { echo "APK not found: $APK" >&2; exit 4; }
 mkdir -p artifacts
-OUT='artifacts/LocalLS-v0.9.1-debug.apk'
+OUT='artifacts/LocalLS-v0.9.2-debug.apk'
 cp -f "$APK" "$OUT"
 python3 tools/verify_apk.py "$OUT" --sdk "$ANDROID_SDK_ROOT"
 HASH="$(sha256sum "$OUT" | awk '{print $1}')"

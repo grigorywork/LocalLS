@@ -32,7 +32,7 @@ final class TermuxSetup {
             "mkdir -p \"$HOME/LocalLS\"\n" +
             "if ! pgrep -x sshd >/dev/null 2>&1; then sshd; fi\n" +
             "printf 'USER=%s\\n' \"$(whoami)\"\n" +
-            "printf 'PORT=%s\\n' \"$(sshd -T 2>/dev/null | awk '$1 == \"port\" {print $2; exit}')\"\n";
+            "printf 'PORT=%s\\n' \"$(sshd -T 2>/dev/null | awk 'tolower($1) == \"port\" {print $2; exit}')\"\n";
 
     static boolean installed(Context context) {
         try { context.getPackageManager().getPackageInfo(PACKAGE, 0); return true; }
@@ -106,6 +106,7 @@ final class TermuxSetup {
     static void run(Context context) {
         String nonce = UUID.randomUUID().toString();
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .remove("last_termux_error").remove("last_exit_code")
                 .putString("pending", nonce).putLong("pending_at", System.currentTimeMillis())
                 .putString("status", "Подготовка OpenSSH…").apply();
         Intent result = new Intent(context, TermuxResultReceiver.class).setAction("localls.setup." + nonce);
@@ -118,7 +119,7 @@ final class TermuxSetup {
                 .putExtra("com.termux.RUN_COMMAND_ARGUMENTS", new String[]{"-c", SCRIPT})
                 .putExtra("com.termux.RUN_COMMAND_WORKDIR", HOME)
                 .putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
-                .putExtra("com.termux.RUN_COMMAND_BACKGROUND_CUSTOM_LOG_LEVEL", 0)
+                .putExtra("com.termux.RUN_COMMAND_BACKGROUND_CUSTOM_LOG_LEVEL", "0")
                 .putExtra("com.termux.RUN_COMMAND_COMMAND_LABEL", "LocalLS: подготовка сервера")
                 .putExtra("com.termux.RUN_COMMAND_PENDING_INTENT", callback);
         try { context.startService(command); }
