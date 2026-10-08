@@ -1,0 +1,31 @@
+'use strict';
+const {Server,utils}=require('ssh2');const fs=require('node:fs');const path=require('node:path');const os=require('node:os');const crypto=require('node:crypto');
+async function fixture(username='fixture'){
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'localls-sftp-'));fs.mkdirSync(path.join(root,'documents'));fs.writeFileSync(path.join(root,'hello.txt'),'LocalLS real SFTP fixture\n');
+  const password=crypto.randomBytes(24).toString('hex');const key=crypto.generateKeyPairSync('rsa',{modulusLength:2048,privateKeyEncoding:{type:'pkcs1',format:'pem'},publicKeyEncoding:{type:'spki',format:'pem'}}).privateKey;
+  const hostKey=utils.parseKey(key).getPublicSSH();const fingerprint='SHA256:'+crypto.createHash('sha256').update(hostKey).digest('base64').replace(/=+$/,'');let passwordAttempts=0;const clients=new Set();
+  const server=new Server({hostKeys:[key]},client=>{clients.add(client);client.on('error',()=>{});client.on('close',()=>clients.delete(client));client.on('authentication',ctx=>{if(ctx.method==='password')passwordAttempts++;if(ctx.method==='password'&&ctx.username===username&&ctx.password===password)ctx.accept();else ctx.reject(['password']);});client.on('ready',()=>client.on('session',accept=>{const session=accept();session.on('exec',(accept,_,info)=>{const stream=accept();if(info.command==='LC_ALL=C uptime; LC_ALL=C df -Pk .'){stream.write('up 2 days, load average: 0.10\nFilesystem 1024-blocks Used Available Capacity Mounted on\nfixture 100000 40000 60000 40% /\n');stream.exit(0);stream.end();}else{stream.exit(1);stream.end();}});session.on('sftp',accept=>{const s=accept(),handles=new Map();let next=1;
+    const status=(id,e)=>s.status(id,e?e.code==='ENOENT'?2:e.code==='EACCES'?3:4:0);
+    const local=p=>{const resolved=path.resolve(root,'.'+path.posix.resolve('/',p));if(!resolved.startsWith(root+path.sep)&&resolved!==root)throw new Error('ESCAPE');return resolved;};
+    const attrs=st=>({mode:st.mode,uid:st.uid,gid:st.gid,size:st.size,atime:Math.floor(st.atimeMs/1000),mtime:Math.floor(st.mtimeMs/1000)});
+    const handle=value=>{const b=Buffer.alloc(4);b.writeUInt32BE(next++);handles.set(b.toString('hex'),value);return b;};
+    for(const method of ['STAT','LSTAT'])s.on(method,(id,p)=>{try{s.attrs(id,attrs(fs[method==='STAT'?'statSync':'lstatSync'](local(p))));}catch(e){status(id,e);}});
+    s.on('FSTAT',(id,h)=>{try{s.attrs(id,attrs(fs.fstatSync(handles.get(h.toString('hex')).fd)));}catch(e){status(id,e);}});
+    s.on('REALPATH',(id,p)=>{try{const abs=path.posix.resolve('/',p);fs.statSync(local(abs));s.name(id,[{filename:abs,longname:abs,attrs:{}}]);}catch(e){status(id,e);}});
+    s.on('OPENDIR',(id,p)=>{try{s.handle(id,handle({dir:fs.readdirSync(local(p)).map(n=>({filename:n,longname:n,attrs:attrs(fs.lstatSync(path.join(local(p),n)))})),read:false}));}catch(e){status(id,e);}});
+    s.on('READDIR',(id,h)=>{const d=handles.get(h.toString('hex'));if(!d||d.read)return s.status(id,1);d.read=true;if(d.dir.length)s.name(id,d.dir);else s.status(id,1);});
+    s.on('OPEN',(id,p,flags,a)=>{try{const fd=fs.openSync(local(p),utils.sftp.flagsToString(flags),a.mode||0o600);s.handle(id,handle({fd}));}catch(e){status(id,e);}});
+    s.on('READ',(id,h,offset,length)=>{try{const d=handles.get(h.toString('hex')),buf=Buffer.alloc(Math.min(length,32768)),n=fs.readSync(d.fd,buf,0,buf.length,offset);if(n)s.data(id,buf.subarray(0,n));else s.status(id,1);}catch(e){status(id,e);}});
+    s.on('WRITE',(id,h,offset,data)=>{try{fs.writeSync(handles.get(h.toString('hex')).fd,data,0,data.length,offset);status(id);}catch(e){status(id,e);}});
+    s.on('CLOSE',(id,h)=>{try{const d=handles.get(h.toString('hex'));if(d?.fd!==undefined)fs.closeSync(d.fd);handles.delete(h.toString('hex'));status(id);}catch(e){status(id,e);}});
+    s.on('MKDIR',(id,p,a)=>{try{fs.mkdirSync(local(p),{mode:a.mode||0o700});status(id);}catch(e){status(id,e);}});
+    s.on('REMOVE',(id,p)=>{try{fs.unlinkSync(local(p));status(id);}catch(e){status(id,e);}});
+    s.on('RMDIR',(id,p)=>{try{fs.rmdirSync(local(p));status(id);}catch(e){status(id,e);}});
+    s.on('RENAME',(id,a,b)=>{try{if(fs.existsSync(local(b)))throw new Error('EXISTS');fs.renameSync(local(a),local(b));status(id);}catch(e){status(id,e);}});
+    s.on('EXTENDED',(id,ext,...args)=>{try{if(ext==='posix-rename@openssh.com'){fs.renameSync(local(args[0]),local(args[1]));status(id);}else s.status(id,8);}catch(e){status(id,e);}});
+    s.on('end',()=>{for(const d of handles.values())if(d.fd!==undefined)try{fs.closeSync(d.fd);}catch{}});
+  });}));});
+  await new Promise((resolve,reject)=>{server.on('error',reject);server.listen(0,'127.0.0.1',resolve);});
+  return {root,password,fingerprint,profile:{host:'127.0.0.1',port:server.address().port,user:username,folder:'/'},get passwordAttempts(){return passwordAttempts;},close:async()=>{for(const c of clients)c.end();await new Promise(resolve=>server.close(resolve));fs.rmSync(root,{recursive:true,force:true});}};
+}
+module.exports={fixture};

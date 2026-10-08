@@ -1,6 +1,6 @@
 # LocalLS
 
-Компактный SSH/SFTP-клиент для Android и Windows: две панели файлов, загрузка и скачивание,
+Компактный SSH/SFTP-клиент для Android, Windows и Fedora: две панели файлов, загрузка и скачивание,
 история передач, график скорости, темы оформления и работа в фоне.
 Общий значок — облако с молнией.
 
@@ -9,11 +9,12 @@
 ## Приложения и сборки
 
 Готовые комплекты разделены по платформам: **[Android](distributions/Android/)**
-и **[Windows](distributions/Windows/)**. В каждом ZIP — отдельная папка,
+**[Windows](distributions/Windows/)** и **[Fedora](distributions/Fedora/)**. В каждом ZIP — отдельная папка,
 установщик и подробные инструкции для Блокнота на русском и английском,
 с приветствием и описанием назначения приложения.
 
 - [Android: полный комплект с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.3/LocalLS-Android-0.9.3-with-guides.zip)
+- [Fedora: полный комплект RPM с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/fedora-v0.1.0/LocalLS-Fedora-0.1.0-with-guides.zip)
 - [Windows: полный комплект с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-Windows-0.1.0-with-guides.zip)
 
 - [Скачать Windows EXE — LocalLS 0.1.0](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-0.1.0-Windows-x64-Setup.exe)
@@ -23,11 +24,12 @@
 | Приложение | Версия | Система | Установочный файл |
 | --- | --- | --- | --- |
 | LocalLS Android | 0.9.3 | Android 7.0+ (minSdk 24) | `LocalLS-v0.9.3-debug.apk` |
+| LocalLS Fedora | 0.1.0 | Fedora x86_64 (проверено в Fedora 44) | `LocalLS-0.1.0-Fedora-x86_64.rpm` |
 | LocalLS Desktop | 0.1.0 | Windows 10/11 x64 | `LocalLS-0.1.0-Windows-x64-Setup.exe` |
 
-APK и EXE размещаются в **Releases** этого репозитория отдельно от исходников.
+APK, EXE и RPM размещаются в **Releases** этого репозитория отдельно от исходников.
 Загрузка GitHub «Source code» содержит исходники; установочные файлы выбирайте в списке Assets.
-Android APK подписан debug-сертификатом; Windows EXE пока без подписи издателя.
+Android APK подписан debug-сертификатом; Windows EXE и Fedora RPM пока без подписи издателя.
 SHA-256 установщиков указан в `SHA256SUMS.txt` каждого релиза.
 
 ## Структура
@@ -36,9 +38,11 @@ SHA-256 установщиков указан в `SHA256SUMS.txt` каждого
 - [`android/realme-agent/`](android/realme-agent/README.md) — существующий независимый агент управления SSH.
 - [`desktop/`](desktop/README.md) — Windows-клиент 0.1.0 на Electron, установщик NSIS, тесты и значки.
 - [`android/BUILD_REPORT.md`](android/BUILD_REPORT.md) и [`desktop/BUILD_REPORT.md`](desktop/BUILD_REPORT.md) — результаты настоящих сборок и выполненных проверок.
+- [`linux/`](linux/README.md) — Fedora-клиент и графический мастер штатного OpenSSH, RPM и тесты.
 - [`docs/`](docs/) — сведения о проверке артефактов и скриншоты тестового интерфейса.
 
 Android и Windows продолжают работать с существующим Termux/OpenSSH-сервером.
+Fedora 0.1.0 — клиент и мастер настройки текущего ПК как сервера; используется существующий sshd.service.
 Windows 0.1.0 — клиент; создание сервера на ПК в этой версии не реализовано.
 VPN использует установленный официальный Tailscale, собственный VPN-сервис не встроен.
 Приложения не добавляют конкурирующий механизм запуска sshd.
@@ -70,7 +74,10 @@ node tools/verify-package.cjs
 
 ## Сохранённые версии
 
-Теги `android-v0.8`, `android-v0.9`, `android-v0.9.1`, `android-v0.9.2`,
+Fedora: Node.js 22, rpm-build, штатные библиотеки рабочего стола; `cd linux`,
+`npm ci`, `npm test`, `npm run build:rpm`. Подробности — в linux/README.md.
+
+Теги `fedora-v0.1.0`, `android-v0.8`, `android-v0.9`, `android-v0.9.1`, `android-v0.9.2`,
 `android-v0.9.3` и `windows-v0.1.0` содержат сохранившиеся снимки исходников.
 История импортирована из этих снимков при подготовке репозитория; это не восстановленная
 история всех отдельных правок. Прежние Android-версии доступны по тегам и в Releases.

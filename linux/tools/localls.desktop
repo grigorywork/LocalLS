@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=LocalLS
+Comment=Personal SSH/SFTP server and file manager
+Comment[ru]=Личный SSH/SFTP-сервер и файловый менеджер
+Exec=/usr/bin/localls %U
+Icon=localls
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;
+StartupWMClass=localls

@@ -1,0 +1,53 @@
+{
+  "name": "localls-fedora",
+  "version": "0.1.0",
+  "description": "LocalLS \u2014 Fedora SSH/SFTP client and system server setup",
+  "author": "LocalLS",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "node tools/ui-smoke.cjs",
+    "build:linux-dir": "electron-builder --linux dir --x64 --publish never",
+    "build:rpm": "bash tools/build-rpm.sh"
+  },
+  "build": {
+    "appId": "com.localls.fedora",
+    "productName": "LocalLS",
+    "directories": {
+      "output": "artifacts"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "!**/*.node",
+      "!node_modules/cpu-features/**/*",
+      "!node_modules/nan/**/*"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "linux": {
+      "target": "dir",
+      "icon": "assets/icon.png",
+      "category": "Network",
+      "executableName": "localls"
+    },
+    "publish": []
+  },
+  "dependencies": {
+    "ssh2": "1.17.0"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "playwright": "1.64.0",
+    "resedit": "3.1.0"
+  },
+  "overrides": {
+    "sprintf-js": "1.1.4"
+  }
+}

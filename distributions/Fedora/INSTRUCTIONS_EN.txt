@@ -1,0 +1,219 @@
+﻿LocalLS Fedora 0.1.0 — user guide
+For Intel/AMD x86_64 desktop computers. Built and tested in Fedora 44.
+
+WELCOME
+Welcome to LocalLS!
+LocalLS helps you work with your personal server and files over SSH/SFTP.
+Connect from your computer to a working phone server, PC, Linux host or NAS;
+browse folders, upload files, and download selected files to your own folders.
+You can also prepare this Fedora computer as an SSH/SFTP server using a
+visual wizard, then connect to it from LocalLS on Android or Windows.
+The wizard uses Fedora's standard OpenSSH service and native authorization.
+The current application interface uses Russian labels, explained below.
+
+INCLUDED FEATURES
+Two file panes: your local computer and the connected server.
+Selections retained when browsing different server folders.
+File attachments, upload/download queue, cancellation and transfer history.
+Measured SFTP speed graph and remote server statistics.
+Five color themes, three icon-button shapes, compact side settings.
+Transfers continue while the window is minimized and the computer stays awake.
+A separate section integrates an installed official Tailscale client.
+A visual wizard manages this computer's existing Fedora OpenSSH service.
+Export a verified server profile compatible with Android and Windows LocalLS.
+
+1. PACKAGE AND INSTALLATION
+Extract LocalLS-Fedora-0.1.0-with-guides.zip. The Fedora folder contains:
+  LocalLS-0.1.0-Fedora-x86_64.rpm — the real installation package;
+  INSTRUCTIONS_RU.txt — the Russian guide;
+  INSTRUCTIONS_EN.txt — this English guide;
+  BUILD_REPORT.md — actual build and test results;
+  SHA256SUMS.txt — file checksums.
+TXT documents use UTF-8 with BOM and work in text editors and Windows Notepad.
+Open the RPM in a Fedora package installer that supports local RPM files,
+and authorize the installation using your administrator credentials.
+If the graphical installer does not accept it, use this installation command:
+  sudo dnf install ./LocalLS-0.1.0-Fedora-x86_64.rpm
+Run it from the directory containing the downloaded RPM; DNF resolves dependencies.
+Launch LocalLS from Fedora's application menu after installation.
+The RPM is currently unsigned. A checksum is not a publisher signature.
+It is distributed through GitHub Releases, not an official Fedora repository.
+The in-app server wizard does not require typing commands into a terminal.
+Do not run the whole application as root or disable its Electron sandbox.
+
+Requirements:
+  Intel/AMD x86_64, graphical Fedora with polkit, systemd and DNF.
+  Network access; internet access is needed for package installation.
+  Administrator rights are required for server management operations.
+  An available, unlocked system keyring is required to save secrets.
+Build, RPM installation and graphical checks ran in a Fedora 44 container.
+Physical GNOME/Wayland and KDE desktop sessions have not been tested.
+The DNF wizard is not designed for Fedora Silverblue/Kinoite/Atomic.
+Compatibility with other Fedora releases has not yet been confirmed.
+
+2. CONNECT TO AN EXISTING SERVER
+Open «Подключение» (Connection) in the side drawer.
+Enter the server's local address, SSH port, username and starting folder.
+Standard Fedora OpenSSH normally uses port 22.
+An existing Termux/OpenSSH phone server commonly uses port 8022.
+Use the actual account name for that particular server.
+A folder of «.» means your SSH account's home directory.
+Enter the server password, select «Сохранить» (Save), then «Подключиться» (Connect).
+On first use, LocalLS displays the server's SSH host-key fingerprint.
+Compare it with a trusted server source or a trusted exported profile.
+Accept only a server you recognize. Passwords are not sent during the key probe.
+A changed host key blocks authentication. Investigate whether the server was
+reinstalled or the address changed before accepting a replacement key.
+«Забыть доверенный SSH-ключ» (Forget trusted SSH key) permits a new trust check.
+«Отключиться» (Disconnect) ends the current connection.
+
+3. IMPORT AND EXPORT CONNECTION PROFILES
+Connection settings include «Импорт профиля» (Import profile) and «Экспорт» (Export).
+The localls-server-v1 format is compatible with LocalLS Android and Windows.
+It contains address, port, username, folder and host-key fingerprint.
+It never includes a password or agent token; enter the password on the receiving device.
+An imported fingerprint requires confirmation of trust.
+Profiles still contain network information. Share them privately with the intended
+recipient rather than publishing personal profiles in an open repository.
+
+4. FILES AND FOLDERS
+Open «Файлы» (Files). One pane is local and the other is on the server.
+Double-click a folder to enter it. The up button opens its parent directory.
+The server path field can navigate to another accessible folder.
+«Выбрать папку» (Choose folder) opens the native local-directory picker.
+Access is limited to your account's existing permissions; LocalLS adds no root access.
+Click a file to select it, and click again to deselect it.
+Server selections remain selected while you browse other folders.
+Select «Скачать» (Download), then choose any destination folder you can write to.
+When local names collide, a numeric suffix is added instead of overwriting a file.
+To upload, select local files or use the attachment button.
+Attachments are listed before transfer; use the send button to start uploading.
+Navigate to the desired server folder before sending: it is the upload destination.
+Replacing an existing server file requires separate confirmation.
+Create folders, rename files, and remove files using the file-pane controls.
+Rename and deletion require confirmation; only empty directories can be removed.
+Recursive folder transfers and a built-in file editor are not included yet.
+Prepare an archive separately when you want to send a folder tree as a single file.
+
+5. TRANSFERS, SPEED GRAPH AND BACKGROUND WORK
+«Передачи» (Transfers) shows the queue, progress and finished records.
+The graph uses speed actually measured during SFTP transfers.
+An idle graph shows zero; it is not a network bandwidth benchmark.
+You may minimize LocalLS while a transfer is running.
+«Свернуть в фон» (Minimize to background) and the window close button minimize
+rather than stop the running client and its transfers.
+In GNOME, restore it from the application overview, or launch LocalLS again.
+Desktop environments supporting a tray also display a LocalLS tray icon.
+A GNOME AppIndicator extension is not required to recover the window.
+For a complete exit, use «Выйти из LocalLS» (Exit LocalLS) in settings or the tray.
+An active transfer requires confirmation before exit interrupts it.
+Shutdown, logout, suspend and network loss can interrupt the application or connection.
+The client is not a permanently running system service.
+Finished transfer history is stored locally and restored after relaunch.
+Automatic resume of an interrupted transfer across application restarts is not included.
+
+6. MAKE THIS FEDORA COMPUTER A SERVER
+This wizard manages the computer where LocalLS is currently running.
+Open «Настройки» (Settings) → «Этот компьютер — сервер» (This computer is a server).
+The status shows OpenSSH installation, sshd.service state, autostart,
+your current Fedora username, and available IPv4 addresses.
+Choose «Установить OpenSSH» (Install OpenSSH) if the package is missing.
+LocalLS invokes native DNF; polkit asks for administrator authentication.
+Installing openssh-server does not replace your existing SSH configuration.
+Choose «Запустить SSH» (Start SSH). The existing sshd.service is used.
+No second SSH daemon, custom agent, or competing startup mechanism is added.
+«Включить автозапуск» (Enable autostart) enables that same service at boot.
+«Убрать автозапуск» (Disable autostart) reverses this choice.
+«Перезапустить SSH» (Restart SSH) restarts the service, not the whole computer.
+Restarting may disconnect existing SSH sessions.
+«Остановить SSH» (Stop SSH) stops access; it does not power off the computer.
+Installing LocalLS alone does not start OpenSSH or open a firewall port.
+Each administrative action requires your in-app confirmation and OS authorization.
+Canceling authorization does not count as a completed action.
+
+The server uses your existing Fedora account password.
+LocalLS neither creates nor replaces that password.
+«Пароль учётной записи» (Account password) opens the OS account settings.
+If the account has no password or server policy prohibits password authentication,
+configure the account or policy using normal Fedora administration tools.
+The current SSH client supports passwords; private-key login is not implemented.
+
+Verify access and export:
+  1) Enter the actual local SSH port, normally 22.
+  2) Enter your Fedora account password for this check.
+  3) Choose «Проверить SSH-вход» (Check SSH login) and confirm the fingerprint.
+  4) LocalLS really connects to 127.0.0.1 and verifies SFTP access.
+  5) The password input is cleared and this check password is not saved.
+  6) Choose a reachable IPv4 address and export the password-free server profile.
+Export is enabled only after successful login verification.
+The loopback check verifies the service and account, not remote firewall/router access.
+After importing the profile on another device, test a connection from that device.
+A local address requires network access between the phone/PC and Fedora.
+After changing Wi-Fi, refresh the status and export the new address.
+
+7. FIREWALL AND PORTS
+«Разрешить SSH:22» (Allow SSH:22) adds firewalld's standard ssh service
+to both runtime and permanent rules in the default zone.
+«Закрыть SSH:22» (Close SSH:22) removes the same permission from that zone.
+These actions do not change the SSH listening port or open arbitrary custom ports.
+If your network interface uses a different firewall zone, manage that zone with OS tools.
+If SSH already uses a custom port, enter it for verification and configure firewall
+rules using Fedora tools. Existing sshd_config is preserved.
+If firewalld is absent or inactive, the operation reports a failure.
+LocalLS does not start firewalld automatically or reset your existing firewall rules.
+Use Tailscale for remote access instead of exposing an SSH port through your router.
+
+8. VPN / TAILSCALE
+Open the separate «VPN / Tailscale» section.
+Official Tailscale must be installed on this computer and on the other device/server.
+«Открыть / установить Tailscale» (Open / install Tailscale) opens the official Linux
+installation page, or an official sign-in link when the installed client requires login.
+Install Tailscale and authorize your account according to the provider's instructions.
+The switch runs tailscale up/down with native polkit authorization.
+The first connection may require a browser: use the Open / install button to sign in.
+Initial authorization waiting is bounded; without login the connection will not enable.
+Select «Обновить статус» (Refresh status) after authorization.
+Status comes from the real installed client, not a simulated VPN state.
+Enter the server's 100.x.x.x Tailscale address or MagicDNS name, choose the VPN route,
+and save. This route applies to the next SSH connection.
+Disconnect and reconnect after changing the route.
+Both devices must belong to your tailnet and be allowed by its access controls.
+LocalLS does not provide a separate VPN service or bypass Tailscale restrictions.
+Local Wi-Fi remains available and the original local address is not replaced.
+
+9. WI-FI AND APPEARANCE
+Settings → «Wi-Fi этого компьютера» (This computer's Wi-Fi) opens native
+GNOME or KDE network settings. Enter the network and password in that OS window.
+This changes the current computer's network, not a different remote server's Wi-Fi.
+If the system settings module is unavailable, use Fedora's normal Wi-Fi menu.
+Changing networks may interrupt a connection; reconnect afterward.
+Themes include light violet, dark violet, ocean, forest and amber.
+Icon buttons can be rounded, square or circular.
+Save settings to retain appearance after relaunch.
+
+10. SECRETS AND TROUBLESHOOTING
+Passwords are saved only with available system encryption through Electron safeStorage.
+If an unlocked system keyring is unavailable, saving is disabled.
+Secrets stay in application memory until exit instead of plaintext TXT or JSON files.
+Host-key fingerprints and ordinary connection parameters are saved without passwords.
+Do not enable password storage on someone else's computer.
+Server rejected login: check username, password and server authentication policy.
+SSH port unavailable: check the service, IP, port, firewall and network access.
+Access denied: choose a location allowed by your account permissions.
+System action failed: check polkit, service state, internet access for DNF,
+and installation/running state of firewalld or Tailscale for their respective actions.
+Never put passwords, tokens, private keys or personal profiles in public issues.
+A useful report includes Fedora/LocalLS versions, the action and a redacted error.
+
+11. REMOTE ADMINISTRATION AND TEST LIMITS
+«Управление сервером» (Server management) connects to an already installed,
+independent remote agent using its own address, port and token.
+Ordinary SSH/SFTP file access does not require that agent.
+The local Fedora wizard uses systemd directly and does not require a remote agent.
+Remote power-off/power-on of a phone or PC is not implemented.
+Physical GNOME/Wayland, native polkit approval, Wi-Fi switching and an authenticated
+Tailscale session were not tested in the container; see BUILD_REPORT.md.
+Android and Windows remain separate downloads with their working builds preserved.
+
+Project: https://github.com/grigorywork/LocalLS
+Fedora release: https://github.com/grigorywork/LocalLS/releases/tag/fedora-v0.1.0
