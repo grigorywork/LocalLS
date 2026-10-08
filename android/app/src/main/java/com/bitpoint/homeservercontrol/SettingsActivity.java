@@ -95,9 +95,9 @@ public class SettingsActivity extends BaseActivity {
 
     private void showAgentWizard() {
         new AlertDialog.Builder(this)
-                .setTitle("Мастер Realme Agent")
+                .setTitle("Настройка серверного агента")
                 .setMessage("Агент нужен только для кнопок Start / Stop / Restart, когда SSH уже недоступен.\n\n"
-                        + "1. Скопируй папку realme-agent из проекта на Realme.\n\n"
+                        + "1. Скопируй папку серверного агента из комплекта проекта на серверное устройство.\n\n"
                         + "2. В Termux открой эту папку и выполни:\n./install.sh\n\n"
                         + "3. Скрипт покажет случайный токен. Введи его здесь и включи сохранение в Keystore.\n\n"
                         + "4. Запусти агент вручную:\npython ~/home-server-agent/agent.py\n\n"

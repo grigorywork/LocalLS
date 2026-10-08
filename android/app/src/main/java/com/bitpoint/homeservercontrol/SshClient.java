@@ -148,7 +148,7 @@ final class SshClient {
      * Authentication is deliberately limited to "none" and is expected to fail on normal sshd;
      * the key has already been captured by HostKeyRepository at that point.
      */
-    private static String probeFingerprint(String host, int port, String user) throws Exception {
+    static String probeFingerprint(String host, int port, String user) throws Exception {
         JSch jsch = new JSch();
         PinnedHostKeyRepository repository = new PinnedHostKeyRepository(jsch, "");
         jsch.setHostKeyRepository(repository);

@@ -12,9 +12,13 @@ import android.widget.Toast;
 /** Compatibility for recent Android while retaining Android 7 support. */
 public abstract class BaseActivity extends Activity {
     private static final int REQUEST_LOCAL_NETWORK = 7301;
+    private static final int REQUEST_TRAY_NOTIFICATION = 7302;
+    private int appliedTheme;
 
     @Override
     protected void onCreate(Bundle state) {
+        appliedTheme = ThemeCatalog.style(this);
+        setTheme(appliedTheme);
         super.onCreate(state);
         if (Build.VERSION.SDK_INT >= 37
                 && checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK)
@@ -24,8 +28,29 @@ public abstract class BaseActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        NotificationHelper.clearTray(this);
+        if (appliedTheme != ThemeCatalog.style(this) && canRecreateForTheme()) recreate();
+    }
+
+    protected boolean canRecreateForTheme() { return true; }
+
+    protected void minimizeToTray() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_TRAY_NOTIFICATION);
+            return;
+        }
+        if (!NotificationHelper.showTray(this)) Toast.makeText(this,
+                "Уведомления выключены. Вернуться можно через значок LocalLS.", Toast.LENGTH_LONG).show();
+        moveTaskToBack(true);
+    }
+
+    @Override
     public void setContentView(int layoutResId) {
         super.setContentView(layoutResId);
+        IconButtons.decorate(findViewById(android.R.id.content));
         if (Build.VERSION.SDK_INT >= 35) {
             View content = findViewById(android.R.id.content);
             content.setOnApplyWindowInsetsListener((view, insets) -> {
@@ -41,9 +66,13 @@ public abstract class BaseActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_TRAY_NOTIFICATION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) minimizeToTray();
+            else Toast.makeText(this, "Для сворачивания в шторку разреши уведомления LocalLS.", Toast.LENGTH_LONG).show();
+        }
         if (requestCode == REQUEST_LOCAL_NETWORK && grantResults.length > 0
                 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Для подключения к Realme разреши доступ к локальной сети в настройках приложения.",
+            Toast.makeText(this, "Для подключения к серверу разреши доступ к локальной сети в настройках приложения.",
                     Toast.LENGTH_LONG).show();
         }
     }

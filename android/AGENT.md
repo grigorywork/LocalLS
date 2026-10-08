@@ -1,4 +1,4 @@
-# AGENT.md — Home Server Control v0.8
+# AGENT.md — LocalLS v0.9
 
 ## Цель
 Довести приложение-пульт для Realme GT Neo 2 + Termux + OpenSSH/SFTP до реально собираемого и проверенного APK для Samsung Galaxy A01 / другие Android 7+ устройства, не ломая уже рабочую локальную схему сервера.
@@ -40,7 +40,7 @@
 2. Restore official Gradle wrapper if needed.
 3. `:app:assembleDebug` and `:app:assembleDebugAndroidTest`.
 4. Fix every compile/resource/manifest error immediately.
-5. Copy real APK to `artifacts/HomeServerControl-v0.8-debug.apk`.
+5. Copy real APK to `artifacts/LocalLS-v0.9-debug.apk`.
 6. Create `BUILD_REPORT.md` with size + SHA-256.
 7. Install on Samsung Galaxy A01.
 8. Smoke test against real Realme.
@@ -57,3 +57,15 @@
 - Background monitor/notifications.
 - Agent status/start/restart.
 - No password/token in logs or diagnostics.
+
+## LocalLS v0.9
+
+Рабочая v0.8 сохранена отдельно. Новые требования: вложения с подтверждённой отправкой,
+открытие папки сервера по пути, правая шторка шириной 50%, пять цветовых тем,
+название LocalLS, облако с молнией, официальный Android API Tailscale.
+applicationId остаётся прежним для обновления и сохранения настроек.
+Не имитировать VPN: статус основан на сети Android, первый вход и VPN consent — в Tailscale.
+
+Последний этап: графический мастер на Realme через официальный Termux SAF/RUN_COMMAND,
+без ручного ввода команд. Сохранять sshd/config/host keys/autostart; новый пароль
+задаётся только явно. Проверять реальный SSH-вход до экспорта публичного профиля.

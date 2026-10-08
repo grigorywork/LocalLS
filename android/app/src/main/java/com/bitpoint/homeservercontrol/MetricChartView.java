@@ -26,14 +26,14 @@ public class MetricChartView extends View {
     public MetricChartView(Context context, AttributeSet attrs, int defStyleAttr) { super(context, attrs, defStyleAttr); init(); }
 
     private void init() {
-        gridPaint.setColor(0x773B2E4A);
+        gridPaint.setColor(ThemeCatalog.color(getContext(), R.attr.hscStroke));
         gridPaint.setStrokeWidth(dp(1));
-        linePaint.setColor(getContext().getColor(R.color.accent));
+        linePaint.setColor(ThemeCatalog.color(getContext(), R.attr.hscAccent));
         linePaint.setStyle(Paint.Style.STROKE);
         linePaint.setStrokeWidth(dp(2));
-        pointPaint.setColor(getContext().getColor(R.color.accent));
+        pointPaint.setColor(ThemeCatalog.color(getContext(), R.attr.hscAccent));
         pointPaint.setStyle(Paint.Style.FILL);
-        labelPaint.setColor(getContext().getColor(R.color.text_secondary));
+        labelPaint.setColor(ThemeCatalog.color(getContext(), R.attr.hscTextSecondary));
         labelPaint.setTextSize(11 * getResources().getDisplayMetrics().scaledDensity);
         setMinimumHeight((int) dp(120));
     }

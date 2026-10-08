@@ -20,7 +20,7 @@ for p in all_xml:
 
 # Build config checks.
 app_gradle=(ROOT/'app'/'build.gradle.kts').read_text(encoding='utf-8')
-for needle in ['minSdk = 24','compileSdk = 37','targetSdk = 37','versionCode = 8','versionName = "0.8.0"']:
+for needle in ['minSdk = 24','compileSdk = 37','targetSdk = 37','versionCode = 9','versionName = "0.9.0"']:
     if needle not in app_gradle:
         warnings.append(f'Expected build setting not found: {needle}')
 
@@ -126,7 +126,7 @@ wrapper_jar=ROOT/'gradle'/'wrapper'/'gradle-wrapper.jar'
 if not wrapper_jar.exists():
     warnings.append('gradle-wrapper.jar missing: Android Studio can sync, but ./gradlew cannot bootstrap offline')
 
-print('=== Home Server Control static audit ===')
+print('=== LocalLS static audit ===')
 for w in warnings: print('WARN:',w)
 for e in errors: print('ERROR:',e)
 print(f'Result: {len(errors)} errors, {len(warnings)} warnings')

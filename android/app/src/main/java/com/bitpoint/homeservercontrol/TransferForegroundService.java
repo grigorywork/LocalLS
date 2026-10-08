@@ -69,8 +69,8 @@ public class TransferForegroundService extends Service {
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this);
         return builder
-                .setSmallIcon(R.drawable.ic_server)
-                .setContentTitle("Home Server Control")
+                .setSmallIcon(R.drawable.ic_cloud_notification)
+                .setContentTitle("LocalLS")
                 .setContentText("SFTP-передача файлов активна")
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)

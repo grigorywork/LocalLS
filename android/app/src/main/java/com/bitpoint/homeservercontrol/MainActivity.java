@@ -21,6 +21,11 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.Switch;
+import android.widget.FrameLayout;
+import android.view.Gravity;
+import android.net.Uri;
+import android.os.SystemClock;
 
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +54,12 @@ public class MainActivity extends BaseActivity {
     private static final int REQ_NOTIFICATIONS = 602;
     private String pendingReport = "";
     private LiveSpeedPanel liveSpeedPanel;
+    private final ArrayList<Uri> attachedFiles = new ArrayList<>();
+    private boolean updatingVpnSwitch;
+    private Boolean requestedVpn;
+    private long vpnRequestDeadline;
+    private final Runnable vpnRefresh = () -> refreshVpnStatus();
+    private Object drawerBackCallback; // Avoid resolving the API 33 interface on Android 7–12.
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -78,6 +89,13 @@ public class MainActivity extends BaseActivity {
         loadConfig();
         wireActions();
         renderConnectionSummary();
+        if (savedInstanceState == null || !savedInstanceState.containsKey(FileAttachments.EXTRA))
+            for (Uri uri : FileAttachments.from(getIntent())) FileAttachments.add(attachedFiles, uri);
+        if (savedInstanceState != null) {
+            ArrayList<Uri> restored = savedInstanceState.getParcelableArrayList(FileAttachments.EXTRA);
+            if (restored != null) for (Uri uri : restored) FileAttachments.add(attachedFiles, uri);
+        }
+        renderAttachmentEntry();
     }
 
 
@@ -86,6 +104,7 @@ public class MainActivity extends BaseActivity {
         super.onResume();
         if (liveSpeedPanel != null) liveSpeedPanel.start();
         renderDashboardLatency();
+        refreshVpnStatus();
         if (firstResume) {
             firstResume = false;
             return;
@@ -137,17 +156,39 @@ public class MainActivity extends BaseActivity {
     }
 
     private void wireActions() {
-        findViewById(R.id.advancedToggleButton).setOnClickListener(v -> {
-            View panel = findViewById(R.id.advancedPanel);
-            boolean expand = panel.getVisibility() != View.VISIBLE;
-            panel.setVisibility(expand ? View.VISIBLE : View.GONE);
-            ((Button) v).setText(expand ? "Скрыть инструменты ▴" : "Подключение и инструменты ▾");
+        findViewById(R.id.minimizeButton).setOnClickListener(v -> minimizeToTray());
+        findViewById(R.id.advancedToggleButton).setOnClickListener(v -> openToolsDrawer());
+        findViewById(R.id.drawerCloseButton).setOnClickListener(v -> closeToolsDrawer());
+        findViewById(R.id.drawerScrim).setOnClickListener(v -> closeToolsDrawer());
+        findViewById(R.id.themeChooserButton).setOnClickListener(v -> chooseTheme());
+        findViewById(R.id.serverSetupButton).setOnClickListener(v -> showServerMenu());
+        findViewById(R.id.serverWizardMenuButton).setOnClickListener(v -> {
+            if (serverMenuDialog != null) serverMenuDialog.dismiss();
+            startActivity(new Intent(this, ServerSetupActivity.class));
+        });
+        findViewById(R.id.agentCredentialsToggleButton).setOnClickListener(v -> {
+            View fields = findServerView(R.id.agentCredentialsPanel);
+            fields.setVisibility(fields.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+        });
+        findViewById(R.id.saveAgentCredentialsButton).setOnClickListener(v -> saveConfig());
+        findViewById(R.id.openVpnClientButton).setOnClickListener(v -> openVpnClient());
+        findViewById(R.id.vpnHelpButton).setOnClickListener(v -> showVpnHelp());
+        ((Switch) findViewById(R.id.drawerVpnSwitch)).setOnCheckedChangeListener((button, checked) -> {
+            if (updatingVpnSwitch) return;
+            if (checked && VpnController.state(this) == VpnController.State.OTHER_VPN) {
+                refreshVpnStatus();
+                new AlertDialog.Builder(this).setTitle("Другой VPN уже включён")
+                        .setMessage("Android использует один VPN одновременно. Переключиться на Tailscale?")
+                        .setNegativeButton("Отмена", null)
+                        .setPositiveButton("Переключить", (d, w) -> requestVpn(true)).show();
+            } else requestVpn(checked);
         });
         findViewById(R.id.saveButton).setOnClickListener(v -> saveConfig());
         checkButton.setOnClickListener(v -> checkServer(true));
         findViewById(R.id.copyButton).setOnClickListener(v -> copyConnection());
         findViewById(R.id.solidButton).setOnClickListener(v -> openSolidExplorer());
-        findViewById(R.id.filesButton).setOnClickListener(v -> openFiles());
+        findViewById(R.id.filesButton).setOnClickListener(v -> openFiles(false));
+        findViewById(R.id.attachFilesButton).setOnClickListener(v -> openFiles(attachedFiles.isEmpty()));
         findViewById(R.id.networkButton).setOnClickListener(v -> startActivity(new Intent(this, NetworkActivity.class)));
         findViewById(R.id.settingsButton).setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         findViewById(R.id.historyButton).setOnClickListener(v -> startActivity(new Intent(this, HistoryActivity.class)));
@@ -173,7 +214,7 @@ public class MainActivity extends BaseActivity {
                 "pgrep -a sshd — ищет процесс SSH-сервера. Если видишь PID и sshd, сервер запущен."));
         findViewById(R.id.quickIpButton).setOnClickListener(v -> runQuickCommand(
                 "ip addr show wlan0 2>/dev/null | grep 'inet ' || true",
-                "ip addr show wlan0 | grep 'inet ' — показывает IP Realme в текущей Wi-Fi сети."));
+                "ip addr show wlan0 | grep 'inet ' — показывает IP-адрес сервера в текущей Wi-Fi сети."));
         findViewById(R.id.quickDiskButton).setOnClickListener(v -> runQuickCommand(
                 "df -h \"$HOME/storage/shared\" 2>/dev/null",
                 "df -h — показывает общий объём, занятое и свободное место. -h выводит размеры в ГБ/МБ."));
@@ -322,7 +363,7 @@ public class MainActivity extends BaseActivity {
         checking = true;
         checkButton.setEnabled(false);
         statusText.setText("● ПРОВЕРКА…");
-        statusText.setTextColor(getColor(R.color.amber));
+        statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscWarning));
         statusDetail.setText(primaryHost + ":" + port);
         appendLog("Проверяю " + primaryHost + ":" + port + "…");
 
@@ -387,27 +428,27 @@ public class MainActivity extends BaseActivity {
 
         if (stats.hostKeyMismatch) {
             statusText.setText("● КЛЮЧ СЕРВЕРА ИЗМЕНИЛСЯ");
-            statusText.setTextColor(getColor(R.color.red));
+            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscError));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         } else if (stats.hostKeyNeedsTrust) {
             statusText.setText("● ПОДТВЕРДИ SSH-КЛЮЧ");
-            statusText.setTextColor(getColor(R.color.amber));
+            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscWarning));
             statusDetail.setText("Сверь fingerprint и нажми «Доверять».");
             appendLog("Получен новый SSH fingerprint. Команды пока заблокированы.");
         } else if (stats.authenticated && stats.hostKeyTrusted) {
             statusText.setText("● СЕРВЕР РАБОТАЕТ");
-            statusText.setTextColor(getColor(R.color.green));
+            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscSuccess));
             statusDetail.setText("SSH/SFTP доступен • fingerprint подтверждён");
             appendLog("Сервер онлайн. SSH-вход успешен.");
         } else if (stats.reachable) {
             statusText.setText("● SSH ДОСТУПЕН");
-            statusText.setTextColor(getColor(R.color.amber));
+            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscWarning));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         } else {
             statusText.setText("● СЕРВЕР НЕДОСТУПЕН");
-            statusText.setTextColor(getColor(R.color.red));
+            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscError));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         }
@@ -420,7 +461,7 @@ public class MainActivity extends BaseActivity {
         }
         new AlertDialog.Builder(this)
                 .setTitle("Доверять SSH-ключу?")
-                .setMessage("Fingerprint:\n" + lastSeenFingerprint + "\n\nПодтверждай только если это твой Realme.")
+                .setMessage("Fingerprint:\n" + lastSeenFingerprint + "\n\nПодтверждай только если это твой сервер.")
                 .setNegativeButton("Отмена", null)
                 .setPositiveButton("Доверять", (dialog, which) -> {
                     HostTrustStore.trust(this, lastSeenHost, lastSeenPort, lastSeenFingerprint);
@@ -479,7 +520,7 @@ public class MainActivity extends BaseActivity {
         getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE).edit()
                 .putString(ServerConfig.KEY_IPERF_TARGET, target).apply();
         iperfOutputText.setText("Тест идёт примерно 5 секунд…");
-        appendLog("iperf3: Realme → " + target + ".");
+        appendLog("iperf3: сервер → " + target + ".");
 
         String command = "iperf3 -c '" + target + "' -P 4 -t 5 --format m";
         executor.execute(() -> {
@@ -513,6 +554,34 @@ public class MainActivity extends BaseActivity {
             return false;
         }
         return true;
+    }
+
+    private AlertDialog serverMenuDialog;
+    private View serverManagementPanel;
+
+    private View findServerView(int id) {
+        return serverManagementPanel != null ? serverManagementPanel.findViewById(id) : findViewById(id);
+    }
+
+    private void showServerMenu() {
+        if (serverMenuDialog != null && serverMenuDialog.isShowing()) return;
+        serverManagementPanel = findViewById(R.id.serverManagementPanel);
+        android.view.ViewGroup originalParent = (android.view.ViewGroup) serverManagementPanel.getParent();
+        int position = originalParent.indexOfChild(serverManagementPanel);
+        originalParent.removeView(serverManagementPanel);
+        serverManagementPanel.setVisibility(View.VISIBLE);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        int padding = Math.round(12 * getResources().getDisplayMetrics().density);
+        scroll.setPadding(padding, padding / 3, padding, padding / 3);
+        scroll.addView(serverManagementPanel);
+        serverMenuDialog = new AlertDialog.Builder(this).setTitle("Сервер")
+                .setView(scroll).setNegativeButton("Закрыть", null).create();
+        serverMenuDialog.setOnDismissListener(dialog -> {
+            scroll.removeView(serverManagementPanel);
+            serverManagementPanel.setVisibility(View.GONE);
+            originalParent.addView(serverManagementPanel, position);
+        });
+        serverMenuDialog.show();
     }
 
     private void confirmAgentAction(String action, String message) {
@@ -570,7 +639,7 @@ public class MainActivity extends BaseActivity {
         Toast.makeText(this, "Данные SFTP скопированы", Toast.LENGTH_SHORT).show();
     }
 
-    private void openFiles() {
+    private void openFiles(boolean pickAttachment) {
         String host = activeHost();
         int port = parsePort();
         String user = userInput.getText().toString().trim();
@@ -580,14 +649,166 @@ public class MainActivity extends BaseActivity {
         // Сохраняем несекретные поля, чтобы файловый экран использовал тот же режим/адрес.
         if (!saveConfig()) return;
         Intent intent = new Intent(this, FilesActivity.class);
+        intent.putExtra(FileAttachments.PICK_ON_OPEN, pickAttachment);
+        FileAttachments.put(intent, attachedFiles);
         SessionPassword.put(password);
-        startActivity(intent);
+        try { startActivity(intent); }
+        catch (RuntimeException e) {
+            SessionPassword.take();
+            attachedFiles.clear();
+            renderAttachmentEntry();
+            Toast.makeText(this, "Нет доступа к вложениям. Прикрепи файлы заново через выбор файлов Android.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        attachedFiles.clear();
+        renderAttachmentEntry();
         appendLog("Открыт встроенный SFTP-браузер.");
+    }
+
+    private void renderAttachmentEntry() {
+        ((Button) findViewById(R.id.attachFilesButton)).setText(attachedFiles.isEmpty()
+                ? "Отправить файл" : "Вложений: " + attachedFiles.size() + " • Отправить");
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        for (Uri uri : FileAttachments.from(intent)) FileAttachments.add(attachedFiles, uri);
+        renderAttachmentEntry();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        state.putParcelableArrayList(FileAttachments.EXTRA, new ArrayList<>(attachedFiles));
+        super.onSaveInstanceState(state);
+    }
+
+    private void openToolsDrawer() {
+        View panel = findViewById(R.id.advancedPanel);
+        if (panel.getVisibility() == View.VISIBLE) { closeToolsDrawer(); return; }
+        View root = findViewById(R.id.dashboardRoot);
+        int width = root.getWidth() > 0 ? root.getWidth() : getResources().getDisplayMetrics().widthPixels;
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) panel.getLayoutParams();
+        params.width = width / 2;
+        params.gravity = Gravity.RIGHT;
+        panel.setLayoutParams(params);
+        panel.animate().cancel();
+        panel.setTranslationX(params.width);
+        panel.setVisibility(View.VISIBLE);
+        findViewById(R.id.drawerScrim).setVisibility(View.VISIBLE);
+        findViewById(R.id.dashboardScroll).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        panel.animate().translationX(0).setDuration(220).start();
+        if (Build.VERSION.SDK_INT >= 33) {
+            drawerBackCallback = (android.window.OnBackInvokedCallback) this::closeToolsDrawer;
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                    (android.window.OnBackInvokedCallback) drawerBackCallback);
+        }
+        refreshVpnStatus();
+    }
+
+    private void closeToolsDrawer() {
+        if (Build.VERSION.SDK_INT >= 33 && drawerBackCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
+                    (android.window.OnBackInvokedCallback) drawerBackCallback);
+            drawerBackCallback = null;
+        }
+        View panel = findViewById(R.id.advancedPanel);
+        panel.animate().cancel();
+        panel.setVisibility(View.GONE);
+        findViewById(R.id.drawerScrim).setVisibility(View.GONE);
+        findViewById(R.id.dashboardScroll).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        handler.removeCallbacks(vpnRefresh);
+        android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager)
+                getSystemService(INPUT_METHOD_SERVICE);
+        if (keyboard != null) keyboard.hideSoftInputFromWindow(panel.getWindowToken(), 0);
+    }
+
+    @Override
+    @android.annotation.SuppressLint("GestureBackNavigation") // API 24–32; API 33+ uses the registered callback above.
+    public void onBackPressed() {
+        if (findViewById(R.id.advancedPanel).getVisibility() == View.VISIBLE) closeToolsDrawer();
+        else super.onBackPressed();
+    }
+
+    private void chooseTheme() {
+        new AlertDialog.Builder(this).setTitle("Цветовая тема")
+                .setSingleChoiceItems(ThemeCatalog.NAMES, ThemeCatalog.index(this), (dialog, selected) -> {
+                    ThemeCatalog.select(this, selected);
+                    dialog.dismiss();
+                    recreate();
+                }).setNegativeButton("Назад", null).show();
+    }
+
+    private void requestVpn(boolean connect) {
+        VpnController.Request result = VpnController.request(this, connect);
+        if (result == VpnController.Request.SENT) {
+            requestedVpn = connect;
+            vpnRequestDeadline = SystemClock.elapsedRealtime() + 20_000;
+            refreshVpnStatus();
+            return;
+        }
+        requestedVpn = null;
+        refreshVpnStatus();
+        new AlertDialog.Builder(this).setTitle("VPN / Tailscale")
+                .setMessage(result == VpnController.Request.NOT_INSTALLED
+                        ? "Установи Tailscale на телефон, серверное устройство и компьютер. Войди в одну сеть и разреши VPN на телефоне. После настройки тумблер сможет включать и выключать подключение."
+                        : "Открой Tailscale и заверши настройку. Эта версия клиента или политика Android не разрешила команду подключения.")
+                .setNegativeButton("Назад", null)
+                .setPositiveButton(result == VpnController.Request.NOT_INSTALLED ? "Скачать" : "Открыть",
+                        (dialog, which) -> openVpnClient()).show();
+    }
+
+    private void refreshVpnStatus() {
+        Switch toggle = findViewById(R.id.drawerVpnSwitch);
+        if (toggle == null) return;
+        handler.removeCallbacks(vpnRefresh);
+        VpnController.State state = VpnController.state(this);
+        boolean connected = state == VpnController.State.TAILSCALE;
+        String message = connected ? "VPN Tailscale включён" : state == VpnController.State.OTHER_VPN
+                ? "Включён другой VPN" : "VPN выключен";
+        if (requestedVpn != null) {
+            if (requestedVpn == connected) requestedVpn = null;
+            else if (SystemClock.elapsedRealtime() >= vpnRequestDeadline) {
+                requestedVpn = null;
+                message = "Открой Tailscale и проверь подключение";
+            } else message = requestedVpn ? "Подключение…" : "Отключение…";
+        }
+        updatingVpnSwitch = true;
+        toggle.setChecked(connected);
+        toggle.setEnabled(requestedVpn == null);
+        updatingVpnSwitch = false;
+        ((TextView) findViewById(R.id.drawerVpnStatus)).setText(message);
+        ((Button) findViewById(R.id.themeChooserButton)).setText("Тема: " + ThemeCatalog.NAMES[ThemeCatalog.index(this)]);
+        if (findViewById(R.id.advancedPanel).getVisibility() == View.VISIBLE || requestedVpn != null)
+            handler.postDelayed(vpnRefresh, 1000);
+    }
+
+    private void openVpnClient() {
+        Intent intent = getPackageManager().getLaunchIntentForPackage(VpnController.PACKAGE);
+        if (intent == null) intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://tailscale.com/download/android"));
+        try { startActivity(intent); }
+        catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, "Установи Tailscale из магазина приложений", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showVpnHelp() {
+        new AlertDialog.Builder(this).setTitle("Общая сеть телефона и ПК")
+                .setMessage("1. Установи Tailscale на серверное устройство, телефон и компьютер.\n\n"
+                        + "2. Войди на устройствах в одну сеть Tailscale и включи их подключения.\n\n"
+                        + "3. Укажи 100.x.x.x или MagicDNS-имя сервера в VPN-профиле; порт 8022 и логин остаются прежними. На ПК используй тот же адрес в SFTP-клиенте.\n\n"
+                        + "4. Дома локальный IP 192.168.1.82 остаётся доступен с обычным Tailscale без exit node. Для доступа из другой сети выбери профиль VPN / Tailscale.\n\n"
+                        + "Если используешь exit node, включи Allow LAN access в настройках Tailscale на каждом устройстве.\n\n"
+                        + "Тумблер управляет VPN этого телефона. Другие устройства подключаются в своих клиентах.")
+                .setPositiveButton("Понятно", null).show();
     }
 
     private void exportDiagnostics() {
         StringBuilder report = new StringBuilder();
-        report.append("Home Server Control v0.8\n");
+        report.append("LocalLS v0.9\n");
         report.append("Создано: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())).append("\n\n");
         report.append("Подключение\n");
         report.append("Режим: ").append(vpnModeButton.isChecked() ? "VPN/Tailscale" : "Local").append("\n");
@@ -690,11 +911,16 @@ public class MainActivity extends BaseActivity {
     @Override
     protected void onPause() {
         if (liveSpeedPanel != null) liveSpeedPanel.stop();
+        handler.removeCallbacks(vpnRefresh);
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
+        if (serverMenuDialog != null) serverMenuDialog.dismiss();
+        if (Build.VERSION.SDK_INT >= 33 && drawerBackCallback != null)
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
+                    (android.window.OnBackInvokedCallback) drawerBackCallback);
         if (liveSpeedPanel != null) liveSpeedPanel.stop();
         handler.removeCallbacksAndMessages(null);
         executor.shutdownNow();

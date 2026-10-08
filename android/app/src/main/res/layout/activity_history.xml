@@ -2,7 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg"
+    android:background="?attr/hscBackground"
     android:fillViewport="true">
 
     <LinearLayout
@@ -15,7 +15,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="История сервера"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/hscTextPrimary"
             android:textSize="22sp"
             android:textStyle="bold" />
 
@@ -24,7 +24,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="Последние проверки: доступность, задержка, занятое место и iperf3."
-            android:textColor="@color/text_secondary"
+            android:textColor="?attr/hscTextSecondary"
             android:textSize="13sp" />
 
         <LinearLayout
@@ -49,20 +49,20 @@
                 android:text="Очистить" />
         </LinearLayout>
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Доступность" android:textColor="@color/text_primary" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:id="@+id/availabilitySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="@color/text_secondary" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Доступность" android:textColor="?attr/hscTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:id="@+id/availabilitySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="?attr/hscTextSecondary" android:textSize="13sp" />
         <com.bitpoint.homeservercontrol.MetricChartView android:id="@+id/availabilityChart" android:layout_width="match_parent" android:layout_height="130dp" android:layout_marginTop="4dp" android:background="@drawable/panel_bg" />
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Отклик SSH" android:textColor="@color/text_primary" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:id="@+id/latencySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="@color/text_secondary" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Отклик SSH" android:textColor="?attr/hscTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:id="@+id/latencySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="?attr/hscTextSecondary" android:textSize="13sp" />
         <com.bitpoint.homeservercontrol.MetricChartView android:id="@+id/latencyChart" android:layout_width="match_parent" android:layout_height="130dp" android:layout_marginTop="4dp" android:background="@drawable/panel_bg" />
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Занято памяти" android:textColor="@color/text_primary" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:id="@+id/diskSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="@color/text_secondary" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Занято памяти" android:textColor="?attr/hscTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:id="@+id/diskSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="?attr/hscTextSecondary" android:textSize="13sp" />
         <com.bitpoint.homeservercontrol.MetricChartView android:id="@+id/diskChart" android:layout_width="match_parent" android:layout_height="130dp" android:layout_marginTop="4dp" android:background="@drawable/panel_bg" />
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Скорость iperf3" android:textColor="@color/text_primary" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:id="@+id/speedSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="@color/text_secondary" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Скорость iperf3" android:textColor="?attr/hscTextPrimary" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:id="@+id/speedSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="?attr/hscTextSecondary" android:textSize="13sp" />
         <com.bitpoint.homeservercontrol.MetricChartView android:id="@+id/speedChart" android:layout_width="match_parent" android:layout_height="130dp" android:layout_marginTop="4dp" android:background="@drawable/panel_bg" />
 
         <TextView
@@ -71,7 +71,7 @@
             android:layout_marginTop="10dp"
             android:layout_marginBottom="20dp"
             android:text="Графики хранятся только локально в приложении. Пароли и токены в историю не попадают."
-            android:textColor="@color/text_secondary"
+            android:textColor="?attr/hscTextSecondary"
             android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>

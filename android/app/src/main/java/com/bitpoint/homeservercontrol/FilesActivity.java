@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class FilesActivity extends BaseActivity {
     private static final int REQ_UPLOAD = 501;
     private static final int REQ_DOWNLOAD = 502;
+    private static final int REQ_DOWNLOAD_FOLDER = 503;
     private static final String KEY_LAST_REMOTE_PATH = "last_remote_path";
     private static final int MAX_TRANSFER_ATTEMPTS = 2;
     private static final long RETRY_DELAY_MS = 1500L;
@@ -67,6 +68,12 @@ public class FilesActivity extends BaseActivity {
     private String fingerprint;
     private String currentPath;
     private RemoteEntry pendingDownload;
+    private final ArrayList<Uri> attachedFiles = new ArrayList<>();
+    private AlertDialog pendingSendDialog;
+    private final java.util.LinkedHashMap<String, RemoteEntry> selectedDownloads = new java.util.LinkedHashMap<>();
+    private ArrayList<RemoteEntry> pendingBatchDownload;
+    private boolean selectingDownloads;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,8 +85,32 @@ public class FilesActivity extends BaseActivity {
         liveSpeedPanel = new LiveSpeedPanel(findViewById(R.id.filesSpeedChart), findViewById(R.id.filesSpeedSummary));
         loadConnection();
         wireActions();
+        if (savedInstanceState == null || !savedInstanceState.containsKey(FileAttachments.EXTRA))
+            for (Uri uri : FileAttachments.from(getIntent())) attachFile(uri);
+        if (savedInstanceState != null) {
+            ArrayList<Uri> restored = savedInstanceState.getParcelableArrayList(FileAttachments.EXTRA);
+            if (restored != null) for (Uri uri : restored) attachFile(uri);
+            currentPath = savedInstanceState.getString("current_remote_path", currentPath);
+        }
+        if (savedInstanceState != null) {
+            selectingDownloads = savedInstanceState.getBoolean("selecting_downloads", false);
+            ArrayList<Bundle> selection = savedInstanceState.getParcelableArrayList("selected_downloads");
+            if (selection != null) for (Bundle item : selection) {
+                RemoteEntry entry = new RemoteEntry(item.getString("name"), item.getString("path"), false, item.getLong("size"), item.getInt("mtime"));
+                if (entry.path != null && entry.name != null) selectedDownloads.put(entry.path, entry);
+            }
+            ArrayList<Bundle> pending = savedInstanceState.getParcelableArrayList("pending_batch_download");
+            if (pending != null) {
+                pendingBatchDownload = new ArrayList<>();
+                for (Bundle item : pending) pendingBatchDownload.add(new RemoteEntry(item.getString("name"), item.getString("path"), false, item.getLong("size"), item.getInt("mtime")));
+            }
+        }
+        renderDownloadSelection();
+        renderAttachments();
         if (TextUtils.isEmpty(password)) promptPassword();
         else refresh();
+        if (savedInstanceState == null && getIntent().getBooleanExtra(FileAttachments.PICK_ON_OPEN, false)
+                && !TextUtils.isEmpty(password)) chooseUploads();
     }
 
     private void bindViews() {
@@ -97,11 +128,11 @@ public class FilesActivity extends BaseActivity {
                     RemoteEntry entry = entries.get(position);
                     ((ImageView) row.findViewById(R.id.remoteFileIcon)).setImageResource(
                             entry.directory ? R.drawable.ic_folder : R.drawable.ic_file);
-                    SpannableString label = new SpannableString(labels.get(position));
+                    SpannableString label = new SpannableString((selectedDownloads.containsKey(entry.path) ? "☑ " : "") + labels.get(position));
                     int metadata = label.toString().indexOf('\n');
                     if (metadata >= 0) {
                         label.setSpan(new RelativeSizeSpan(0.85f), metadata + 1, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        label.setSpan(new ForegroundColorSpan(getColor(R.color.text_secondary)), metadata + 1,
+                        label.setSpan(new ForegroundColorSpan(ThemeCatalog.color(FilesActivity.this, R.attr.hscTextSecondary)), metadata + 1,
                                 label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                     ((TextView) row.findViewById(R.id.remoteFileLabel)).setText(label);
@@ -128,6 +159,7 @@ public class FilesActivity extends BaseActivity {
     }
 
     private void wireActions() {
+        findViewById(R.id.filesMinimizeButton).setOnClickListener(v -> minimizeToTray());
         findViewById(R.id.filesBackButton).setOnClickListener(v -> finish());
         findViewById(R.id.filesRefreshButton).setOnClickListener(v -> refresh());
         findViewById(R.id.filesUpButton).setOnClickListener(v -> {
@@ -138,7 +170,23 @@ public class FilesActivity extends BaseActivity {
             }
         });
         findViewById(R.id.filesUploadButton).setOnClickListener(v -> chooseUploads());
+        findViewById(R.id.filesOpenFolderButton).setOnClickListener(v -> promptOpenFolder());
+        pathText.setOnClickListener(v -> promptOpenFolder());
+        findViewById(R.id.filesSendAttachmentsButton).setOnClickListener(v -> sendAttachedFiles());
+        findViewById(R.id.filesClearAttachmentsButton).setOnClickListener(v -> {
+            attachedFiles.clear();
+            renderAttachments();
+        });
+        findViewById(R.id.attachmentsSummary).setOnClickListener(v -> reviewAttachments());
         findViewById(R.id.filesMkdirButton).setOnClickListener(v -> promptCreateFolder());
+        findViewById(R.id.filesSelectButton).setOnClickListener(v -> {
+            selectingDownloads = !selectingDownloads;
+            renderDownloadSelection();
+        });
+        findViewById(R.id.filesClearSelectionButton).setOnClickListener(v -> {
+            selectedDownloads.clear(); renderDownloadSelection();
+        });
+        findViewById(R.id.filesDownloadSelectedButton).setOnClickListener(v -> chooseBatchDownloadFolder());
         cancelTransferButton.setOnClickListener(v -> cancelCurrentTransfer());
         clearQueueButton.setOnClickListener(v -> clearQueuedTransfers());
 
@@ -149,7 +197,8 @@ public class FilesActivity extends BaseActivity {
                 currentPath = entry.path;
                 refresh();
             } else {
-                chooseDownloadDestination(entry);
+                if (selectingDownloads) toggleDownloadSelection(entry);
+                else chooseDownloadDestination(entry);
             }
         });
         fileList.setOnItemLongClickListener((parent, view, position, id) -> {
@@ -259,7 +308,10 @@ public class FilesActivity extends BaseActivity {
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        startActivityForResult(intent, REQ_UPLOAD);
+        try { startActivityForResult(intent, REQ_UPLOAD); }
+        catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, "На устройстве не найден выбор файлов Android", Toast.LENGTH_LONG).show();
+        }
     }
 
     private void chooseDownloadDestination(RemoteEntry entry) {
@@ -274,22 +326,177 @@ public class FilesActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_DOWNLOAD_FOLDER && resultCode != RESULT_OK) pendingBatchDownload = null;
         if (resultCode != RESULT_OK || data == null) return;
 
         if (requestCode == REQ_UPLOAD) {
-            if (data.getClipData() != null) {
-                for (int i = 0; i < data.getClipData().getItemCount(); i++) {
-                    enqueueUpload(data.getClipData().getItemAt(i).getUri());
-                }
-            } else if (data.getData() != null) {
-                enqueueUpload(data.getData());
-            }
+            for (Uri uri : FileAttachments.from(data)) attachFile(uri);
         } else if (requestCode == REQ_DOWNLOAD && data.getData() != null && pendingDownload != null) {
             RemoteEntry entry = pendingDownload;
             pendingDownload = null;
             enqueueDownload(entry, data.getData());
+        } else if (requestCode == REQ_DOWNLOAD_FOLDER && data.getData() != null && pendingBatchDownload != null) {
+            ArrayList<RemoteEntry> batch = pendingBatchDownload;
+            pendingBatchDownload = null;
+            Uri tree = data.getData();
+            persistUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            downloadSelectionToFolder(batch, tree);
         }
     }
+
+    private void attachFile(Uri uri) {
+        if (!FileAttachments.add(attachedFiles, uri)) return;
+        persistUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        renderAttachments();
+    }
+
+    private void renderAttachments() {
+        View panel = findViewById(R.id.attachmentsPanel);
+        if (panel == null) return;
+        panel.setVisibility(attachedFiles.isEmpty() ? View.GONE : View.VISIBLE);
+        ((TextView) findViewById(R.id.attachmentsSummary)).setText("Прикреплено: " + attachedFiles.size()
+                + " • нажми, чтобы убрать файл");
+        ((Button) findViewById(R.id.filesSendAttachmentsButton)).setText("Отправить (" + attachedFiles.size() + ")");
+    }
+
+    private void reviewAttachments() {
+        if (attachedFiles.isEmpty()) return;
+        String[] names = new String[attachedFiles.size()];
+        for (int i = 0; i < names.length; i++) names[i] = displayName(attachedFiles.get(i));
+        new AlertDialog.Builder(this).setTitle("Убрать вложение")
+                .setItems(names, (dialog, selected) -> {
+                    if (selected < attachedFiles.size()) attachedFiles.remove(selected);
+                    renderAttachments();
+                }).setNegativeButton("Назад", null).show();
+    }
+
+    private void sendAttachedFiles() {
+        if (attachedFiles.isEmpty() || !validConnection()) return;
+        ArrayList<Uri> selected = new ArrayList<>(attachedFiles);
+        StringBuilder message = new StringBuilder("В папку: ").append(currentPath).append("\n\n");
+        for (int i = 0; i < Math.min(8, selected.size()); i++)
+            message.append("• ").append(displayName(selected.get(i))).append('\n');
+        if (selected.size() > 8) message.append("и ещё ").append(selected.size() - 8).append(" файлов\n");
+        message.append("\nОдноимённые файлы будут заменены.");
+        pendingSendDialog = new AlertDialog.Builder(this).setTitle("Отправить на сервер?")
+                .setMessage(message).setNegativeButton("Отмена", null)
+                .setPositiveButton("Отправить", (dialog, which) -> {
+                    if (closing || !validConnection()) return;
+                    attachedFiles.removeAll(selected);
+                    renderAttachments();
+                    for (Uri uri : selected) enqueueUpload(uri);
+                }).create();
+        pendingSendDialog.show();
+    }
+
+    void toggleDownloadSelection(RemoteEntry entry) {
+        if (entry.directory) return;
+        if (selectedDownloads.containsKey(entry.path)) selectedDownloads.remove(entry.path);
+        else if (selectedDownloads.size() < 256) selectedDownloads.put(entry.path, entry);
+        else Toast.makeText(this, "За один раз можно выбрать до 256 файлов", Toast.LENGTH_LONG).show();
+        renderDownloadSelection();
+    }
+
+    private void renderDownloadSelection() {
+        Button select = findViewById(R.id.filesSelectButton);
+        select.setText(selectingDownloads ? "Выбор включён" : "Выделить");
+        Button download = findViewById(R.id.filesDownloadSelectedButton);
+        download.setText(selectedDownloads.isEmpty() ? "Скачать выбранное" : "Скачать (" + selectedDownloads.size() + ")");
+        download.setEnabled(!selectedDownloads.isEmpty());
+        findViewById(R.id.filesClearSelectionButton).setEnabled(!selectedDownloads.isEmpty());
+        if (adapter != null) adapter.notifyDataSetChanged();
+    }
+
+    private void chooseBatchDownloadFolder() {
+        if (!validConnection() || selectedDownloads.isEmpty()) return;
+        pendingBatchDownload = new ArrayList<>(selectedDownloads.values());
+        Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try { startActivityForResult(picker, REQ_DOWNLOAD_FOLDER); }
+        catch (android.content.ActivityNotFoundException e) {
+            pendingBatchDownload = null;
+            Toast.makeText(this, "Выбор папки Android недоступен", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    void downloadSelectionToFolder(ArrayList<RemoteEntry> batch, Uri tree) {
+        if (!validConnection() || closing || batch.isEmpty()) return;
+        new AlertDialog.Builder(this).setTitle("Скачать на телефон?")
+                .setMessage("Файлов: " + batch.size() + ". Они будут сохранены в выбранную папку. Существующие файлы сохранятся; совпадающие имена получат номер.")
+                .setNegativeButton("Отмена", null).setPositiveButton("Скачать", (dialog, which) -> {
+                    browseExecutor.execute(() -> {
+                        ArrayList<Uri> destinations = new ArrayList<>();
+                        try {
+                            for (RemoteEntry entry : batch) {
+                                if (closing || Thread.currentThread().isInterrupted()) return;
+                                destinations.add(LocalDownloadFolder.createFile(this, tree, entry.name));
+                            }
+                            runOnUiThread(() -> {
+                                if (closing) return;
+                                for (int i = 0; i < batch.size(); i++) {
+                                    RemoteEntry entry = batch.get(i);
+                                    selectedDownloads.remove(entry.path);
+                                    enqueueDownload(entry, destinations.get(i));
+                                }
+                                renderDownloadSelection();
+                            });
+                        } catch (Exception e) {
+                            for (Uri destination : destinations) {
+                                try { android.provider.DocumentsContract.deleteDocument(getContentResolver(), destination); }
+                                catch (Exception ignored) { }
+                            }
+                            runOnUiThread(() -> Toast.makeText(this, "Не удалось создать файлы в выбранной папке. Проверь доступ и свободное место.", Toast.LENGTH_LONG).show());
+                        }
+                    });
+                }).show();
+    }
+
+    private ArrayList<Bundle> selectionState(ArrayList<RemoteEntry> entries) {
+        ArrayList<Bundle> out = new ArrayList<>();
+        for (RemoteEntry entry : entries) {
+            Bundle value = new Bundle(); value.putString("name", entry.name); value.putString("path", entry.path);
+            value.putLong("size", entry.size); value.putInt("mtime", entry.mtime); out.add(value);
+        }
+        return out;
+    }
+
+    private void promptOpenFolder() {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setText(currentPath);
+        input.setSelectAllOnFocus(true);
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Папка сервера")
+                .setMessage("Введи полный путь. Пример: /storage/emulated/0/Download")
+                .setView(input).setNegativeButton("Назад", null).setPositiveButton("Открыть", null).create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            if (openRemotePath(input.getText().toString())) dialog.dismiss();
+            else input.setError("Нужен полный путь, начинающийся с /");
+        }));
+        dialog.show();
+    }
+
+    boolean openRemotePath(String path) {
+        String cleaned = path == null ? "" : path.trim();
+        if (!cleaned.startsWith("/") || cleaned.indexOf('\0') >= 0
+                || cleaned.indexOf('\n') >= 0 || cleaned.indexOf('\r') >= 0) return false;
+        currentPath = cleaned;
+        refresh();
+        return true;
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        state.putParcelableArrayList(FileAttachments.EXTRA, new ArrayList<>(attachedFiles));
+        state.putString("current_remote_path", currentPath);
+        state.putBoolean("selecting_downloads", selectingDownloads);
+        state.putParcelableArrayList("selected_downloads", selectionState(new ArrayList<>(selectedDownloads.values())));
+        if (pendingBatchDownload != null) state.putParcelableArrayList("pending_batch_download", selectionState(pendingBatchDownload));
+        super.onSaveInstanceState(state);
+    }
+
+    @Override
+    protected boolean canRecreateForTheme() { return queuedTransfers.get() == 0; }
 
     private void enqueueUpload(Uri uri) {
         persistUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -531,6 +738,7 @@ public class FilesActivity extends BaseActivity {
         List<String> actions = new ArrayList<>();
         if (entry.directory) actions.add("Открыть");
         else actions.add("Скачать");
+        if (!entry.directory) actions.add(selectedDownloads.containsKey(entry.path) ? "Снять выделение" : "Выделить");
         actions.add("Переименовать");
         actions.add("Удалить");
 
@@ -543,6 +751,8 @@ public class FilesActivity extends BaseActivity {
                         refresh();
                     } else if ("Скачать".equals(action)) {
                         chooseDownloadDestination(entry);
+                    } else if ("Выделить".equals(action) || "Снять выделение".equals(action)) {
+                        selectingDownloads = true; toggleDownloadSelection(entry);
                     } else if ("Переименовать".equals(action)) {
                         promptRename(entry);
                     } else if ("Удалить".equals(action)) {
@@ -655,7 +865,7 @@ public class FilesActivity extends BaseActivity {
             if (cursor != null) cursor.close();
         }
         if (TextUtils.isEmpty(name)) name = "upload_" + System.currentTimeMillis();
-        return name.replace("/", "_").replace("\\", "_");
+        return FileAttachments.safeName(name);
     }
 
     private long displaySize(Uri uri) {
@@ -713,6 +923,7 @@ public class FilesActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         closing = true;
+        if (pendingSendDialog != null) pendingSendDialog.dismiss();
         if (liveSpeedPanel != null) liveSpeedPanel.stop();
         TransferSpeedStore.end(currentTransfer, "Отменено");
         for (TransferJob job : transferJobs) job.cancelled = true;

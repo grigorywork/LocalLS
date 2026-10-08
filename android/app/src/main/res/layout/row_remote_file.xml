@@ -6,6 +6,6 @@
     <ImageView android:id="@+id/remoteFileIcon" android:layout_width="28dp" android:layout_height="28dp"
         android:layout_marginEnd="10dp" android:importantForAccessibility="no" android:src="@drawable/ic_file" />
     <TextView android:id="@+id/remoteFileLabel" android:layout_width="0dp" android:layout_weight="1"
-        android:layout_height="wrap_content" android:textColor="@color/text_primary"
+        android:layout_height="wrap_content" android:textColor="?attr/hscTextPrimary"
         android:textSize="14sp" android:maxLines="2" android:ellipsize="end" />
 </LinearLayout>

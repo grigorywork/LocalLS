@@ -62,7 +62,7 @@ Write-Host "[6/6] Collect artifact"
 $apk = Join-Path $Root "app\build\outputs\apk\debug\app-debug.apk"
 if (-not (Test-Path $apk)) { throw "Build reported success but APK not found: $apk" }
 New-Item -ItemType Directory -Force -Path (Join-Path $Root "artifacts") | Out-Null
-$out = Join-Path $Root "artifacts\HomeServerControl-v0.8-debug.apk"
+$out = Join-Path $Root "artifacts\LocalLS-v0.9-debug.apk"
 Copy-Item $apk $out -Force
 python .\tools\verify_apk.py $out --sdk $env:ANDROID_SDK_ROOT
 if ($LASTEXITCODE -ne 0) { throw "APK validation failed" }
@@ -72,7 +72,7 @@ $size = (Get-Item $out).Length
 # BUILD REPORT
 
 - Status: BUILD SUCCESSFUL
-- APK: artifacts/HomeServerControl-v0.8-debug.apk
+- APK: artifacts/LocalLS-v0.9-debug.apk
 - Size: $size bytes
 - Gradle: 9.6.0
 - Android Gradle Plugin: 9.4.1

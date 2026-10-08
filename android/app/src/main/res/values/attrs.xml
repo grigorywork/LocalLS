@@ -1,0 +1,13 @@
+<resources>
+    <attr name="hscBackground" format="color" />
+    <attr name="hscPanel" format="color" />
+    <attr name="hscTextPrimary" format="color" />
+    <attr name="hscTextSecondary" format="color" />
+    <attr name="hscAccent" format="color" />
+    <attr name="hscButton" format="color" />
+    <attr name="hscSecondaryButton" format="color" />
+    <attr name="hscStroke" format="color" />
+    <attr name="hscSuccess" format="color" />
+    <attr name="hscError" format="color" />
+    <attr name="hscWarning" format="color" />
+</resources>

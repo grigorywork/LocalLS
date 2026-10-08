@@ -161,7 +161,7 @@ public class NetworkActivity extends BaseActivity {
                 String own = TextUtils.isEmpty(result.localIp) ? "—" : result.localIp;
                 if (result.hosts.isEmpty()) {
                     resultText.setText("IP этого телефона: " + own + "\n" + result.message
-                            + "\n\nУбедись, что Realme и этот телефон в одной Wi‑Fi сети, а sshd запущен.");
+                            + "\n\nУбедись, что сервер и это устройство в одной Wi‑Fi сети, а sshd запущен.");
                     return;
                 }
                 String[] candidates = result.hosts.toArray(new String[0]);
@@ -174,7 +174,7 @@ public class NetworkActivity extends BaseActivity {
                             .setPositiveButton("Использовать", (d, which) ->
                                     applyDiscoveredHost(candidates[0], port));
                 } else {
-                    dialog.setMessage("Найдено несколько устройств. Выбери Realme по его адресу.")
+                    dialog.setMessage("Найдено несколько устройств. Выбери сервер по его адресу.")
                             .setItems(candidates, (d, which) ->
                                     applyDiscoveredHost(candidates[which], port));
                 }
@@ -195,9 +195,9 @@ public class NetworkActivity extends BaseActivity {
     private void showTailscaleWizard() {
         new AlertDialog.Builder(this)
                 .setTitle("Мастер Tailscale")
-                .setMessage("1. На Realme и втором устройстве установи Tailscale.\n\n"
+                .setMessage("1. На сервере и другом устройстве установи Tailscale.\n\n"
                         + "2. Войди в один Tailscale-аккаунт и включи VPN на обоих устройствах.\n\n"
-                        + "3. На Realme найди адрес вида 100.x.x.x или MagicDNS-имя.\n\n"
+                        + "3. На сервере найди адрес вида 100.x.x.x или MagicDNS-имя.\n\n"
                         + "4. Введи его в поле VPN / Tailscale выше.\n\n"
                         + "5. Сначала нажми «Проверить SSH-порт». Локальный адрес 192.168.x.x при этом не удаляй — он остаётся запасным домашним маршрутом.\n\n"
                         + "Важно: не пробрасывай SSH 8022 и агент 8787 напрямую в интернет.")

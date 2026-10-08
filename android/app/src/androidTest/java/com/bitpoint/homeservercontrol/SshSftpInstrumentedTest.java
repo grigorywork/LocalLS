@@ -170,6 +170,89 @@ public class SshSftpInstrumentedTest {
         }
     }
 
+    @Test
+    public void attachedDocumentWaitsForSendAndOpensChosenServerFolder() throws Exception {
+        org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT >= 29);
+        String folder = "/attachments-" + java.util.UUID.randomUUID();
+        String name = "attached-" + java.util.UUID.randomUUID() + ".bin";
+        byte[] data = new byte[32 * 1024];
+        new java.util.Random(92).nextBytes(data);
+        SftpClient.mkdir(host, port, user, secret, pin, folder);
+        context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE).edit().clear()
+                .putString(ServerConfig.KEY_LOCAL_HOST, host).putInt(ServerConfig.KEY_PORT, port)
+                .putString(ServerConfig.KEY_USER, user).putString("last_remote_path", "/").commit();
+        HostTrustStore.trust(context, host, port, pin);
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Downloads.DISPLAY_NAME, name);
+        values.put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream");
+        Uri uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+        assertNotNull(uri);
+        try {
+            try (OutputStream out = context.getContentResolver().openOutputStream(uri, "wt")) {
+                assertNotNull(out); out.write(data);
+            }
+            SessionPassword.put(secret);
+            android.content.Intent launch = new android.content.Intent(context, FilesActivity.class);
+            FileAttachments.put(launch, java.util.Collections.singletonList(uri));
+            try (ActivityScenario<FilesActivity> scenario = ActivityScenario.launch(launch)) {
+                scenario.onActivity(activity -> {
+                    assertFalse(activity.openRemotePath("relative/path"));
+                    assertTrue(activity.openRemotePath(folder));
+                });
+                long deadline = System.currentTimeMillis() + 30000;
+                while (!folder.equals(context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE)
+                        .getString("last_remote_path", "")) && System.currentTimeMillis() < deadline) Thread.sleep(100);
+                assertEquals(folder, context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE)
+                        .getString("last_remote_path", ""));
+                scenario.onActivity(activity -> {
+                    activity.onActivityResult(501, android.app.Activity.RESULT_OK, new android.content.Intent().setData(uri));
+                    assertEquals(android.view.View.VISIBLE, activity.findViewById(R.id.attachmentsPanel).getVisibility());
+                    assertTrue(((android.widget.Button) activity.findViewById(R.id.filesSendAttachmentsButton))
+                            .getText().toString().contains("(1)"));
+                });
+                assertTrue("Picking a document must not upload it", SftpClient.list(host,port,user,secret,pin,folder).isEmpty());
+                assertFalse(guardRunning());
+                scenario.onActivity(activity -> {
+                    activity.findViewById(R.id.filesSendAttachmentsButton).performClick();
+                    try {
+                        java.lang.reflect.Field field = FilesActivity.class.getDeclaredField("pendingSendDialog");
+                        field.setAccessible(true);
+                        android.app.AlertDialog dialog = (android.app.AlertDialog) field.get(activity);
+                        assertNotNull(dialog); assertTrue(dialog.isShowing());
+                    } catch (Exception e) { throw new AssertionError(e); }
+                });
+                assertTrue("Confirmation must precede upload", SftpClient.list(host,port,user,secret,pin,folder).isEmpty());
+                scenario.onActivity(activity -> {
+                    try {
+                        java.lang.reflect.Field field = FilesActivity.class.getDeclaredField("pendingSendDialog");
+                        field.setAccessible(true);
+                        ((android.app.AlertDialog) field.get(activity)).getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+                    } catch (Exception e) { throw new AssertionError(e); }
+                });
+                java.util.concurrent.atomic.AtomicBoolean cleared = new java.util.concurrent.atomic.AtomicBoolean();
+                deadline = System.currentTimeMillis() + 10000;
+                while (!cleared.get() && System.currentTimeMillis() < deadline) {
+                    scenario.onActivity(activity -> cleared.set(activity.findViewById(R.id.attachmentsPanel).getVisibility() == android.view.View.GONE));
+                    Thread.sleep(100);
+                }
+                assertTrue("Confirmed attachments must leave the staging panel", cleared.get());
+                deadline = System.currentTimeMillis() + 60000;
+                while (!TransferLogStore.render(context).contains(name) && System.currentTimeMillis() < deadline) Thread.sleep(200);
+                assertTrue(TransferLogStore.render(context), TransferLogStore.render(context).contains(name)
+                        && TransferLogStore.render(context).contains("готово"));
+                ByteArrayOutputStream downloaded = new ByteArrayOutputStream();
+                SftpClient.download(host,port,user,secret,pin,folder+"/"+name,downloaded,data.length,null);
+                assertArrayEquals(data, downloaded.toByteArray());
+                SessionPassword.put(secret);
+                scenario.recreate();
+                scenario.onActivity(activity -> assertEquals("Sent attachments must not be replayed from original Intent",
+                        android.view.View.GONE, activity.findViewById(R.id.attachmentsPanel).getVisibility()));
+            }
+            SftpClient.delete(host,port,user,secret,pin,new RemoteEntry(name,folder+"/"+name,false,data.length,0));
+            SftpClient.delete(host,port,user,secret,pin,new RemoteEntry("folder",folder,true,0,0));
+        } finally { context.getContentResolver().delete(uri,null,null); }
+    }
+
     private boolean guardRunning() {
         ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(100)) {
