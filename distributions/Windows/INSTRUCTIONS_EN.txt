@@ -1,0 +1,238 @@
+﻿LOCALLS FOR WINDOWS — DETAILED USER GUIDE
+Application version: 0.1.0. Document date: October 8, 2026.
+
+WELCOME TO LOCALLS!
+
+Open your personal server from your computer and work with files in two panes.
+LocalLS helps you send photos, documents and other files to your server,
+download them to a Windows folder of your choice, and follow queue progress
+and transfer speed. Use your local network at home or a configured Tailscale
+connection away from home. Choose a theme, save your connection and minimize
+to the system tray while transfers continue. You need an existing SSH/SFTP
+server to get started. This Windows version is a client; it does not turn
+your PC into a server. Files move between your devices. LocalLS does not
+provide its own cloud storage service or require a subscription to one.
+
+1. CONTENTS OF THIS FOLDER
+
+LocalLS-Windows-0.1.0-with-guides.zip contains a Windows folder with:
+  LocalLS-0.1.0-Windows-x64-Setup.exe — the installer;
+  INSTRUCTIONS_RU.txt — the Russian guide;
+  INSTRUCTIONS_EN.txt — this guide;
+  BUILD_REPORT.md — build results and checks actually performed;
+  SHA256SUMS.txt — file checksums.
+Double-click a TXT file to open it in Notepad. Use UTF-8 if another editor
+does not display Russian text correctly. The current interface uses Russian
+labels, quoted below. This English guide does not switch its interface language.
+Documents are in the GitHub folder distributions/Windows; the installer
+and ZIP are under Assets in release windows-v0.1.0. GitHub's Source code
+archive contains source files, not the installer. Choose the with-guides
+archive or the standalone EXE.
+
+2. WHAT THE PC VERSION CAN DO
+
+LocalLS Desktop connects over SSH/SFTP to an existing server, including
+Termux/OpenSSH on Android. It provides two file panes, uploads and downloads,
+selection across folders, folder creation, renaming and deletion of a selected
+file, a queue, cancellation, history, measured speed graphs, themes and a tray.
+Public connection profiles exported by Android LocalLS can be imported.
+SSH service controls use an existing independent server agent.
+VPN access uses the installed official Tailscale client.
+Creating a server on the PC, an integrated text editor and recursive transfers
+of entire folders are not included in Windows 0.1.0. Select individual files
+inside a folder instead.
+
+3. REQUIREMENTS AND INSTALLATION
+
+Use Windows 10 or Windows 11 x64, with sufficient free storage and a network
+route to the server. This is not a Windows x86 or ARM64 installer.
+1) Download the ZIP and extract its Windows folder using Extract all.
+2) Run LocalLS-0.1.0-Windows-x64-Setup.exe from the extracted folder.
+3) Select an installation folder and complete the per-user setup wizard.
+4) Launch LocalLS from its shortcut or the Start menu.
+You may download the EXE separately; no archive extraction is then required.
+The installer currently has no publisher signature. If Windows displays
+a warning, verify that the file came from the stated GitHub release and,
+if needed, compare its SHA-256 with SHA256SUMS.txt. Do not disable Windows
+protection globally. Node.js, npm, Java, Git and compilers are not required
+to use the ready-made application; they are development/build tools.
+
+4. FIRST CONNECTION
+
+The server must already run SSH with SFTP support. For local access, put
+the PC and server on the same reachable network, then:
+1) Open Connection ("Подключение") on Overview or use the top settings button.
+2) Enter the local IP/hostname, SSH port, username and SSH password.
+3) Server folder ("Папка на сервере") specifies the initial location.
+   Leave its default value if unsure, or import a profile from the server.
+4) Choose Save settings ("Сохранить настройки"), close the panel and choose
+   Connect ("Подключиться").
+Example settings: IP 192.168.1.82, port 8022, username u0_a606.
+Another server may have different values. Enter only an IP or hostname
+in the address field, without http:// and without adding :8022.
+The SSH password is not the Wi-Fi password. After connecting, open Files
+("Файлы") or Open files ("Открыть файлы"). Check server updates available
+latency, uptime and disk figures; unavailable readings are not simulated.
+
+5. HOST KEY, PASSWORD STORAGE AND PROFILES
+
+On the first connection, compare the SSH fingerprint with the server and
+confirm trust. A changed trusted key blocks login before the password is sent.
+Do not forget the key just to remove an error: first establish whether the
+address or server changed. After a verified server reinstallation, use
+Forget trusted SSH key ("Забыть доверенный SSH-ключ") and verify the new
+fingerprint on the next connection.
+Passwords and agent tokens remain in memory unless Save secrets in Windows
+protected storage ("Сохранить секреты в защищённом хранилище Windows") is enabled.
+Saved secrets use OS-backed encryption when available. If system encryption
+is unavailable, persistent secret storage is disabled.
+In Connection, choose Import profile ("Импорт профиля"), select your server's
+LocalLS-server.json, verify its key and enter the password separately.
+Import changes the profile; review its address and Local/VPN route.
+Export ("Экспорт") saves a public profile without a password or agent token.
+
+6. TWO PANES AND FOLDER NAVIGATION
+
+The left pane is This computer ("Этот компьютер"); the right is Server
+("Сервер"). Choose folder ("Выбрать папку") selects a local browsing root.
+Double-click a folder to enter it. Up ("Вверх") opens its parent; local
+browsing is limited to the selected root. Use Choose folder again to browse
+another location on your computer.
+On the server, enter a full path and press Enter or click the arrow.
+The SSH user must have permission to access the location. Refresh ("Обновить")
+reloads lists. A single click selects or deselects an ordinary file.
+Selections survive navigation between folders; the counter shows server
+and PC selections. Clear selection ("Сбросить выбор") clears both panes.
+
+7. DOWNLOADING FROM THE SERVER
+
+1) Open a server folder and select files in the right pane.
+2) Browse other server folders and select additional files if needed.
+3) Click Download selected ("Скачать выбранное").
+4) Choose a destination in the Windows folder picker. Any accessible folder
+   can be selected, independently of the left pane's current folder.
+5) Review Transfers ("Передачи") and wait for Done ("Готово").
+If a local filename already exists, LocalLS chooses a free numbered name.
+Existing local files are not overwritten. One operation supports up to
+1000 files. Only ordinary files are selected for transfer; whole folders
+and symbolic links are not transferred in this version.
+
+8. UPLOADING AND ATTACHMENTS
+
+First open the destination folder in the right/server pane.
+Method A — selected local files:
+  Select files on the left and click Send ("Отправить"). Those selections
+  are immediately queued for the current server folder; check the path first.
+Method B — the system file picker:
+  With no files selected in the left pane, click Send ("Отправить") or
+  Send file ("Отправить файл"). Choose local files, review attachments,
+  and choose Send to current server folder
+  ("Отправить в текущую папку сервера"). Unwanted attachments can be discarded.
+If a filename already exists remotely, a separate confirmation asks whether
+to replace it. Up to 1000 ordinary files are supported in one operation.
+Open a folder and select its files instead of uploading an entire directory.
+Successful jobs are recorded in history. Fix the cause of a failed transfer
+and submit it again; byte-offset resume after restarting the application
+is not provided by this version.
+
+9. CREATING FOLDERS, RENAMING AND DELETING
+
+Use the New folder ("Новая папка") icon in the server pane and enter a name.
+To rename, select one server file, use the rename icon, enter its new name
+and confirm the native prompt. To delete, select one file, use the trash
+icon and confirm. Server deletion is not a move to the Windows Recycle Bin:
+verify what you selected. Recursive folder deletion is not enabled.
+The SSH account may lack permission to create, rename or remove items in
+a particular directory. Connection changes and some file actions require
+transfers to finish or be cancelled first. The message
+"Дождитесь окончания передач или отмените их" means an action is blocked
+temporarily by the transfer queue.
+
+10. QUEUE, HISTORY, SPEED AND SYSTEM TRAY
+
+Transfers ("Передачи") shows queued jobs, progress, outcomes and errors.
+Use a task's cancel button for a queued or active transfer.
+The Overview ("Обзор") graph shows measured bytes transferred over the last
+60 seconds. Zero speed when idle is normal; this is not an internet speed test.
+Closing the window, minimizing, or Settings -> Minimize to tray
+("Настройки → Свернуть в трей") leaves LocalLS in the system tray.
+Transfers continue while the PC is awake and the network remains available.
+Open the LocalLS tray icon to return; Windows may place it under the hidden
+icons arrow. Choose Exit ("Выйти") in its tray menu to fully close the app.
+Sleep, shutdown and fully exiting LocalLS interrupt active transfers.
+History persists, but unfinished jobs are not automatically resumed from
+their interrupted byte position after the next launch.
+
+11. VPN / TAILSCALE
+
+1) Install official Tailscale on your PC and server device.
+2) Sign into the same tailnet and finish Tailscale's initial setup.
+3) Open the separate VPN / Tailscale section in LocalLS.
+4) Enter the server's 100.x.x.x IP or MagicDNS hostname.
+5) Select the VPN / Tailscale route and save settings.
+6) Reconnect: the chosen route applies to the next SSH connection.
+The toggle controls installed Tailscale on this computer only.
+Open / install Tailscale ("Открыть / установить Tailscale") opens the client
+or installation page. Refresh status ("Обновить статус") checks real state.
+Activate VPN on the phone and server separately on those devices.
+To return to the home IP, select Local network ("Локальная сеть"), save and
+reconnect. The SSH port and username remain the existing server values.
+When using an exit node, allow LAN access in Tailscale if home addresses
+must remain reachable. LocalLS is not a separate VPN provider.
+
+12. SERVER CONTROLS
+
+Server management ("Управление сервером") requires an existing independent
+agent already installed on the server. Enter its port, typically 8787,
+and valid token, save settings and choose Agent status ("Статус агента").
+The agent token is different from the SSH password.
+Start, stop and restart SSH are supported. Finish transfers first and
+confirm the command. A stop/restart may require reconnecting afterwards.
+Starting a stopped SSH service uses the agent, which must remain available
+independently of SSH. These controls do not reboot or power off a server
+phone, power on a switched-off device, or install a server on the PC.
+Existing-agent documentation is in the source folder android/realme-agent.
+Keep its token private and use a protected network for access from outside
+your LAN. The existing sshd startup arrangement is not changed.
+
+13. APPEARANCE, UPDATES AND UNINSTALLATION
+
+Settings ("Настройки") provides light/dark violet, ocean, forest and amber
+themes. Button shapes are rounded, square or circular. Click Save settings
+to retain the selection after restarting LocalLS.
+Before installing an update, choose Exit from the tray, then run the new
+installer. Closing the window alone leaves the process running.
+To uninstall, exit through the tray and use Windows's installed-app list.
+User settings are stored separately and are not automatically removed
+by the uninstaller.
+
+14. TROUBLESHOOTING
+
+Cannot connect: check IP, port, username, running sshd, selected route and
+server network reachability. Guest Wi-Fi can isolate devices.
+Server rejected login: verify the SSH password and save it before connecting.
+After changing route or username, review the new profile's password.
+No file list: check the initial server path and SSH-user permissions.
+Download failed: check disk space and write access to the destination folder.
+Transfer not starting: check connection and ordinary-file selections, not
+folders or links; retry after fixing the queue error.
+Tailscale unavailable: open the official client, verify login and status.
+Agent error: check its separate port, token, route and running agent process.
+Host key changed: establish the cause and verify the new fingerprint first.
+For support, provide LocalLS and Windows versions, the action and ordinary
+error message. Never share a password, agent token, vault file or private key.
+
+15. CHECKSUM AND LINKS
+
+Original installer SHA-256:
+a9fd290dcd936da037b02ffa354654d9db1f6a8fe5ad3403cccf92b0cdb7ea1b
+In PowerShell, from the installer folder, run:
+  Get-FileHash .\LocalLS-0.1.0-Windows-x64-Setup.exe -Algorithm SHA256
+Compare Hash against the value above or SHA256SUMS.txt.
+
+Project: https://github.com/grigorywork/LocalLS
+Windows release: https://github.com/grigorywork/LocalLS/releases/tag/windows-v0.1.0
+Documents: https://github.com/grigorywork/LocalLS/tree/main/distributions/Windows
+BUILD_REPORT.md records checks actually performed. The installer and its
+contents were verified; installation and runtime on a physical Windows PC
+were not tested in the build environment. This guide describes released 0.1.0.

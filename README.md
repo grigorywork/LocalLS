@@ -8,6 +8,14 @@
 
 ## Приложения и сборки
 
+Готовые комплекты разделены по платформам: **[Android](distributions/Android/)**
+и **[Windows](distributions/Windows/)**. В каждом ZIP — отдельная папка,
+установщик и подробные инструкции для Блокнота на русском и английском,
+с приветствием и описанием назначения приложения.
+
+- [Android: полный комплект с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.3/LocalLS-Android-0.9.3-with-guides.zip)
+- [Windows: полный комплект с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-Windows-0.1.0-with-guides.zip)
+
 - [Скачать Windows EXE — LocalLS 0.1.0](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-0.1.0-Windows-x64-Setup.exe)
 - [Скачать Android APK — LocalLS 0.9.3](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.3/LocalLS-v0.9.3-debug.apk)
 - [Windows ZIP](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-Windows-x64.zip) и [все сохранённые релизы](https://github.com/grigorywork/LocalLS/releases).

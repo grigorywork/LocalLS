@@ -1,0 +1,249 @@
+﻿LOCALLS FOR ANDROID — DETAILED USER GUIDE
+Application version: 0.9.3. Document date: October 8, 2026.
+
+WELCOME TO LOCALLS!
+
+Keep your files within reach, even when they are stored on another device.
+LocalLS helps you use a personal server from your phone: browse folders,
+send photos and documents, download files and follow transfer progress.
+Connect over your home Wi-Fi, or use a configured Tailscale connection away
+from home. If you are setting up an Android server for the first time,
+the built-in wizard helps prepare Termux/OpenSSH through guided steps
+and system permission prompts. Start by connecting to an existing server
+or opening the wizard on the phone that will act as your server.
+Your files move between your devices; LocalLS does not provide its own
+cloud storage service.
+
+1. CONTENTS OF THIS FOLDER
+
+LocalLS-Android-0.9.3-with-guides.zip contains an Android folder with:
+  LocalLS-v0.9.3-debug.apk — the installable application;
+  INSTRUCTIONS_RU.txt — the Russian guide;
+  INSTRUCTIONS_EN.txt — this English guide;
+  BUILD_REPORT.md — build results and checks actually performed;
+  SHA256SUMS.txt — file checksums.
+Open the TXT files with Notepad or any text editor. The GitHub folder
+distributions/Android contains the documents and installer download links.
+Download the APK or complete archive from Assets in release android-v0.9.3.
+The current interface uses Russian labels; relevant labels are quoted below.
+This English document does not change the application's interface language.
+
+2. WHAT THE APPLICATION DOES
+
+LocalLS connects to your SSH/SFTP server to browse, upload and download files,
+view transfer speed, manage a queue and review transfer history. Connection,
+appearance, Wi-Fi, VPN/Tailscale and server tools have separate menu sections.
+One phone can be a client while another runs Termux/OpenSSH as a server.
+The preparation wizard requires LocalLS on the server phone as well.
+The wizard supplements regular Termux setup. An existing working server
+can be used without running the preparation wizard again.
+
+3. REQUIREMENTS AND INSTALLATION
+
+Android 7.0 or newer is required, with a network route to your server.
+1) Download the APK, or download the ZIP and extract its Android folder.
+2) Open LocalLS-v0.9.3-debug.apk on your phone.
+3) If Android requests permission to install from this source, grant it
+   to the browser or file manager used to open the APK, then retry.
+4) Open LocalLS. On Android 13+, allow notifications for background transfers.
+5) Install an update over the existing application to retain its settings,
+   transfer history and trusted keys. Avoid uninstalling before updating.
+The APK uses a debug signing certificate. A signature conflict means the
+installed copy was signed with a different key. Save connection details
+and a public profile before uninstalling: removal deletes local app data.
+Android SDK, Java and development tools are not needed to use this package.
+
+4. CONNECTING TO AN EXISTING SERVER
+
+Put the client and server on a reachable local network first.
+Open the right-side menu and expand Connection ("Подключение"). Enter:
+  Server IP/hostname — for example 192.168.1.82;
+  SSH port — for example 8022;
+  Termux username — for example u0_a606.
+These are examples, not universal settings. Another server may use a
+different address and username. Do not put http://, https:// or :port
+in the address field; the SSH port has its own field.
+Enter the existing SSH password in the password field on the main screen.
+Optionally enable "Сохранить пароль в Android Keystore" to save it using
+Android Keystore, then save settings. Otherwise a fresh launch may require
+entering the password again. Choose Check SSH/Server ("Проверить SSH" /
+"Проверить сервер") and open Files ("Файлы"). OpenSSH with SFTP must be
+running on the server before the connection can succeed.
+
+5. FIRST CONNECTION AND SSH HOST KEY
+
+On the first connection, verify the displayed SSH fingerprint against the
+server or a trusted profile supplied by its owner. Only then choose
+Trust this fingerprint ("Доверять этому fingerprint").
+A changed previously trusted key blocks authentication before password
+submission. Check whether the IP now points to a different device.
+If you intentionally reinstalled the server and verified its new key,
+choose Forget saved fingerprint ("Забыть сохранённый fingerprint"),
+then connect again and verify the new fingerprint before accepting it.
+
+6. BROWSING AND DOWNLOADING FILES
+
+1) Open "Файлы". Tap a server folder to enter it.
+2) Open folder ("Открыть папку"), or tap the path bar, to enter a full
+   server path. The SSH user must have access to this location.
+3) Choose Select ("Выделить") or long-press a file and select your files.
+4) Browse other server folders if needed: file selections are retained.
+5) Choose Download selected ("Скачать выбранное"). Select a local phone
+   folder in Android's system picker and confirm access to that folder.
+6) Follow the queue, progress, measured speed and final transfer result.
+Up to 256 files can be selected. Existing local files are preserved:
+a downloaded file receives a free numbered name if its name is already used.
+A single-file download is also available through the system document picker.
+Recursive folder download is not included. Open a folder and select its files.
+Android restricts some root and system folders in its system picker.
+Choose an allowed user location, such as a subfolder of Downloads.
+
+7. ATTACHING AND UPLOADING FILES
+
+1) Connect and open the intended destination folder on the server.
+2) Choose Attach ("Прикрепить") and select one or more local documents.
+3) Review attachments and remove unwanted items; up to 64 are supported.
+4) Check the server path, choose Send ("Отправить"), and confirm the list
+   and destination folder.
+Picking an attachment does not upload it immediately. You can also use
+Android Share in another application and select LocalLS; review the imported
+attachments in LocalLS and confirm their destination before sending.
+An upload may replace a same-name file on the server. Review the confirmation.
+In Android 0.9.3, an interrupted replacement upload can leave a partial remote
+file. Repeat the transfer and verify the resulting file if an interruption occurs.
+
+8. QUEUE, SPEED GRAPH, HISTORY AND BACKGROUND OPERATION
+
+The SFTP graph shows measured transfer speed, not your internet subscription
+speed. Zero speed is normal while no files are being transferred.
+History shows completed, failed and cancelled transfers. Use the queue's
+cancel control to stop a task. A brief network interruption has at most
+one automatic retry.
+Use Android Home or Minimize ("Свернуть") in the file browser to continue
+a transfer in the background. Return through the LocalLS notification.
+Do not close the file-transfer screen, swipe away the app or force-stop it:
+destroying the transfer screen cancels its queue. Active transfers have
+a foreground notification. A separate minimized-app notification without
+an active transfer does not keep the process alive indefinitely.
+If screen-off transfers stop, check notification permissions and battery
+restrictions for both client LocalLS and server Termux.
+
+9. PREPARING A NEW SERVER ON THIS PHONE
+
+Perform these steps on the phone that will act as the server.
+1) Install LocalLS and official Termux from F-Droid on that phone.
+2) Open Termux once and wait for its environment installation. Return to
+   LocalLS. The wizard does not require typing terminal commands.
+3) Open Settings -> This phone is a server ("Настройки → Этот телефон — сервер")
+   or open server tools and Setup wizard ("Мастер настройки").
+4) Choose Select Termux folder ("Выбрать папку Termux"). In Android's picker,
+   open the Termux provider and select its root folder, then grant access.
+5) Grant the Termux run-command permission when Android requests it.
+6) For a new server, enable Set a new server password
+   ("Задать новый пароль сервера") and enter your password twice.
+   Leave it disabled on an existing server to preserve its password.
+7) Choose Prepare server ("Подготовить сервер"). Initial OpenSSH installation
+   requires internet access from the server phone.
+8) If Termux opens to apply external-command permission settings, wait a
+   few seconds, then return using Android Back.
+9) After preparation succeeds, choose Check SSH and password
+   ("Проверить SSH и пароль").
+10) Verify the real Wi-Fi IP and export LocalLS-server.json.
+Existing SSH configuration, host keys and a running sshd are preserved.
+The wizard does not add another sshd startup mechanism. If a new server has
+no startup mechanism, run preparation again after restarting the phone.
+Initial remote provisioning from a different phone without server-side
+access is not available; this wizard runs on the server itself.
+
+10. ERROR RUN COMMAND / ALLOW-EXTERNAL-APPS
+
+This message means Termux refused the external command; preparation has
+not succeeded. Use LocalLS 0.9.3 and follow these steps:
+1) Confirm official Termux is installed and has been opened at least once.
+2) Select the root of the Termux provider again in the wizard.
+3) Use Termux access help ("Помощь с доступом Termux") to check LocalLS
+   system permissions for running commands, if shown by your Android version.
+4) Retry preparation. When Termux opens, allow time for settings to apply
+   and return using Back rather than immediately switching applications.
+5) Retry the SSH check. If refusal persists, record Termux and Android
+   versions and the numeric error code without passwords or agent tokens.
+The wizard writes allow-external-apps=true while preserving other settings.
+It refuses to blindly overwrite an invalid Termux properties file.
+Package-update and OpenSSH-installation errors require checking server
+internet access and Termux repository availability before retrying.
+
+11. TRANSFERRING A CONNECTION PROFILE
+
+After a successful real SSH login, export LocalLS-server.json on the server.
+Transfer it to the client phone or Windows PC and choose Import profile
+("Импорт профиля"). Verify its fingerprint against the server screen and
+enter the SSH password separately. The profile contains no password or
+agent token and is compatible with LocalLS Desktop. Import is blocked if
+its host key conflicts with an already trusted key.
+
+12. VPN / TAILSCALE
+
+1) Install official Tailscale on the server and every client device.
+2) Sign into the same tailnet and complete initial VPN permission prompts.
+3) Open LocalLS's separate "VPN / Tailscale" section.
+4) Enter the server's 100.x.x.x Tailscale IP or MagicDNS hostname.
+5) Select the VPN route and save settings. The SSH username and port
+   remain the server's existing values.
+6) The toggle controls this phone's VPN only. If your Tailscale client
+   does not support the command interface, enable it in Tailscale itself.
+Another active VPN does not prove the server is reachable via Tailscale.
+Use the local profile for home-network access. If using a Tailscale exit
+node, enable LAN access when you need access to the home network.
+Sign-in and VPN activation on the PC and server are performed separately.
+
+13. WI-FI AND APPEARANCE
+
+Wi-Fi of this phone ("Wi-Fi этого телефона") configures the device on which
+LocalLS is running. Enter the SSID and WPA2 password, or choose an open network.
+On Android 11+, confirm adding the network in the system screen. Android 10
+requires approving a network suggestion; Android 7–9 uses system settings.
+Android decides which network to join. If switching does not occur, open
+System settings ("Системные настройки"). This does not remotely change
+another phone's Wi-Fi. After a server network change, update client profiles
+if its IP changes. Appearance ("Оформление") changes themes and function-icon
+shapes. The home-screen launcher controls the external app icon's shape.
+
+14. STARTING, STOPPING AND RESTARTING SSH
+
+Server-menu actions Enable SSH ("Включить SSH"), Disable SSH ("Отключить SSH")
+and Restart SSH ("Перезапустить SSH") require a separate, already installed
+server agent. Enter its port, typically 8787, and its valid token, save
+access settings and check its status. The agent token is not the SSH password.
+The SSH preparation wizard does not install this independent agent.
+Its documentation is in the source folder android/realme-agent.
+Wait for transfers to finish before confirming stop/restart commands.
+These commands control the SSH service, not phone power or a phone reboot.
+The agent is a separate channel that can start SSH again after SSH is stopped.
+Keep its token private and do not expose its port to the public internet;
+use a protected Tailscale network for access from outside your LAN.
+
+15. TROUBLESHOOTING
+
+Connection failure: check current server IP, SSH port, running sshd, Local/VPN
+route, Wi-Fi and guest-network client isolation.
+Wrong password: verify SSH username and password, not the Wi-Fi password.
+SFTP permission denied: verify the SSH user's rights to that folder;
+Termux does not automatically grant access to Android system directories.
+Download failure: select an allowed destination, check phone free space
+and the remote file, then repeat the transfer.
+Opening downloaded content: find it in the local folder you selected and
+use an installed application that supports its format.
+Fingerprint conflict: determine why the key changed before trusting a new key.
+Screen-off interruption: check battery restrictions and permissions on both phones.
+For support, provide app/Android/Termux versions, the action, ordinary message
+and numeric error code. Never include a password, agent token or private key.
+
+16. LINKS AND UPDATES
+
+Project: https://github.com/grigorywork/LocalLS
+Android release: https://github.com/grigorywork/LocalLS/releases/tag/android-v0.9.3
+Documents: https://github.com/grigorywork/LocalLS/tree/main/distributions/Android
+Save a public profile before changing devices. Local history and saved secrets
+are not exported in that profile. BUILD_REPORT.md records checks actually
+performed and device-testing limits. This guide describes released 0.9.3,
+not planned v1.0 features.
