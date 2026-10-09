@@ -1,7 +1,7 @@
 {
   "name": "localls-desktop",
   "version": "0.9.5",
-  "description": "LocalLS — Windows SSH/SFTP client",
+  "description": "LocalLS \u2014 Windows SSH/SFTP client",
   "author": "LocalLS",
   "license": "UNLICENSED",
   "private": true,
@@ -23,6 +23,7 @@
       "src/**/*",
       "assets/**/*",
       "package.json",
+      "node_modules/**/*",
       "!**/*.node",
       "!node_modules/cpu-features/**/*",
       "!node_modules/nan/**/*"

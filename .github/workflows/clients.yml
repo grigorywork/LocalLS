@@ -64,10 +64,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ../tools/package_build_report.py desktop
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: LocalLS-Windows-verified
           path: |
             desktop/artifacts/*Setup.exe
+            desktop/artifacts/win-unpacked/resources/app.asar
             desktop/artifacts/VERIFICATION.json
             desktop/artifacts/BUILD_REPORT.*
             desktop/artifacts/screenshots/
