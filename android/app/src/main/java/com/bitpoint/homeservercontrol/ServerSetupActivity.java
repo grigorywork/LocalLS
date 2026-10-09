@@ -158,7 +158,7 @@ public final class ServerSetupActivity extends BaseActivity {
         verifiedFingerprint = "";
         findViewById(R.id.exportServerProfileButton).setEnabled(false);
         busy = true;
-        status.setText("Настройка доступа Termux…");
+        status.setText(com.bitpoint.homeservercontrol.ui.R.string.status_6ecd2c217d67);
         char[] secret = change ? value.toCharArray() : new char[0];
         Uri tree = Uri.parse(setup.getString("tree", ""));
         worker.execute(() -> {
@@ -204,7 +204,7 @@ public final class ServerSetupActivity extends BaseActivity {
         busy = true;
         verifiedFingerprint = "";
         findViewById(R.id.exportServerProfileButton).setEnabled(false);
-        status.setText("Проверка локального SSH-сервера…");
+        status.setText(com.bitpoint.homeservercontrol.ui.R.string.status_681fa4dbaeb8);
         int port = setup.getInt("port", 8022);
         String user = setup.getString("user", "");
         worker.execute(() -> {

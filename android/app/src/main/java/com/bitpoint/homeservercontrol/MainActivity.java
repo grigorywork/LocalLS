@@ -147,15 +147,15 @@ public class MainActivity extends BaseActivity {
     }
 
     private void invalidateConnectionStats() {
-        statusText.setText("● НЕ ПРОВЕРЕНО");
+        statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_ab27bd0a2936);
         statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
-        statusDetail.setText("Профиль изменён. Нажми «Проверить SSH».");
+        statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a7e8f235c5f7);
         lastSeenFingerprint = ""; lastSeenHost = ""; lastSeenPort = -1;
         trustKeyButton.setVisibility(View.GONE);
         fingerprintValue.setVisibility(View.GONE);
-        latencyValue.setText("Отклик SSH: —"); diskValue.setText("Память: —"); uptimeValue.setText("Аптайм: —");
-        sshdValue.setText("sshd: —"); batteryValue.setText("Батарея: —"); temperatureValue.setText("Температура: —");
-        chargingValue.setText("Питание: —"); iperfValue.setText("iperf3: —");
+        latencyValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a); diskValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_e1faaf5992f7); uptimeValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_cbe1cb69c8a9);
+        sshdValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_ce3ecbddec73); batteryValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_8d23eea1be14); temperatureValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_196fa3c8ea8d);
+        chargingValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_22a0cf38a169); iperfValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_c80b4e6b81e1);
     }
 
     private void bindViews() {
@@ -209,7 +209,7 @@ public class MainActivity extends BaseActivity {
             if (agentTokenInput.getText().length() == 0) {
                 showServerMenu();
                 findServerView(R.id.agentCredentialsPanel).setVisibility(View.VISIBLE);
-                agentOutputText.setText("Для перезапуска SSH укажи доступ к независимому серверному агенту.");
+                agentOutputText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a6920f312e45);
             } else confirmAgentAction("restart", "Перезапустить SSH-службу? Активные SSH/SFTP-подключения прервутся.");
         });
         findViewById(R.id.localServerQuickButton).setOnClickListener(v -> startActivity(
@@ -460,9 +460,9 @@ public class MainActivity extends BaseActivity {
 
         checking = true;
         checkButton.setEnabled(false);
-        statusText.setText("● ПРОВЕРКА…");
+        statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_32dfa9c36e2b);
         statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
-        statusDetail.setText(primaryHost + ":" + port);
+        statusDetail.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.server_endpoint_format, primaryHost, port));
         appendLog("Проверяю " + primaryHost + ":" + port + "…");
 
         final int generation = uiGeneration;
@@ -500,18 +500,18 @@ public class MainActivity extends BaseActivity {
     }
 
     private void renderStats(ServerStats stats, String host, int port, String user) {
-        ipValue.setText("IP: " + ("—".equals(stats.ip) ? host : stats.ip));
-        portValue.setText("Порт: " + port);
-        userValue.setText("Пользователь: " + user);
-        latencyValue.setText(stats.reachable ? "Отклик SSH: " + stats.latencyMs + " мс" : "Отклик SSH: —");
-        diskValue.setText("Память: " + stats.disk);
-        uptimeValue.setText("Аптайм: " + stats.uptime);
-        sshdValue.setText("sshd: " + stats.sshd);
-        batteryValue.setText("Батарея: " + stats.battery);
-        temperatureValue.setText("Температура: " + stats.temperature);
-        chargingValue.setText("Питание: " + stats.charging);
-        iperfValue.setText("iperf3: " + stats.iperf);
-        fingerprintValue.setText("SSH fingerprint: " + stats.hostFingerprint);
+        ipValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_a09644a994b3, ("—".equals(stats.ip) ? host : stats.ip)));
+        portValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_ff7a04dd6c26, port));
+        userValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_617bb5a0a088, user));
+        latencyValue.setText(stats.reachable ? getString(com.bitpoint.homeservercontrol.ui.R.string.status_latency_format, stats.latencyMs) : getString(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a));
+        diskValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_b375486b730b, stats.disk));
+        uptimeValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_3597244eb434, stats.uptime));
+        sshdValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_62e5a47d617d, stats.sshd));
+        batteryValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_3ca1619dfe27, stats.battery));
+        temperatureValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_ca1c6f5dfef8, stats.temperature));
+        chargingValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_a64c88b40f51, stats.charging));
+        iperfValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_cde09eb6dd81, stats.iperf));
+        fingerprintValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_8229b14b80f9, stats.hostFingerprint));
         fingerprintValue.setVisibility(stats.hostFingerprint != null && !"—".equals(stats.hostFingerprint)
                 ? View.VISIBLE : View.GONE);
 
@@ -528,27 +528,27 @@ public class MainActivity extends BaseActivity {
         trustKeyButton.setVisibility(stats.hostKeyNeedsTrust ? View.VISIBLE : View.GONE);
 
         if (stats.hostKeyMismatch) {
-            statusText.setText("● КЛЮЧ СЕРВЕРА ИЗМЕНИЛСЯ");
+            statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_de99b03c323c);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscError));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         } else if (stats.hostKeyNeedsTrust) {
-            statusText.setText("● ПОДТВЕРДИ SSH-КЛЮЧ");
+            statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_d2b35fb33f9d);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
-            statusDetail.setText("Сверь fingerprint и нажми «Доверять».");
+            statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_2ff061084808);
             appendLog("Получен новый SSH fingerprint. Команды пока заблокированы.");
         } else if (stats.authenticated && stats.hostKeyTrusted) {
-            statusText.setText("● СЕРВЕР РАБОТАЕТ");
+            statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7141047c824d);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess));
-            statusDetail.setText("SSH/SFTP доступен • fingerprint подтверждён");
+            statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_0870869f22e7);
             appendLog("Сервер онлайн. SSH-вход успешен.");
         } else if (stats.reachable) {
-            statusText.setText("● SSH ДОСТУПЕН");
+            statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_18bf0e4021be);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         } else {
-            statusText.setText("● СЕРВЕР НЕДОСТУПЕН");
+            statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a267c32f1c34);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscError));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
@@ -579,7 +579,7 @@ public class MainActivity extends BaseActivity {
         if (TextUtils.isEmpty(host) || port <= 0) return;
         HostTrustStore.clear(this, host, port);
         appendLog("Сохранённый fingerprint забыт для " + host + ":" + port + ".");
-        fingerprintValue.setText("SSH fingerprint: —");
+        fingerprintValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_3450e8b60cd1);
         fingerprintValue.setVisibility(View.GONE);
         Toast.makeText(this, "Fingerprint удалён", Toast.LENGTH_SHORT).show();
     }
@@ -592,7 +592,7 @@ public class MainActivity extends BaseActivity {
         final String trusted = HostTrustStore.get(this, host, port);
 
         if (!validSshInputs(host, port, user, password)) return;
-        commandHelpText.setText(explanation + "\n\nВыполняю…");
+        commandHelpText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.command_running_format, explanation));
         final int screen = uiGeneration, request = ++quickGeneration;
         if (quickTask != null) quickTask.cancel(true);
         quickTask = executor.submit(() -> {
@@ -601,7 +601,7 @@ public class MainActivity extends BaseActivity {
                 if (!isUiActive() || screen != uiGeneration || request != quickGeneration) return;
                 String text = result.success ? result.output : "Ошибка: " + result.error;
                 if (TextUtils.isEmpty(text)) text = "(команда ничего не вывела)";
-                commandHelpText.setText(explanation + "\n\nРезультат:\n" + text);
+                commandHelpText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.command_result_format, explanation, text));
                 appendLog(result.success ? "Быстрая команда выполнена." : "Команда не выполнена: " + result.error);
             });
         });
@@ -623,7 +623,7 @@ public class MainActivity extends BaseActivity {
 
         getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE).edit()
                 .putString(ServerConfig.KEY_IPERF_TARGET, target).apply();
-        iperfOutputText.setText("Тест идёт примерно 5 секунд…");
+        iperfOutputText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_5af958668837);
         appendLog("iperf3: сервер → " + target + ".");
 
         String command = "iperf3 -c '" + target + "' -P 4 -t 5 --format m";
@@ -634,7 +634,7 @@ public class MainActivity extends BaseActivity {
             handler.post(() -> {
                 if (!isUiActive() || screen != uiGeneration || request != iperfGeneration) return;
                 if (result.success) {
-                    iperfOutputText.setText("Результат:\n" + result.output);
+                    iperfOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_f1ebc5d72f11, result.output));
                     double speed = MetricHistoryStore.parseIperfMbps(result.output);
                     if (!Double.isNaN(speed)) {
                         MetricHistoryStore.addSpeed(this, speed);
@@ -643,8 +643,7 @@ public class MainActivity extends BaseActivity {
                         appendLog("iperf3 завершён.");
                     }
                 } else {
-                    iperfOutputText.setText("Ошибка iperf3: " + result.error
-                            + "\n\nНа ПК должна работать команда: iperf3 -s");
+                    iperfOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_02ff59b1ca7d, result.error));
                     appendLog("iperf3 ошибка: " + result.error);
                 }
             });
@@ -710,7 +709,7 @@ public class MainActivity extends BaseActivity {
             return;
         }
 
-        agentOutputText.setText("Агент: выполняю /" + action + "…");
+        agentOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_7bb857aaa20b, action));
         final int screen = uiGeneration, request = ++agentGeneration;
         if (agentTask != null) agentTask.cancel(true);
         agentTask = executor.submit(() -> {
@@ -718,12 +717,12 @@ public class MainActivity extends BaseActivity {
             handler.post(() -> {
                 if (!isUiActive() || screen != uiGeneration || request != agentGeneration) return;
                 if (result.success) {
-                    agentOutputText.setText("Агент: " + result.body);
+                    agentOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_422c9b125018, result.body));
                     appendLog("Агент /" + action + ": успешно.");
                     Toast.makeText(this, "restart".equals(action) ? "SSH-служба перезапущена" : "Команда выполнена", Toast.LENGTH_SHORT).show();
                     if (!"status".equals(action)) handler.postDelayed(() -> checkServer(false), 1200);
                 } else {
-                    agentOutputText.setText("Агент: ошибка — " + result.error);
+                    agentOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_f685119c53fb, result.error));
                     appendLog("Агент /" + action + ": " + result.error);
                 }
             });
@@ -734,9 +733,11 @@ public class MainActivity extends BaseActivity {
         String host = activeHost();
         int port = parsePort();
         String user = userInput.getText().toString().trim();
-        ipValue.setText("IP: " + (TextUtils.isEmpty(host) ? "—" : host));
-        portValue.setText("Порт: " + (port > 0 ? port : "—"));
-        userValue.setText("Пользователь: " + user);
+        ipValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_a09644a994b3, (TextUtils.isEmpty(host) ? "—" : host)));
+        portValue.setText(port > 0
+                ? getString(com.bitpoint.homeservercontrol.ui.R.string.status_ff7a04dd6c26, port)
+                : getString(com.bitpoint.homeservercontrol.ui.R.string.status_port_unavailable));
+        userValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_617bb5a0a088, user));
     }
 
     private void copyConnection() {
@@ -902,7 +903,7 @@ public class MainActivity extends BaseActivity {
         toggle.setEnabled(requestedVpn == null);
         updatingVpnSwitch = false;
         ((TextView) findViewById(R.id.drawerVpnStatus)).setText(message);
-        ((Button) findViewById(R.id.themeChooserButton)).setText("Тема: " + ThemeCatalog.NAMES[ThemeCatalog.index(this)]);
+        ((Button) findViewById(R.id.themeChooserButton)).setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_8851ca39fa37, ThemeCatalog.NAMES[ThemeCatalog.index(this)]));
         if (isUiActive() && ((findViewById(R.id.advancedPanel).getVisibility() == View.VISIBLE
                 && findViewById(R.id.drawerVpnPane).getVisibility() == View.VISIBLE) || requestedVpn != null))
             handler.postDelayed(vpnRefresh, 1000);
@@ -1044,8 +1045,8 @@ public class MainActivity extends BaseActivity {
         checking = false;
         if (checkButton != null) checkButton.setEnabled(true);
         if (statusText != null && "● ПРОВЕРКА…".contentEquals(statusText.getText())) {
-            statusText.setText("● ПРОВЕРКА ОТМЕНЕНА");
-            statusDetail.setText("Адрес или экран изменён. Нажми «Проверить SSH».");
+            statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_f7ed201ba529);
+            statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7fad5c3e34a2);
         }
     }
 

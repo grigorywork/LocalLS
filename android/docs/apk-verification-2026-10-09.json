@@ -1,7 +1,7 @@
 {
   "apk": "artifacts/LocalLS-v0.9.3-ui-debug.apk",
-  "bytes": 1483074,
-  "sha256": "bd9fc6ea394dbb914d876e90fddfc037c39b034a6046d8e1610219f7d3495eea",
+  "bytes": 1588212,
+  "sha256": "e9535129f75e8d862909fcc0ca8f4ce5ac440360462432ab17395648a685cb84",
   "package": "com.bitpoint.homeservercontrol",
   "minSdk": 24,
   "targetSdk": 37,

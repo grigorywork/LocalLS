@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <queries>
         <intent><action android:name="android.settings.WIFI_ADD_NETWORKS" /></intent>
         <package android:name="com.termux" />
@@ -46,5 +47,4 @@
         <service android:name=".TransferForegroundService" android:exported="false" android:foregroundServiceType="dataSync" />
         <service android:name=".ServerMonitorJobService" android:exported="false" android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 </manifest>

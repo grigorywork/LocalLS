@@ -20,23 +20,27 @@
     }
   ],
   "screenshots": 18,
-  "lintWarnings": 100,
+  "lintWarnings": 12,
   "lintRules": {
     "SdCardPath": 2,
     "UnusedAttribute": 1,
-    "ManifestOrder": 1,
     "AndroidGradlePluginVersion": 1,
     "GradleDependency": 2,
-    "ObsoleteSdkInt": 3,
     "UseCompoundDrawables": 1,
-    "Overdraw": 7,
+    "MergeRootFrame": 1,
     "TooManyViews": 1,
     "MonochromeLauncherIcon": 1,
-    "Autofill": 21,
-    "KeyboardInaccessibleWidget": 1,
-    "SetTextI18n": 56,
     "RtlHardcoded": 2
   },
   "deviceTests": "not executed",
-  "releaseSigning": "awaiting owner choice"
+  "releaseSigning": "awaiting owner choice",
+  "uiPolish": {
+    "configurationFields": "autofill disabled",
+    "sshCredentials": "username/password hints",
+    "drawer": "keyboard focus enabled, physical right preserved",
+    "statusMessages": "resource templates",
+    "background": "single window background"
+  },
+  "lintErrors": 0,
+  "lintFatal": 0
 }

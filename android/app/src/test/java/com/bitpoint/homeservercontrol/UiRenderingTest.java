@@ -71,7 +71,9 @@ public class UiRenderingTest {
             assertTrue("File list disappeared at fontScale=" + scale, root.findViewById(R.id.remoteFileList).getHeight() >= 80);
             checkCaptions(root, scale);
             Bitmap bitmap = Bitmap.createBitmap(360, 640, Bitmap.Config.ARGB_8888);
-            root.draw(new Canvas(bitmap));
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(ThemeCatalog.color(context, com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));
+            root.draw(canvas);
             File directory = new File("build/ui-previews"); directory.mkdirs();
             try (FileOutputStream stream = new FileOutputStream(new File(directory, "files-font-" + scale + ".png"))) {
                 assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream));
