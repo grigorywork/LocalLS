@@ -41,7 +41,7 @@ jobs:
       - name: Validate common version
         run: python ../tools/check_versions.py
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Unit tests and build installer
         run: |
           $env:PATH = 'C:\Program Files\Git\usr\bin;' + $env:PATH

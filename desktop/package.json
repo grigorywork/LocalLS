@@ -23,12 +23,15 @@
       "src/**/*",
       "assets/**/*",
       "package.json",
-      "node_modules/**/*",
       "!**/*.node",
       "!node_modules/cpu-features/**/*",
-      "!node_modules/nan/**/*"
+      "!node_modules/nan/**/*",
+      "!node_modules/ssh2/lib/protocol/crypto/build/**/*",
+      "!node_modules/buildcheck/**/*"
     ],
-    "asar": true,
+    "asar": {
+      "smartUnpack": false
+    },
     "afterPack": "tools/after-pack.cjs",
     "npmRebuild": false,
     "win": {
