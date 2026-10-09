@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LocalLS</string>
+    <string name="live_speed_chart_description">График скорости SFTP за последние 60 секунд в мегабайтах в секунду</string>
+    <string name="ui_activity_diagnostics_text_9ba1e2" formatted="false">Диагностика</string>
+    <string name="ui_activity_diagnostics_text_6bd1a6" formatted="false">Отчёт специально не показывает пароль SSH и токен агента.</string>
+    <string name="ui_diagnosticsrefreshbutton_text_c5165b" formatted="false">Обновить отчёт</string>
+    <string name="ui_diagnosticscopybutton_text_9121d6" formatted="false">Копировать диагностику</string>
+    <string name="ui_diagnosticscleartransfersbutton_text_270022" formatted="false">Очистить историю передач</string>
+    <string name="ui_diagnosticsbackbutton_text_f6dab0" formatted="false">Назад</string>
+    <string name="ui_activity_files_text_44d651" formatted="false">Файлы сервера</string>
+    <string name="ui_remotepathtext_text_1b9379" formatted="false">—</string>
+    <string name="ui_remotepathtext_contentdescription_dce3a7" formatted="false">Текущая папка. Нажми, чтобы открыть другой путь</string>
+    <string name="ui_filesupbutton_text_7032fc" formatted="false">Вверх</string>
+    <string name="ui_filesrefreshbutton_text_c2f668" formatted="false">Обновить</string>
+    <string name="ui_filesminimizebutton_text_4faa82" formatted="false">Свернуть</string>
+    <string name="ui_filesuploadbutton_text_442795" formatted="false">Прикрепить</string>
+    <string name="ui_filesopenfolderbutton_text_54724f" formatted="false">Открыть папку</string>
+    <string name="ui_filesmkdirbutton_text_3d47d2" formatted="false">Новая папка</string>
+    <string name="ui_attachmentssummary_text_df706d" formatted="false">Нет вложений</string>
+    <string name="ui_filesclearattachmentsbutton_text_9c7449" formatted="false">Убрать</string>
+    <string name="ui_filessendattachmentsbutton_text_76dcf7" formatted="false">Отправить</string>
+    <string name="ui_transferstatustext_text_6e1a1d" formatted="false">Очередь пуста</string>
+    <string name="ui_filesspeedsummary_text_9fd5ef" formatted="false">Скорость передачи</string>
+    <string name="ui_filescanceltransferbutton_text_0c5494" formatted="false">Отменить текущую</string>
+    <string name="ui_filesclearqueuebutton_text_f1260c" formatted="false">Очистить очередь</string>
+    <string name="ui_filesselectbutton_text_413897" formatted="false">Выделить</string>
+    <string name="ui_filesdownloadselectedbutton_text_a288e5" formatted="false">Скачать выбранное</string>
+    <string name="ui_filesclearselectionbutton_text_be6772" formatted="false">Снять выбор</string>
+    <string name="ui_emptytext_text_b6819e" formatted="false">Загрузка…</string>
+    <string name="ui_activity_files_text_912a7a" formatted="false">«Выделить»: выбирай файлы в разных папках. Затем «Скачать выбранное» и папка на телефоне. Папки открываются тапом; долгое нажатие — действия.</string>
+    <string name="ui_activity_history_text_3992ce" formatted="false">История сервера</string>
+    <string name="ui_activity_history_text_53bbf4" formatted="false">Последние проверки: доступность, задержка, занятое место и iperf3.</string>
+    <string name="ui_historyclearbutton_text_98b207" formatted="false">Очистить</string>
+    <string name="ui_activity_history_text_a1c56f" formatted="false">Доступность</string>
+    <string name="ui_availabilitysummary_text_d0dd94" formatted="false">Нет данных</string>
+    <string name="ui_activity_history_text_1b4984" formatted="false">Отклик SSH</string>
+    <string name="ui_activity_history_text_07d65a" formatted="false">Занято памяти</string>
+    <string name="ui_activity_history_text_3d2c83" formatted="false">Скорость iperf3</string>
+    <string name="ui_activity_history_text_3b7574" formatted="false">Графики хранятся только локально в приложении. Пароли и токены в историю не попадают.</string>
+    <string name="ui_activity_main_text_6f8b03" formatted="false">Личный сервер • SSH / SFTP</string>
+    <string name="ui_statustext_text_e8db03" formatted="false">● НЕ ПРОВЕРЕНО</string>
+    <string name="ui_statusdetail_text_24a4f5" formatted="false">Нажми «Проверить сервер»</string>
+    <string name="ui_ipvalue_text_eb833a" formatted="false">IP: —</string>
+    <string name="ui_portvalue_text_2db21c" formatted="false">Порт: —</string>
+    <string name="ui_uservalue_text_a253bc" formatted="false">Пользователь: —</string>
+    <string name="ui_fingerprintvalue_text_ce1393" formatted="false">SSH fingerprint: —</string>
+    <string name="ui_trustkeybutton_text_83e493" formatted="false">Доверять этому fingerprint</string>
+    <string name="ui_latencyvalue_text_eb61e0" formatted="false">Отклик SSH: —</string>
+    <string name="ui_batteryvalue_text_4b0d64" formatted="false">Батарея: —</string>
+    <string name="ui_diskvalue_text_5a52e2" formatted="false">Память: —</string>
+    <string name="ui_uptimevalue_text_fe1b29" formatted="false">Аптайм: —</string>
+    <string name="ui_activity_main_text_9788dc" formatted="false">Скорость SFTP</string>
+    <string name="ui_dashboardspeedsummary_text_6353d0" formatted="false">Передач пока нет</string>
+    <string name="ui_dashboardlatencysummary_text_e117f3" formatted="false">Нет замеров</string>
+    <string name="ui_dashboardlatencychart_contentdescription_8f3ede" formatted="false">График отклика SSH в миллисекундах</string>
+    <string name="ui_activity_main_text_81edf0" formatted="false">Управление</string>
+    <string name="ui_checkbutton_text_42dca7" formatted="false">Проверить SSH</string>
+    <string name="ui_attachfilesbutton_text_374aaf" formatted="false">Отправить файл</string>
+    <string name="ui_networkbutton_text_b3c4b1" formatted="false">Сеть</string>
+    <string name="ui_settingsbutton_text_7f17c7" formatted="false">Настройки</string>
+    <string name="ui_historybutton_text_bc2ad2" formatted="false">Графики</string>
+    <string name="ui_restartserverbutton_text_21cc0b" formatted="false">Перезапуск SSH</string>
+    <string name="ui_advancedtogglebutton_text_dd904b" formatted="false">Меню</string>
+    <string name="ui_passwordinput_hint_85d729" formatted="false">Пароль SSH</string>
+    <string name="ui_activity_main_text_aae1bb" formatted="false">LocalLS • SSH / SFTP</string>
+    <string name="ui_drawerscrim_contentdescription_46e7a9" formatted="false">Закрыть инструменты</string>
+    <string name="ui_drawerconnectionheader_text_79e350" formatted="false">Подключение</string>
+    <string name="ui_localhostinput_hint_14eef6" formatted="false">Локальный IP, например 192.168.1.82</string>
+    <string name="ui_portinput_hint_217d88" formatted="false">SSH-порт</string>
+    <string name="ui_userinput_hint_51aff1" formatted="false">Пользователь</string>
+    <string name="ui_savepasswordcheck_text_8999b1" formatted="false">Сохранить пароль в Android Keystore</string>
+    <string name="ui_savebutton_text_87ae19" formatted="false">Сохранить настройки</string>
+    <string name="ui_serversetupbutton_text_917e05" formatted="false">Сервер</string>
+    <string name="ui_localserverquickbutton_text_8a7909" formatted="false">Этот телефон — сервер</string>
+    <string name="ui_currentserversettingsbutton_text_09b5d8" formatted="false">Текущий сервер</string>
+    <string name="ui_appsettingsbutton_text_d73b55" formatted="false">Параметры приложения</string>
+    <string name="ui_autorefreshcheck_text_ca64ba" formatted="false">Автопроверка каждые 15 секунд</string>
+    <string name="ui_backgroundmonitorcheck_text_145422" formatted="false">Фоновый мониторинг (примерно каждые 15 минут)</string>
+    <string name="ui_drawerwifiheader_text_780ff7" formatted="false">Wi-Fi</string>
+    <string name="ui_wifissidinput_hint_4e5eef" formatted="false">Имя сети Wi-Fi (SSID)</string>
+    <string name="ui_wifipasswordinput_hint_849d70" formatted="false">Пароль Wi-Fi</string>
+    <string name="ui_wifiopennetworkcheck_text_07a98a" formatted="false">Сеть без пароля</string>
+    <string name="ui_wificonnectbutton_text_973ea4" formatted="false">Подключить Wi-Fi</string>
+    <string name="ui_wifisettingsbutton_text_0aefc3" formatted="false">Системные настройки</string>
+    <string name="ui_wifirefreshbutton_text_b853ee" formatted="false">Проверить сеть</string>
+    <string name="ui_wifistatustext_text_aba1b9" formatted="false">Настройка сети на этом устройстве. Android запросит подтверждение.</string>
+    <string name="ui_drawerappearanceheader_text_d206f1" formatted="false">Оформление</string>
+    <string name="ui_themechooserbutton_text_548836" formatted="false">Цветовая тема</string>
+    <string name="ui_iconshapebutton_text_6c934a" formatted="false">Форма значков</string>
+    <string name="ui_drawertoolsheader_text_c0eca9" formatted="false">Инструменты</string>
+    <string name="ui_activity_main_text_6081a1" formatted="false">Состояние сервера</string>
+    <string name="ui_sshdvalue_text_f33e80" formatted="false">sshd: —</string>
+    <string name="ui_temperaturevalue_text_308fa9" formatted="false">Температура: —</string>
+    <string name="ui_chargingvalue_text_39aa3e" formatted="false">Питание: —</string>
+    <string name="ui_iperfvalue_text_bd091d" formatted="false">iperf3: —</string>
+    <string name="ui_forgetkeybutton_text_9f05a8" formatted="false">Забыть сохранённый fingerprint</string>
+    <string name="ui_copybutton_text_a72c30" formatted="false">Скопировать данные SFTP</string>
+    <string name="ui_solidbutton_text_53e64a" formatted="false">Открыть Solid Explorer</string>
+    <string name="ui_exportbutton_text_8591b3" formatted="false">Экспорт диагностики</string>
+    <string name="ui_activity_main_text_2b380b" formatted="false">Быстрые команды</string>
+    <string name="ui_quicksshdbutton_text_c5071f" formatted="false">Проверить sshd</string>
+    <string name="ui_quickipbutton_text_a0232c" formatted="false">Показать IP</string>
+    <string name="ui_quickdiskbutton_text_6027a4" formatted="false">Проверить память</string>
+    <string name="ui_quickuptimebutton_text_28baeb" formatted="false">Показать uptime</string>
+    <string name="ui_commandhelptext_text_a90baa" formatted="false">Нажми команду — приложение покажет результат и объяснит, что она делает.</string>
+    <string name="ui_activity_main_text_57bc87" formatted="false">Тест скорости iperf3</string>
+    <string name="ui_activity_main_text_cd038f" formatted="false">На ПК сначала запусти: iperf3 -s. Здесь укажи IP ПК.</string>
+    <string name="ui_iperftargetinput_hint_f3e470" formatted="false">IP компьютера с iperf3 -s</string>
+    <string name="ui_runiperfbutton_text_868c8b" formatted="false">Тест: сервер → ПК</string>
+    <string name="ui_iperfoutputtext_text_2b6a7d" formatted="false">Результат: —</string>
+    <string name="ui_activity_main_text_66b099" formatted="false">История свободного места</string>
+    <string name="ui_historyvalue_text_ec6be7" formatted="false">История пока пустая</string>
+    <string name="ui_clearhistorybutton_text_8ead3c" formatted="false">Очистить историю</string>
+    <string name="ui_activity_main_text_67ade7" formatted="false">Журнал</string>
+    <string name="ui_logtext_text_17b97f" formatted="false">Готов к работе.</string>
+    <string name="ui_drawervpnheader_text_05a0f1" formatted="false">VPN / Tailscale</string>
+    <string name="ui_drawervpnswitch_text_33b737" formatted="false">VPN</string>
+    <string name="ui_drawervpnstatus_text_2f6ad2" formatted="false">Проверка VPN…</string>
+    <string name="ui_openvpnclientbutton_text_b7d87b" formatted="false">Открыть Tailscale</string>
+    <string name="ui_vpnhelpbutton_text_1c1a81" formatted="false">Телефон + ПК + сервер</string>
+    <string name="ui_localmodebutton_text_f5d288" formatted="false">Локально</string>
+    <string name="ui_vpnhostinput_hint_980de4" formatted="false">VPN IP / имя Tailscale, например 100.x.x.x</string>
+    <string name="ui_drawervpnsettingsbutton_text_7dc11b" formatted="false">Параметры VPN</string>
+    <string name="ui_drawervpnsavebutton_text_d64466" formatted="false">Сохранить VPN</string>
+    <string name="ui_activity_main_text_17c23e" formatted="false">SSH-служба сервера</string>
+    <string name="ui_activity_main_text_38ed6d" formatted="false">Команды выполняет отдельный серверный агент: он остаётся доступным, когда SSH выключен. Питание телефона не меняется.</string>
+    <string name="ui_agentstatusbutton_text_7cc870" formatted="false">Проверить агент</string>
+    <string name="ui_agentstartbutton_text_9f0493" formatted="false">Включить SSH</string>
+    <string name="ui_agentrestartbutton_text_d5b879" formatted="false">Перезапустить SSH</string>
+    <string name="ui_agentstopbutton_text_1a07d5" formatted="false">Отключить SSH</string>
+    <string name="ui_agentoutputtext_text_e97e93" formatted="false">Агент: не проверен</string>
+    <string name="ui_serverwizardmenubutton_text_b0ea47" formatted="false">Мастер настройки сервера</string>
+    <string name="ui_agentcredentialstogglebutton_text_6e1add" formatted="false">Доступ к управлению</string>
+    <string name="ui_agentportinput_hint_bf8c20" formatted="false">Порт агента</string>
+    <string name="ui_agenttokeninput_hint_d8bcbc" formatted="false">Токен агента</string>
+    <string name="ui_saveagenttokencheck_text_889e9d" formatted="false">Сохранить токен в Android Keystore</string>
+    <string name="ui_saveagentcredentialsbutton_text_8190db" formatted="false">Сохранить доступ</string>
+    <string name="ui_activity_network_text_c6791a" formatted="false">Адрес сервера и проверка локального подключения.</string>
+    <string name="ui_networkvpnhostinput_hint_162291" formatted="false">Tailscale 100.x.x.x или MagicDNS</string>
+    <string name="ui_networkautofallbackcheck_text_c4762b" formatted="false">Автопереход на второй маршрут, если основной недоступен</string>
+    <string name="ui_tailscalewizardbutton_text_65b8c4" formatted="false">Мастер Tailscale</string>
+    <string name="ui_networkiperftargetinput_hint_8a47a3" formatted="false">IP компьютера для iperf3</string>
+    <string name="ui_networktestbutton_text_f69fbd" formatted="false">Проверить SSH-порт</string>
+    <string name="ui_networkdiscoverbutton_text_98ff8f" formatted="false">Найти сервер в Wi‑Fi</string>
+    <string name="ui_networkresulttext_text_4a198c" formatted="false">Проверка ещё не запускалась</string>
+    <string name="ui_networksavebutton_text_322e8a" formatted="false">Сохранить сеть</string>
+    <string name="ui_activity_network_text_6f71b1" formatted="false">Доступность порта ещё не подтверждает вход. На главном экране проверь SSH и ключ сервера.</string>
+    <string name="ui_activity_server_setup_text_243db1" formatted="false">Настройка сервера</string>
+    <string name="ui_activity_server_setup_text_e25347" formatted="false">На серверном устройстве подготовь SSH. На другом устройстве импортируй профиль. Команды вводить не нужно.</string>
+    <string name="ui_importserverprofilebutton_text_5718dd" formatted="false">Импорт профиля</string>
+    <string name="ui_activity_server_setup_text_315b29" formatted="false">1. Среда сервера</string>
+    <string name="ui_activity_server_setup_text_e39d62" formatted="false">Установи официальный Termux и открой один раз для подготовки среды. Вернись сюда. Ничего печатать в нём не нужно.</string>
+    <string name="ui_preparetermuxbutton_text_5992ea" formatted="false">Установить / открыть Termux</string>
+    <string name="ui_termuxhelpbutton_text_11ffb0" formatted="false">Помощь с доступом Termux</string>
+    <string name="ui_activity_server_setup_text_e7ef10" formatted="false">2. Доступ к папке Termux</string>
+    <string name="ui_activity_server_setup_text_cd1cd9" formatted="false">В системном выборе папок открой раздел Termux и выбери его корневую папку. Остальные настройки сохранятся.</string>
+    <string name="ui_selecttermuxfolderbutton_text_ae1abb" formatted="false">Выбрать папку Termux</string>
+    <string name="ui_termuxfolderstatus_text_9cd5ff" formatted="false">Папка не выбрана</string>
+    <string name="ui_activity_server_setup_text_66834d" formatted="false">3. Вход и подготовка SSH</string>
+    <string name="ui_createserverpasswordcheck_text_12ca66" formatted="false">Задать новый пароль сервера</string>
+    <string name="ui_serversetuppasswordinput_hint_435e30" formatted="false">Пароль сервера</string>
+    <string name="ui_serversetuppasswordconfirm_hint_ed8f74" formatted="false">Повтори новый пароль</string>
+    <string name="ui_startserversetupbutton_text_9dc1e4" formatted="false">Подготовить сервер</string>
+    <string name="ui_activity_server_setup_text_4460ec" formatted="false">OpenSSH установится при отсутствии. Работающий sshd останется запущенным. Автозапуск и конфигурация sshd сохранятся. Папка файлов: Termux / LocalLS.</string>
+    <string name="ui_serversetupstatus_text_fb21c0" formatted="false">Сервер ещё не проверен</string>
+    <string name="ui_verifyserversetupbutton_text_adad8c" formatted="false">Проверить SSH и пароль</string>
+    <string name="ui_activity_server_setup_text_ca7fb6" formatted="false">4. Подключение другого устройства</string>
+    <string name="ui_serversetuphostinput_hint_6a9f30" formatted="false">IP-адрес сервера в Wi-Fi</string>
+    <string name="ui_exportserverprofilebutton_text_3a7ef3" formatted="false">Экспорт профиля</string>
+    <string name="ui_activity_server_setup_text_b06c59" formatted="false">Передай файл на другое устройство и нажми «Импорт профиля». Сверь отпечаток SSH-ключа с сервером. Пароль вводится отдельно и в профиль не попадает.</string>
+    <string name="ui_closeserversetupbutton_text_398c7d" formatted="false">Готово</string>
+    <string name="ui_settingspasswordinput_hint_a5ddaa" formatted="false">Пароль SSH</string>
+    <string name="ui_activity_settings_text_ee972b" formatted="false">Серверный агент</string>
+    <string name="ui_agentwizardbutton_text_61313c" formatted="false">Мастер установки агента</string>
+    <string name="ui_settingsbackgroundmonitorcheck_text_d080ea" formatted="false">Фоновый мониторинг сервера (~15 мин)</string>
+</resources>

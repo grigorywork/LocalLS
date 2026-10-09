@@ -141,12 +141,12 @@ public class FilesActivity extends BaseActivity {
                 if (position < entries.size()) {
                     RemoteEntry entry = entries.get(position);
                     ((ImageView) row.findViewById(R.id.remoteFileIcon)).setImageResource(
-                            entry.directory ? R.drawable.ic_folder : R.drawable.ic_file);
+                            entry.directory ? com.bitpoint.homeservercontrol.ui.R.drawable.ic_folder : com.bitpoint.homeservercontrol.ui.R.drawable.ic_file);
                     SpannableString label = new SpannableString((selectedDownloads.containsKey(entry.path) ? "☑ " : "") + labels.get(position));
                     int metadata = label.toString().indexOf('\n');
                     if (metadata >= 0) {
                         label.setSpan(new RelativeSizeSpan(0.85f), metadata + 1, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        label.setSpan(new ForegroundColorSpan(ThemeCatalog.color(FilesActivity.this, R.attr.hscTextSecondary)), metadata + 1,
+                        label.setSpan(new ForegroundColorSpan(ThemeCatalog.color(FilesActivity.this, com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary)), metadata + 1,
                                 label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                     ((TextView) row.findViewById(R.id.remoteFileLabel)).setText(label);

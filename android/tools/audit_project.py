@@ -3,11 +3,12 @@ from pathlib import Path
 import re, sys, xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
+MODULES = ['app', 'core', 'data', 'transport', 'ui']
 errors=[]
 warnings=[]
 
 # XML parse and collect resources/ids.
-xml_files=list((ROOT/'app'/'src'/'main'/'res').rglob('*.xml'))
+xml_files=[p for module in MODULES for p in (ROOT/module/'src/main/res').rglob('*.xml')]
 manifest=ROOT/'app'/'src'/'main'/'AndroidManifest.xml'
 all_xml=xml_files+[manifest]
 xml_text=''
@@ -56,14 +57,14 @@ except Exception as e:
     errors.append(f'Manifest audit failed: {e}')
 
 # Java -> XML id/layout reference checks.
-java_files=list((ROOT/'app'/'src'/'main'/'java').rglob('*.java'))
+java_files=[p for module in MODULES for p in (ROOT/module/'src/main/java').rglob('*.java')]
 java_text='\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in java_files)
 xml_ids=set(re.findall(r'@\+id/([A-Za-z0-9_]+)', xml_text))
 java_ids=set(re.findall(r'(?<!android\.)\bR\.id\.([A-Za-z0-9_]+)', java_text))
 for rid in sorted(java_ids - xml_ids):
     errors.append(f'Java references missing R.id.{rid}')
 
-layout_names={p.stem for p in (ROOT/'app'/'src'/'main'/'res'/'layout').glob('*.xml')}
+layout_names={p.stem for module in MODULES for p in (ROOT/module/'src/main/res/layout').glob('*.xml')}
 java_layouts=set(re.findall(r'R\.layout\.([A-Za-z0-9_]+)', java_text))
 for layout in sorted(java_layouts - layout_names):
     errors.append(f'Java references missing layout: {layout}.xml')
@@ -78,7 +79,7 @@ for p in java_files:
 
 # Secrets / risky strings.
 text_files=[]
-for base in [ROOT/'app'/'src', ROOT/'realme-agent']:
+for base in [*[ROOT/module/'src' for module in MODULES], ROOT/'realme-agent']:
     if base.exists():
         text_files += [p for p in base.rglob('*') if p.is_file() and p.suffix.lower() in {'.java','.kt','.xml','.py','.sh','.md','.txt','.properties'}]
 secret_patterns=[

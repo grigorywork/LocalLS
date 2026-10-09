@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "HomeServerControl"
-include(":app")
+include(":app", ":core", ":data", ":transport", ":ui")

@@ -96,7 +96,11 @@ public class MainActivity extends BaseActivity {
         liveSpeedPanel = new LiveSpeedPanel(findViewById(R.id.dashboardSpeedChart), findViewById(R.id.dashboardSpeedSummary));
         loadConfig();
         wireActions();
-        drawerSections = new DrawerSections(this);
+        drawerSections = new DrawerSections(this,
+                new int[]{R.id.drawerConnectionHeader, R.id.drawerSettingsHeader, R.id.drawerWifiHeader,
+                        R.id.drawerAppearanceHeader, R.id.drawerToolsHeader, R.id.drawerVpnHeader},
+                new int[]{R.id.drawerConnectionPane, R.id.drawerSettingsPane, R.id.drawerWifiPane,
+                        R.id.drawerAppearancePane, R.id.drawerToolsPane, R.id.drawerVpnPane});
         wifiSetup = new WifiSetupController(this);
         findViewById(R.id.drawerVpnHeader).setOnClickListener(v -> {
             drawerSections.togglePane(R.id.drawerVpnPane); refreshVpnStatus();
@@ -144,7 +148,7 @@ public class MainActivity extends BaseActivity {
 
     private void invalidateConnectionStats() {
         statusText.setText("● НЕ ПРОВЕРЕНО");
-        statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscWarning));
+        statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
         statusDetail.setText("Профиль изменён. Нажми «Проверить SSH».");
         lastSeenFingerprint = ""; lastSeenHost = ""; lastSeenPort = -1;
         trustKeyButton.setVisibility(View.GONE);
@@ -457,7 +461,7 @@ public class MainActivity extends BaseActivity {
         checking = true;
         checkButton.setEnabled(false);
         statusText.setText("● ПРОВЕРКА…");
-        statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscWarning));
+        statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
         statusDetail.setText(primaryHost + ":" + port);
         appendLog("Проверяю " + primaryHost + ":" + port + "…");
 
@@ -525,27 +529,27 @@ public class MainActivity extends BaseActivity {
 
         if (stats.hostKeyMismatch) {
             statusText.setText("● КЛЮЧ СЕРВЕРА ИЗМЕНИЛСЯ");
-            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscError));
+            statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscError));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         } else if (stats.hostKeyNeedsTrust) {
             statusText.setText("● ПОДТВЕРДИ SSH-КЛЮЧ");
-            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscWarning));
+            statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
             statusDetail.setText("Сверь fingerprint и нажми «Доверять».");
             appendLog("Получен новый SSH fingerprint. Команды пока заблокированы.");
         } else if (stats.authenticated && stats.hostKeyTrusted) {
             statusText.setText("● СЕРВЕР РАБОТАЕТ");
-            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscSuccess));
+            statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess));
             statusDetail.setText("SSH/SFTP доступен • fingerprint подтверждён");
             appendLog("Сервер онлайн. SSH-вход успешен.");
         } else if (stats.reachable) {
             statusText.setText("● SSH ДОСТУПЕН");
-            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscWarning));
+            statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         } else {
             statusText.setText("● СЕРВЕР НЕДОСТУПЕН");
-            statusText.setTextColor(ThemeCatalog.color(this, R.attr.hscError));
+            statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscError));
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         }

@@ -29,11 +29,11 @@ final class NotificationHelper {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(activity, "app_tray") : new Notification.Builder(activity);
-        Notification notification = builder.setSmallIcon(R.drawable.ic_cloud_notification)
+        Notification notification = builder.setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification)
                 .setContentTitle("LocalLS свёрнут")
                 .setContentText("Нажми, чтобы вернуться в приложение")
                 .setContentIntent(pending).setOngoing(true).setOnlyAlertOnce(true)
-                .addAction(new Notification.Action.Builder(R.drawable.ic_action_close, "Убрать", close).build())
+                .addAction(new Notification.Action.Builder(com.bitpoint.homeservercontrol.ui.R.drawable.ic_action_close, "Убрать", close).build())
                 .build();
         try { manager.notify(TRAY_ID, notification); return true; }
         catch (SecurityException e) { return false; }
@@ -61,7 +61,7 @@ final class NotificationHelper {
                 ? new Notification.Builder(context, CHANNEL_ID)
                 : new Notification.Builder(context);
         Notification notification = builder
-                .setSmallIcon(R.drawable.ic_server)
+                .setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_server)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setAutoCancel(true)

@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <style name="Theme.HomeServerControl" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowBackground">?attr/hscBackground</item>
+        <item name="android:colorAccent">?attr/hscAccent</item>
+        <item name="android:navigationBarColor">?attr/hscBackground</item>
+        <item name="android:statusBarColor">?attr/hscBackground</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:buttonStyle">@style/Widget.HSC.CompactButton</item>
+        <item name="hscBackground">@color/bg</item>
+        <item name="hscPanel">@color/panel</item>
+        <item name="hscTextPrimary">@color/text_primary</item>
+        <item name="hscTextSecondary">@color/text_secondary</item>
+        <item name="hscAccent">@color/accent</item>
+        <item name="hscButton">@color/purple_button</item>
+        <item name="hscSecondaryButton">@color/purple_secondary</item>
+        <item name="hscStroke">@color/stroke</item>
+        <item name="hscSuccess">@color/green</item>
+        <item name="hscError">@color/red</item>
+        <item name="hscWarning">@color/amber</item>
+    </style>
+    <style name="Widget.HSC.CompactButton" parent="android:style/Widget.Material.Button">
+        <item name="android:textSize">@dimen/text_caption</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingRight">8dp</item>
+        <item name="android:background">@drawable/button_purple</item>
+        <item name="android:textColor">@color/button_text</item>
+    </style>
+    <style name="Widget.HSC.SecondaryButton" parent="Widget.HSC.CompactButton">
+        <item name="android:background">@drawable/button_purple_secondary</item>
+    </style>
+    <style name="Theme.LocalLS.Ocean" parent="Theme.HomeServerControl">
+        <item name="hscBackground">#0D1725</item>
+        <item name="hscPanel">#15263A</item>
+        <item name="hscAccent">#8CC7FF</item>
+        <item name="hscButton">#2465B2</item>
+        <item name="hscSecondaryButton">#203C5B</item>
+        <item name="hscStroke">#35506C</item>
+    </style>
+    <style name="Theme.LocalLS.Emerald" parent="Theme.HomeServerControl">
+        <item name="hscBackground">#0E1916</item>
+        <item name="hscPanel">#182A23</item>
+        <item name="hscAccent">#7BDFC0</item>
+        <item name="hscButton">#227C60</item>
+        <item name="hscSecondaryButton">#25483D</item>
+        <item name="hscStroke">#345A4D</item>
+    </style>
+    <style name="Theme.LocalLS.Amber" parent="Theme.HomeServerControl">
+        <item name="hscBackground">#1C1510</item>
+        <item name="hscPanel">#30231A</item>
+        <item name="hscAccent">#FFD08A</item>
+        <item name="hscButton">#97520D</item>
+        <item name="hscSecondaryButton">#56381E</item>
+        <item name="hscStroke">#6C4A2A</item>
+    </style>
+    <style name="Theme.LocalLS.Light" parent="Theme.HomeServerControl">
+        <item name="hscBackground">#F4F1F8</item>
+        <item name="hscPanel">#FFFFFF</item>
+        <item name="hscTextPrimary">#211A2B</item>
+        <item name="hscTextSecondary">#655A75</item>
+        <item name="hscAccent">#7540C7</item>
+        <item name="hscButton">#7540C7</item>
+        <item name="hscSecondaryButton">#644086</item>
+        <item name="hscStroke">#D6CCE1</item>
+        <item name="hscSuccess">#176E42</item>
+        <item name="hscWarning">#855300</item>
+        <item name="hscError">#B12637</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">#211B2A</item>
+    </style>
+</resources>

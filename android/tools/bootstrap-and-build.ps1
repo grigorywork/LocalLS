@@ -4,6 +4,8 @@ Set-Location $Root
 Write-Host "[1/6] Static audit"
 python .\tools\audit_project.py
 if ($LASTEXITCODE -ne 0) { throw "Static audit failed" }
+python .\tools\audit_architecture.py
+if ($LASTEXITCODE -ne 0) { throw "Architecture audit failed" }
 
 Write-Host "[2/6] Java"
 java -version
@@ -55,7 +57,7 @@ if (-not (Test-Path $wrapperJar)) {
 }
 
 Write-Host "[5/6] Assemble Debug APK"
-& .\gradlew.bat --no-daemon --stacktrace clean :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+& .\gradlew.bat --no-daemon --stacktrace clean :core:test :transport:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
 if ($LASTEXITCODE -ne 0) { throw "Gradle build failed with exit code $LASTEXITCODE" }
 
 Write-Host "[6/6] Collect artifact"
