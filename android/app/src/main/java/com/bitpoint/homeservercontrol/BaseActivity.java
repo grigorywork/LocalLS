@@ -62,6 +62,22 @@ public abstract class BaseActivity extends Activity {
     @Override
     public void setContentView(int layoutResId) {
         super.setContentView(layoutResId);
+        configureContentView();
+    }
+
+    @Override
+    public void setContentView(View view) {
+        super.setContentView(view);
+        configureContentView();
+    }
+
+    @Override
+    public void setContentView(View view, android.view.ViewGroup.LayoutParams params) {
+        super.setContentView(view, params);
+        configureContentView();
+    }
+
+    private void configureContentView() {
         IconButtons.decorate(findViewById(android.R.id.content));
         if (Build.VERSION.SDK_INT >= 35) {
             View content = findViewById(android.R.id.content);

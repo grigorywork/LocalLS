@@ -1,0 +1,112 @@
+name: Unified desktop clients
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'codex/**']
+    paths:
+      - 'VERSION'
+      - 'desktop/src/**'
+      - 'desktop/assets/**'
+      - 'desktop/tests/**'
+      - 'desktop/tools/**'
+      - 'desktop/package*.json'
+      - 'linux/src/**'
+      - 'linux/assets/**'
+      - 'linux/tests/**'
+      - 'linux/tools/**'
+      - 'linux/package*.json'
+      - 'tools/**'
+      - '.github/workflows/clients.yml'
+permissions:
+  contents: read
+concurrency:
+  group: clients-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate common version
+        run: python ../tools/check_versions.py
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Unit tests and build installer
+        run: |
+          $env:PATH = 'C:\Program Files\Git\usr\bin;' + $env:PATH
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build:win
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/verify-package.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install and exercise genuine Windows application
+        run: |
+          $taskVersion = (Get-Content ../VERSION).Trim()
+          $taskInstaller = Resolve-Path "artifacts/LocalLS-$taskVersion-Windows-x64-Setup.exe"
+          $taskInstallDir = Join-Path $env:RUNNER_TEMP 'localls-installed'
+          $taskProcess = Start-Process -FilePath $taskInstaller -ArgumentList '/S', "/D=$taskInstallDir" -WindowStyle Hidden -Wait -PassThru
+          if ($taskProcess.ExitCode -ne 0) { throw 'Installer failed' }
+          $env:LOCALLS_TEST_EXECUTABLE = Join-Path $taskInstallDir 'LocalLS.exe'
+          $env:PATH = 'C:\Program Files\Git\usr\bin;' + $env:PATH
+          npm run test:ui
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python ../tools/package_build_report.py desktop
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: LocalLS-Windows-verified
+          path: |
+            desktop/artifacts/*Setup.exe
+            desktop/artifacts/win-unpacked/resources/app.asar
+            desktop/artifacts/VERIFICATION.json
+            desktop/artifacts/BUILD_REPORT.*
+            desktop/artifacts/screenshots/
+          if-no-files-found: error
+  fedora:
+    runs-on: ubuntu-latest
+    container: fedora:44
+    defaults:
+      run:
+        working-directory: linux
+    steps:
+      - name: Install Fedora build and runtime tools
+        working-directory: /
+        run: |
+          dnf -y install nodejs npm git python3 openssl rpm-build gtk3 nss alsa-lib libXScrnSaver libXtst libsecret at-spi2-atk mesa-libgbm xorg-x11-server-Xvfb dbus-daemon dbus-tools openssh-server polkit desktop-file-utils openbox tar xz unzip liberation-sans-fonts
+      - uses: actions/checkout@v4
+      - name: Validate common version and install dependencies
+        run: |
+          python3 ../tools/check_versions.py
+          npm ci
+          npm exec -- install-electron
+      - name: Unit tests and build RPM
+        run: |
+          npm test
+          npm run build:rpm
+      - name: Install and exercise genuine Fedora package
+        run: |
+          task_version=$(cat ../VERSION)
+          dnf -y install "artifacts/LocalLS-$task_version-Fedora-x86_64.rpm"
+          node tools/verify-package.cjs
+          LOCALLS_TEST_EXECUTABLE=/opt/localls/localls bash tools/run-ui-fedora.sh
+          python3 ../tools/package_build_report.py linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalLS-Fedora-verified
+          path: |
+            linux/artifacts/*.rpm
+            linux/artifacts/BUILD_REPORT.*
+            linux/artifacts/screenshots/
+          if-no-files-found: error

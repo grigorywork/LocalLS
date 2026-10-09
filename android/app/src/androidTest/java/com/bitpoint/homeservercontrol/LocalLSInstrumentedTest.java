@@ -90,8 +90,8 @@ public class LocalLSInstrumentedTest {
         for (int i = 0; i < ThemeCatalog.IDS.length; i++) {
             ThemeCatalog.select(context, i);
             Context themed = new ContextThemeWrapper(context, ThemeCatalog.style(context));
-            assertEquals(backgrounds[i], ThemeCatalog.color(themed, R.attr.hscBackground));
-            assertNotEquals(ThemeCatalog.color(themed, R.attr.hscBackground), ThemeCatalog.color(themed, R.attr.hscTextPrimary));
+            assertEquals(backgrounds[i], ThemeCatalog.color(themed, com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));
+            assertNotEquals(ThemeCatalog.color(themed, com.bitpoint.homeservercontrol.ui.R.attr.hscBackground), ThemeCatalog.color(themed, com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));
         }
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             scenario.onActivity(activity -> {
@@ -101,7 +101,7 @@ public class LocalLSInstrumentedTest {
                     java.lang.reflect.Field field = MetricChartView.class.getDeclaredField("linePaint");
                     field.setAccessible(true);
                     Paint paint = (Paint) field.get(activity.findViewById(R.id.dashboardSpeedChart));
-                    assertEquals(ThemeCatalog.color(activity, R.attr.hscAccent), paint.getColor());
+                    assertEquals(ThemeCatalog.color(activity, com.bitpoint.homeservercontrol.ui.R.attr.hscAccent), paint.getColor());
                 } catch (Exception e) { throw new AssertionError(e); }
             });
             screenshot("localls-light.png");

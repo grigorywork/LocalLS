@@ -88,7 +88,7 @@ Detailed instructions for regular app functions follow.
 ======================================================================
 
 LOCALLS FOR WINDOWS — DETAILED USER GUIDE
-Application version: 0.1.1. Document date: October 9, 2026.
+Application version: 0.9.5. Document date: October 9, 2026.
 
 WELCOME TO LOCALLS!
 
@@ -104,8 +104,8 @@ provide its own cloud storage service or require a subscription to one.
 
 1. CONTENTS OF THIS FOLDER
 
-LocalLS-Windows-0.1.1-with-guides.zip contains a Windows folder with:
-  LocalLS-0.1.1-Windows-x64-Setup.exe — the installer;
+LocalLS-Windows-0.9.5-with-guides.zip contains a Windows folder with:
+  LocalLS-0.9.5-Windows-x64-Setup.exe — the installer;
   INSTRUCTIONS_RU.txt — the Russian guide;
   INSTRUCTIONS_EN.txt — this guide;
   BUILD_REPORT.md — build results and checks actually performed;
@@ -114,7 +114,7 @@ Double-click a TXT file to open it in Notepad. Use UTF-8 if another editor
 does not display Russian text correctly. The current interface uses Russian
 labels, quoted below. This English guide does not switch its interface language.
 Documents are in the GitHub folder distributions/Windows; the installer
-and ZIP are under Assets in release windows-v0.1.1. GitHub's Source code
+and ZIP are under Assets in release v0.9.5. GitHub's Source code
 archive contains source files, not the installer. Choose the with-guides
 archive or the standalone EXE.
 
@@ -128,7 +128,7 @@ Public connection profiles exported by Android LocalLS can be imported.
 SSH service controls use an existing independent server agent.
 VPN access uses the installed official Tailscale client.
 Creating a server on the PC, an integrated text editor and recursive transfers
-of entire folders are not included in Windows 0.1.1. Select individual files
+of entire folders are not included in Windows 0.9.5. Select individual files
 inside a folder instead.
 
 3. REQUIREMENTS AND INSTALLATION
@@ -136,7 +136,7 @@ inside a folder instead.
 Use Windows 10 or Windows 11 x64, with sufficient free storage and a network
 route to the server. This is not a Windows x86 or ARM64 installer.
 1) Download the ZIP and extract its Windows folder using Extract all.
-2) Run LocalLS-0.1.1-Windows-x64-Setup.exe from the extracted folder.
+2) Run LocalLS-0.9.5-Windows-x64-Setup.exe from the extracted folder.
 3) Select an installation folder and complete the per-user setup wizard.
 4) Launch LocalLS from its shortcut or the Start menu.
 You may download the EXE separately; no archive extraction is then required.
@@ -316,12 +316,12 @@ error message. Never share a password, agent token, vault file or private key.
 Original installer SHA-256:
 a9fd290dcd936da037b02ffa354654d9db1f6a8fe5ad3403cccf92b0cdb7ea1b
 In PowerShell, from the installer folder, run:
-  Get-FileHash .\LocalLS-0.1.1-Windows-x64-Setup.exe -Algorithm SHA256
+  Get-FileHash .\LocalLS-0.9.5-Windows-x64-Setup.exe -Algorithm SHA256
 Compare Hash against the value above or SHA256SUMS.txt.
 
 Project: https://github.com/grigorywork/LocalLS
-Windows release: https://github.com/grigorywork/LocalLS/releases/tag/windows-v0.1.1
+Windows release: https://github.com/grigorywork/LocalLS/releases/tag/v0.9.5
 Documents: https://github.com/grigorywork/LocalLS/tree/main/distributions/Windows
 BUILD_REPORT.md records checks actually performed. The installer and its
 contents were verified; installation and runtime on a physical Windows PC
-were not tested in the build environment. This guide describes released 0.1.1.
+were not tested in the build environment. This guide describes released 0.9.5.

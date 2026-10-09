@@ -12,7 +12,7 @@ force push. Параллельных изменений в рабочей коп
 Выполнено 21 полное анонимное скачивание release assets. Размеры и SHA-256
 совпали с оригиналами. ZIP CRC проверены; установщики внутри скачанных комплектов
 совпали с отдельно опубликованными бинарными файлами. TXT — UTF-8 BOM / CRLF.
-Подробные отчёты: android/BUILD_REPORT.md, desktop/BUILD_REPORT.md, linux/BUILD_REPORT.md.
+Подробные отчёты: android/docs/BUILD_REPORT_v0.9.4_BASELINE.md, desktop/docs/BUILD_REPORT_v0.1.1_BASELINE.md, linux/docs/BUILD_REPORT_v0.1.1_BASELINE.md.
 
 | Платформа | Настоящий установщик | Байт | SHA-256 |
 |---|---|---:|---|

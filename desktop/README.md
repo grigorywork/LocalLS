@@ -1,4 +1,4 @@
-# LocalLS Desktop 0.1.1
+# LocalLS Desktop 0.9.5
 
 Windows 10/11 x64 SSH/SFTP client, developed separately from Android LocalLS 0.9.3.
 Client stage: connects to the existing Termux/OpenSSH server; no new server installation.
@@ -9,7 +9,7 @@ speed graph, public profile import from Android, connection/appearance/VPN setti
 Typical public connection parameters: 192.168.1.82, port 8022, user u0_a606.
 Credentials are entered in the app and never included in this project.
 
-Установщик: `artifacts/LocalLS-0.1.1-Windows-x64-Setup.exe`.
+Установщик: `artifacts/LocalLS-0.9.5-Windows-x64-Setup.exe`.
 Результаты реальной сборки и проверки: `BUILD_REPORT.md`.
 
 Приложение работает на Windows 10/11 x64. Установите его для текущего пользователя,

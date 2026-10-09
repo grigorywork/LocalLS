@@ -1,46 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="?attr/hscBackground"
-    android:fillViewport="true">
+<?xml version='1.0' encoding='utf-8'?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="14dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="14dp">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Диагностика"
-            android:textColor="?attr/hscTextPrimary"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_activity_diagnostics_text_9ba1e2" android:textColor="?attr/hscTextPrimary" android:textSize="@dimen/text_title" android:textStyle="bold" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Отчёт специально не показывает пароль SSH и токен агента."
-            android:textColor="?attr/hscTextSecondary"
-            android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/ui_activity_diagnostics_text_6bd1a6" android:textColor="?attr/hscTextSecondary" android:textSize="@dimen/text_compact" />
 
-        <TextView
-            android:id="@+id/diagnosticsText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/panel_bg"
-            android:padding="10dp"
-            android:textColor="?attr/hscTextPrimary"
-            android:textIsSelectable="true"
-            android:textSize="14sp" />
+        <TextView android:id="@+id/diagnosticsText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/panel_bg" android:padding="10dp" android:textColor="?attr/hscTextPrimary" android:textIsSelectable="true" android:textSize="@dimen/text_body" />
 
-        <Button android:id="@+id/diagnosticsRefreshButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="10dp" android:text="Обновить отчёт" />
-        <Button android:id="@+id/diagnosticsCopyButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="6dp" android:text="Копировать диагностику" />
-        <Button android:id="@+id/diagnosticsClearTransfersButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="6dp" android:text="Очистить историю передач" />
-        <Button android:id="@+id/diagnosticsBackButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:layout_marginBottom="20dp" android:text="Назад" />
+        <Button android:id="@+id/diagnosticsRefreshButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="10dp" android:text="@string/ui_diagnosticsrefreshbutton_text_c5165b" />
+        <Button android:id="@+id/diagnosticsCopyButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="6dp" android:text="@string/ui_diagnosticscopybutton_text_9121d6" />
+        <Button android:id="@+id/diagnosticsClearTransfersButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="6dp" android:text="@string/ui_diagnosticscleartransfersbutton_text_270022" />
+        <Button android:id="@+id/diagnosticsBackButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:layout_marginBottom="20dp" android:text="@string/ui_diagnosticsbackbutton_text_f6dab0" />
     </LinearLayout>
 </ScrollView>

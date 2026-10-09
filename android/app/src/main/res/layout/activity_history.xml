@@ -1,77 +1,35 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="?attr/hscBackground"
-    android:fillViewport="true">
+<?xml version='1.0' encoding='utf-8'?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="История сервера"
-            android:textColor="?attr/hscTextPrimary"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_activity_history_text_3992ce" android:textColor="?attr/hscTextPrimary" android:textSize="@dimen/text_title" android:textStyle="bold" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Последние проверки: доступность, задержка, занятое место и iperf3."
-            android:textColor="?attr/hscTextSecondary"
-            android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/ui_activity_history_text_53bbf4" android:textColor="?attr/hscTextSecondary" android:textSize="@dimen/text_compact" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
+        <com.bitpoint.homeservercontrol.ActionGridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/historyBackButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:text="Назад" />
+            <Button android:id="@+id/historyBackButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/ui_diagnosticsbackbutton_text_f6dab0" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" />
 
-            <Button
-                android:id="@+id/historyClearButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:text="Очистить" />
-        </LinearLayout>
+            <Button android:id="@+id/historyClearButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="3dp" android:layout_weight="1" android:text="@string/ui_historyclearbutton_text_98b207" android:layout_marginEnd="3dp" />
+        </com.bitpoint.homeservercontrol.ActionGridLayout>
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Доступность" android:textColor="?attr/hscTextPrimary" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:id="@+id/availabilitySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="?attr/hscTextSecondary" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/ui_activity_history_text_a1c56f" android:textColor="?attr/hscTextPrimary" android:textSize="@dimen/text_title" android:textStyle="bold" />
+        <TextView android:id="@+id/availabilitySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_availabilitysummary_text_d0dd94" android:textColor="?attr/hscTextSecondary" android:textSize="@dimen/text_compact" />
         <com.bitpoint.homeservercontrol.MetricChartView android:id="@+id/availabilityChart" android:layout_width="match_parent" android:layout_height="130dp" android:layout_marginTop="4dp" android:background="@drawable/panel_bg" />
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Отклик SSH" android:textColor="?attr/hscTextPrimary" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:id="@+id/latencySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="?attr/hscTextSecondary" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/ui_activity_history_text_1b4984" android:textColor="?attr/hscTextPrimary" android:textSize="@dimen/text_title" android:textStyle="bold" />
+        <TextView android:id="@+id/latencySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_availabilitysummary_text_d0dd94" android:textColor="?attr/hscTextSecondary" android:textSize="@dimen/text_compact" />
         <com.bitpoint.homeservercontrol.MetricChartView android:id="@+id/latencyChart" android:layout_width="match_parent" android:layout_height="130dp" android:layout_marginTop="4dp" android:background="@drawable/panel_bg" />
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Занято памяти" android:textColor="?attr/hscTextPrimary" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:id="@+id/diskSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="?attr/hscTextSecondary" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/ui_activity_history_text_07d65a" android:textColor="?attr/hscTextPrimary" android:textSize="@dimen/text_title" android:textStyle="bold" />
+        <TextView android:id="@+id/diskSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_availabilitysummary_text_d0dd94" android:textColor="?attr/hscTextSecondary" android:textSize="@dimen/text_compact" />
         <com.bitpoint.homeservercontrol.MetricChartView android:id="@+id/diskChart" android:layout_width="match_parent" android:layout_height="130dp" android:layout_marginTop="4dp" android:background="@drawable/panel_bg" />
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Скорость iperf3" android:textColor="?attr/hscTextPrimary" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:id="@+id/speedSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Нет данных" android:textColor="?attr/hscTextSecondary" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/ui_activity_history_text_3d2c83" android:textColor="?attr/hscTextPrimary" android:textSize="@dimen/text_title" android:textStyle="bold" />
+        <TextView android:id="@+id/speedSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_availabilitysummary_text_d0dd94" android:textColor="?attr/hscTextSecondary" android:textSize="@dimen/text_compact" />
         <com.bitpoint.homeservercontrol.MetricChartView android:id="@+id/speedChart" android:layout_width="match_parent" android:layout_height="130dp" android:layout_marginTop="4dp" android:background="@drawable/panel_bg" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="20dp"
-            android:text="Графики хранятся только локально в приложении. Пароли и токены в историю не попадают."
-            android:textColor="?attr/hscTextSecondary"
-            android:textSize="12sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:layout_marginBottom="20dp" android:text="@string/ui_activity_history_text_3b7574" android:textColor="?attr/hscTextSecondary" android:textSize="@dimen/text_caption" />
     </LinearLayout>
 </ScrollView>

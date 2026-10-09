@@ -112,7 +112,7 @@ public class NetworkActivity extends BaseActivity {
         }
         cancelRequest();
         final int generation = requestGeneration;
-        resultText.setText("Проверяю " + primary + ":" + port + "…");
+        resultText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_29607d83ada3, primary, port));
         final boolean autoFallback = autoFallbackCheck.isChecked();
         requestTask = executor.submit(() -> {
             ProbeResult first = probe(primary, port);
@@ -178,7 +178,7 @@ public class NetworkActivity extends BaseActivity {
                 .getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT);
         cancelRequest();
         final int generation = requestGeneration;
-        resultText.setText("Ищу устройства с SSH-портом " + port + " в текущей Wi‑Fi сети…");
+        resultText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_d2229423fc38, port));
         findViewById(R.id.networkDiscoverButton).setEnabled(false);
         requestTask = executor.submit(() -> {
             LocalServerDiscovery.Result result = LocalServerDiscovery.discover(port);
@@ -187,8 +187,7 @@ public class NetworkActivity extends BaseActivity {
                 findViewById(R.id.networkDiscoverButton).setEnabled(true);
                 String own = TextUtils.isEmpty(result.localIp) ? "—" : result.localIp;
                 if (result.hosts.isEmpty()) {
-                    resultText.setText("IP этого телефона: " + own + "\n" + result.message
-                            + "\n\nУбедись, что сервер и это устройство в одной Wi‑Fi сети, а sshd запущен.");
+                    resultText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_e5faf35a2fce, own, result.message));
                     return;
                 }
                 String[] candidates = result.hosts.toArray(new String[0]);
@@ -206,8 +205,7 @@ public class NetworkActivity extends BaseActivity {
                                     applyDiscoveredHost(candidates[which], port));
                 }
                 discoveryDialog = dialog.show();
-                resultText.setText("IP этого телефона: " + own + "\n" + result.message
-                        + "\nКандидаты: " + TextUtils.join(", ", result.hosts));
+                resultText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_e1d5c4bee882, own, result.message, TextUtils.join(", ", result.hosts)));
             });
         });
     }
@@ -215,8 +213,7 @@ public class NetworkActivity extends BaseActivity {
     private void applyDiscoveredHost(String host, int port) {
         localHostInput.setText(host);
         localModeButton.setChecked(true);
-        resultText.setText("Выбран локальный сервер: " + host + ":" + port
-                + "\nНажми «Проверить SSH-порт», затем «Сохранить сеть».");
+        resultText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_12b30fbc136c, host, port));
     }
 
     private void showTailscaleWizard() {
@@ -243,7 +240,7 @@ public class NetworkActivity extends BaseActivity {
         findViewById(R.id.networkDiscoverButton).setEnabled(true);
         if (discoveryDialog != null) discoveryDialog.dismiss();
         if (resultText.getText().toString().startsWith("Проверяю ") || resultText.getText().toString().startsWith("Ищу устройства"))
-            resultText.setText("Проверка отменена. Нажми нужную функцию снова.");
+            resultText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_74ceac806dfb);
     }
     @Override protected void onPause() { cancelRequest(); super.onPause(); }
     @Override

@@ -109,7 +109,7 @@ public class FilesActivity extends BaseActivity {
         renderAttachments();
         if (TextUtils.isEmpty(password) && getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE)
                 .getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)) {
-            emptyText.setText("Загрузка сохранённого подключения…");
+            emptyText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_92883d7c1281);
             SecretWorker.execute(() -> {
                 final String saved = SecurePrefs.loadPassword(this);
                 runOnUiThread(() -> {
@@ -141,12 +141,12 @@ public class FilesActivity extends BaseActivity {
                 if (position < entries.size()) {
                     RemoteEntry entry = entries.get(position);
                     ((ImageView) row.findViewById(R.id.remoteFileIcon)).setImageResource(
-                            entry.directory ? R.drawable.ic_folder : R.drawable.ic_file);
+                            entry.directory ? com.bitpoint.homeservercontrol.ui.R.drawable.ic_folder : com.bitpoint.homeservercontrol.ui.R.drawable.ic_file);
                     SpannableString label = new SpannableString((selectedDownloads.containsKey(entry.path) ? "☑ " : "") + labels.get(position));
                     int metadata = label.toString().indexOf('\n');
                     if (metadata >= 0) {
                         label.setSpan(new RelativeSizeSpan(0.85f), metadata + 1, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        label.setSpan(new ForegroundColorSpan(ThemeCatalog.color(FilesActivity.this, R.attr.hscTextSecondary)), metadata + 1,
+                        label.setSpan(new ForegroundColorSpan(ThemeCatalog.color(FilesActivity.this, com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary)), metadata + 1,
                                 label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                     ((TextView) row.findViewById(R.id.remoteFileLabel)).setText(label);
@@ -241,7 +241,7 @@ public class FilesActivity extends BaseActivity {
     private void refresh() {
         if (closing || !validConnection()) return;
         pathText.setText(currentPath);
-        emptyText.setText("Загрузка…");
+        emptyText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7b1582cf5ffe);
         findViewById(R.id.filesRefreshButton).setEnabled(false);
         final String path = currentPath;
         browseExecutor.execute(() -> {
@@ -282,8 +282,8 @@ public class FilesActivity extends BaseActivity {
                     entries.clear();
                     entries.addAll(finalLoaded);
                     rebuildLabels();
-                    pathText.setText(currentPath + (switched ? "\nчерез " + host : ""));
-                    emptyText.setText("Папка пустая");
+                    pathText.setText(switched ? getString(com.bitpoint.homeservercontrol.ui.R.string.remote_path_server_format, currentPath, host) : currentPath);
+                    emptyText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a01d89efb9dc);
                     findViewById(R.id.filesRefreshButton).setEnabled(true);
                     getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE).edit()
                             .putString(KEY_LAST_REMOTE_PATH, currentPath).apply();
@@ -292,7 +292,7 @@ public class FilesActivity extends BaseActivity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     if (path.equals(currentPath)) {
-                        emptyText.setText("Не удалось открыть папку");
+                        emptyText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_43af7ee03223);
                         findViewById(R.id.filesRefreshButton).setEnabled(true);
                     }
                     Toast.makeText(this, "SFTP: " + safeMessage(e), Toast.LENGTH_LONG).show();
@@ -366,9 +366,8 @@ public class FilesActivity extends BaseActivity {
         View panel = findViewById(R.id.attachmentsPanel);
         if (panel == null) return;
         panel.setVisibility(attachedFiles.isEmpty() ? View.GONE : View.VISIBLE);
-        ((TextView) findViewById(R.id.attachmentsSummary)).setText("Прикреплено: " + attachedFiles.size()
-                + " • нажми, чтобы убрать файл");
-        ((Button) findViewById(R.id.filesSendAttachmentsButton)).setText("Отправить (" + attachedFiles.size() + ")");
+        ((TextView) findViewById(R.id.attachmentsSummary)).setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_ac2c0a3e6363, attachedFiles.size()));
+        ((Button) findViewById(R.id.filesSendAttachmentsButton)).setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_5dc938f609e1, attachedFiles.size()));
     }
 
     private void reviewAttachments() {
@@ -538,7 +537,7 @@ public class FilesActivity extends BaseActivity {
                 job.attempt = attempt;
                 job.resetSpeedWindow();
                 if (attempt > 1) {
-                    runOnUiThread(() -> transferStatusText.setText(job.label + " • повторное подключение…"));
+                    runOnUiThread(() -> transferStatusText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.transfer_retry_format, job.label)));
                     if (!sleepRetry(job)) break;
                 }
                 try (InputStream in = getContentResolver().openInputStream(uri)) {
@@ -583,7 +582,7 @@ public class FilesActivity extends BaseActivity {
                 job.attempt = attempt;
                 job.resetSpeedWindow();
                 if (attempt > 1) {
-                    runOnUiThread(() -> transferStatusText.setText(job.label + " • повторное подключение…"));
+                    runOnUiThread(() -> transferStatusText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.transfer_retry_format, job.label)));
                     if (!sleepRetry(job)) break;
                 }
                 try (OutputStream out = getContentResolver().openOutputStream(destination, "wt")) {
@@ -696,7 +695,7 @@ public class FilesActivity extends BaseActivity {
             return;
         }
         job.cancelled = true;
-        transferStatusText.setText("Отмена текущей передачи…");
+        transferStatusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7449059c41e3);
         cancelTransferButton.setEnabled(false);
     }
 

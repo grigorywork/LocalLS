@@ -1,12 +1,12 @@
-# LocalLS Fedora 0.1.1
+# LocalLS Fedora 0.9.5
 
 Клиент SSH/SFTP и графический мастер штатного OpenSSH-сервера для Fedora x86_64.
 Две панели, выбор файлов в разных папках, очередь передач, график скорости,
 темы и работа после сворачивания. Мастер управляет существующим `sshd.service`
 с подтверждением администратора; настройки и механизмы запуска не заменяются.
 
-- [Скачать комплект RPM + инструкции RU/EN](https://github.com/grigorywork/LocalLS/releases/download/fedora-v0.1.1/LocalLS-Fedora-0.1.1-with-guides.zip)
-- [Скачать RPM отдельно](https://github.com/grigorywork/LocalLS/releases/download/fedora-v0.1.1/LocalLS-0.1.1-Fedora-x86_64.rpm)
+- [Скачать комплект RPM + инструкции RU/EN](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Fedora-0.9.5-with-guides.zip)
+- [Скачать RPM отдельно](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-0.9.5-Fedora-x86_64.rpm)
 - [Подробная инструкция на русском](INSTRUCTIONS_RU.txt)
 - [Detailed English guide](INSTRUCTIONS_EN.txt)
 - [Результаты сборки и проверок](../../linux/BUILD_REPORT.md)

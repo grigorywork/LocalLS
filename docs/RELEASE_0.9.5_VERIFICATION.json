@@ -1,0 +1,61 @@
+{
+  "version": "0.9.5",
+  "android": {
+    "buildSource": "d32b4062557d66000848dd9a9dea6e67e0d0cb53",
+    "tests": 8,
+    "agentHttpsTests": 4,
+    "screenshots": 18,
+    "lintErrors": 0,
+    "lintWarnings": 15,
+    "signatureMatches094": true,
+    "payloadMatchesTestedBuild": true,
+    "sha256": "4cf2a043914dba45658fd372ca23210d609eedbb9a0e4d90306f382dfd88311d"
+  },
+  "fedora": {
+    "version": "0.9.5",
+    "platform": "Fedora x86_64",
+    "filename": "LocalLS-0.9.5-Fedora-x86_64.rpm",
+    "bytes": 110654687,
+    "sha256": "bbce90449d2ddcb888c1d010c9573a281e872f2fdedb776963c102c49be5e58a",
+    "sourceCommit": "412986588720a6a9d653fe6a759e9a687b553491",
+    "buildHost": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.43",
+    "publisherSigned": false,
+    "checks": [
+      "unit tests",
+      "package validation",
+      "actual Electron UI/SSH/SFTP fixture smoke"
+    ],
+    "limitations": [
+      "physical user devices and production network not tested",
+      "publisher signature absent"
+    ],
+    "unitTests": 12
+  },
+  "windows": {
+    "version": "0.9.5",
+    "platform": "Windows x64",
+    "filename": "LocalLS-0.9.5-Windows-x64-Setup.exe",
+    "bytes": 158237739,
+    "sha256": "9e9ec7f7765888ea0e8722fb8f3c9e3872471417f0d1a643e70ac76782b04046",
+    "sourceCommit": "28ef17b7f09268bf3dfd8371c3e8c2638859f965",
+    "buildHost": "Windows-2025Server-10.0.26100-SP0",
+    "publisherSigned": false,
+    "checks": [
+      "unit tests",
+      "package validation",
+      "actual Electron UI/SSH/SFTP fixture smoke"
+    ],
+    "limitations": [
+      "physical user devices and production network not tested",
+      "publisher signature absent"
+    ],
+    "unitTests": 8
+  },
+  "limitations": [
+    "No physical Android phone installation test of merged 0.9.5",
+    "No production SSH/Termux/Tailscale test of merged 0.9.5",
+    "Debug Android signer preserved for update compatibility; desktop packages have no publisher signature"
+  ],
+  "desktopCi": "https://github.com/grigorywork/LocalLS/actions/runs/37929619379",
+  "androidCi": "https://github.com/grigorywork/LocalLS/actions/runs/37929625111"
+}

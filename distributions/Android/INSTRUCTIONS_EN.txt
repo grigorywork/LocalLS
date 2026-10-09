@@ -88,7 +88,7 @@ Detailed instructions for regular app functions follow.
 ======================================================================
 
 LOCALLS FOR ANDROID — DETAILED USER GUIDE
-Application version: 0.9.4. Document date: October 9, 2026.
+Application version: 0.9.5. Document date: October 9, 2026.
 
 WELCOME TO LOCALLS!
 
@@ -105,15 +105,15 @@ cloud storage service.
 
 1. CONTENTS OF THIS FOLDER
 
-LocalLS-Android-0.9.4-with-guides.zip contains an Android folder with:
-  LocalLS-v0.9.4-debug.apk — the installable application;
+LocalLS-Android-0.9.5-with-guides.zip contains an Android folder with:
+  LocalLS-v0.9.5-debug.apk — the installable application;
   INSTRUCTIONS_RU.txt — the Russian guide;
   INSTRUCTIONS_EN.txt — this English guide;
   BUILD_REPORT.md — build results and checks actually performed;
   SHA256SUMS.txt — file checksums.
 Open the TXT files with Notepad or any text editor. The GitHub folder
 distributions/Android contains the documents and installer download links.
-Download the APK or complete archive from Assets in release android-v0.9.4.
+Download the APK or complete archive from Assets in release v0.9.5.
 The current interface uses Russian labels; relevant labels are quoted below.
 This English document does not change the application's interface language.
 
@@ -131,7 +131,7 @@ can be used without running the preparation wizard again.
 
 Android 7.0 or newer is required, with a network route to your server.
 1) Download the APK, or download the ZIP and extract its Android folder.
-2) Open LocalLS-v0.9.4-debug.apk on your phone.
+2) Open LocalLS-v0.9.5-debug.apk on your phone.
 3) If Android requests permission to install from this source, grant it
    to the browser or file manager used to open the APK, then retry.
 4) Open LocalLS. On Android 13+, allow notifications for background transfers.
@@ -198,7 +198,7 @@ Picking an attachment does not upload it immediately. You can also use
 Android Share in another application and select LocalLS; review the imported
 attachments in LocalLS and confirm their destination before sending.
 An upload may replace a same-name file on the server. Review the confirmation.
-In Android 0.9.4, an interrupted replacement upload can leave a partial remote
+In Android 0.9.5, an interrupted replacement upload can leave a partial remote
 file. Repeat the transfer and verify the resulting file if an interruption occurs.
 
 8. QUEUE, SPEED GRAPH, HISTORY AND BACKGROUND OPERATION
@@ -247,7 +247,7 @@ access is not available; this wizard runs on the server itself.
 10. ERROR RUN COMMAND / ALLOW-EXTERNAL-APPS
 
 This message means Termux refused the external command; preparation has
-not succeeded. Use LocalLS 0.9.4 and follow these steps:
+not succeeded. Use LocalLS 0.9.5 and follow these steps:
 1) Confirm official Termux is installed and has been opened at least once.
 2) Select the root of the Termux provider again in the wizard.
 3) Use Termux access help ("Помощь с доступом Termux") to check LocalLS
@@ -330,9 +330,9 @@ and numeric error code. Never include a password, agent token or private key.
 16. LINKS AND UPDATES
 
 Project: https://github.com/grigorywork/LocalLS
-Android release: https://github.com/grigorywork/LocalLS/releases/tag/android-v0.9.4
+Android release: https://github.com/grigorywork/LocalLS/releases/tag/v0.9.5
 Documents: https://github.com/grigorywork/LocalLS/tree/main/distributions/Android
 Save a public profile before changing devices. Local history and saved secrets
 are not exported in that profile. BUILD_REPORT.md records checks actually
-performed and device-testing limits. This guide describes released 0.9.4,
+performed and device-testing limits. This guide describes released 0.9.5,
 not planned v1.0 features.

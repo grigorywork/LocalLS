@@ -5,6 +5,7 @@ cd "$ROOT"
 
 echo '[1/6] Static audit'
 python3 tools/audit_project.py
+python3 tools/audit_architecture.py
 
 echo '[2/6] Java'
 java -version
@@ -52,7 +53,7 @@ fi
 chmod +x gradlew
 
 echo '[5/6] Assemble Debug APK'
-./gradlew --no-daemon --stacktrace clean :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+./gradlew --no-daemon --stacktrace clean :core:test :transport:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
 
 echo '[6/6] Collect artifact'
 APK='app/build/outputs/apk/debug/app-debug.apk'

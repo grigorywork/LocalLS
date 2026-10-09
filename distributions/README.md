@@ -5,10 +5,11 @@
 
 | Платформа / Platform | Документы / Documents | Полный комплект / Complete package |
 | --- | --- | --- |
-| Android 7.0+ · LocalLS 0.9.4 | [Android](Android/) | [ZIP с папкой Android](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.4/LocalLS-Android-0.9.4-with-guides.zip) |
-| Windows 10/11 x64 · LocalLS 0.1.1 | [Windows](Windows/) | [ZIP с папкой Windows](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.1/LocalLS-Windows-0.1.1-with-guides.zip) |
+| Android 7.0+ · LocalLS 0.9.5 | [Android](Android/) | [ZIP с папкой Android](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Android-0.9.5-with-guides.zip) |
+| Windows 10/11 x64 · LocalLS 0.9.5 | [Windows](Windows/) | [ZIP с папкой Windows](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Windows-0.9.5-with-guides.zip) |
+| Fedora x86_64 · LocalLS 0.9.5 | [Fedora](Fedora/) | [ZIP с папкой Fedora](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Fedora-0.9.5-with-guides.zip) |
 
-В полном ZIP находятся установочный APK или EXE, обе инструкции, отчёт сборки
+В полном ZIP находятся установочный APK, EXE или RPM, обе инструкции, отчёт сборки
 и контрольные суммы. Распакуйте архив и откройте `INSTRUCTIONS_RU.txt` в текстовом
 редакторе. Установочные файлы хранятся в GitHub Releases; в этих папках репозитория
 находятся документы и ссылки на скачивание.

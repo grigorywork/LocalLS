@@ -1,0 +1,11 @@
+{
+  "version": "0.9.5",
+  "unitTests": 8,
+  "lintWarnings": 15,
+  "lintErrors": 0,
+  "renderedScreenshots": 18,
+  "build": "BUILD SUCCESSFUL",
+  "deviceTests": "Not executed for merged 0.9.5",
+  "signing": "Original published 0.9.4 certificate verified; APK payload unchanged",
+  "compatibleWithPublished094": true
+}

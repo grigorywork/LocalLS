@@ -10,10 +10,7 @@ final class DeviceProfile {
     static boolean isLowRam(Context context) {
         ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         if (manager == null) return false;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            return manager.isLowRamDevice();
-        }
-        return false;
+        return manager.isLowRamDevice();
     }
 
     static long totalRamMb(Context context) {

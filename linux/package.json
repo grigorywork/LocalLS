@@ -1,6 +1,6 @@
 {
   "name": "localls-fedora",
-  "version": "0.1.1",
+  "version": "0.9.5",
   "description": "LocalLS — Fedora SSH/SFTP client and system server setup",
   "author": "LocalLS",
   "license": "UNLICENSED",

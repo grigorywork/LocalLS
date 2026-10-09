@@ -8,7 +8,6 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.view.WindowManager;
 import android.widget.*;
-import com.jcraft.jsch.*;
 import org.json.JSONObject;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -93,9 +92,9 @@ public class SecurityActivity extends BaseActivity {
         SshKeys.save(this,host,port,user,key); String other = ConnectionSelector.alternateHost(this);
         if (!other.isEmpty() && !other.equals(host)) SshKeys.save(this,other,port,user,key);
     }
-    private TextView text(String value) { TextView t = new TextView(this); t.setText(value); t.setTextColor(ThemeCatalog.color(this,R.attr.hscTextPrimary)); t.setTextSize(14); t.setPadding(0,10,0,10); content.addView(t); return t; }
-    private EditText secret(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); e.setSaveEnabled(false); e.setSingleLine(true); e.setTextColor(ThemeCatalog.color(this,R.attr.hscTextPrimary)); e.setHintTextColor(ThemeCatalog.color(this,R.attr.hscTextSecondary)); content.addView(e); return e; }
-    private void button(String label,Runnable fn) { Button b = new Button(this); b.setText(label); b.setAllCaps(false); content.addView(b,new LinearLayout.LayoutParams(-1,(int)(52*getResources().getDisplayMetrics().density))); IconButtons.apply(b,R.drawable.ic_action_key); b.setOnClickListener(v -> { if (!busy) fn.run(); }); }
+    private TextView text(String value) { TextView t = new TextView(this); t.setText(value); t.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary)); t.setTextSize(14); t.setPadding(0,10,0,10); content.addView(t); return t; }
+    private EditText secret(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); e.setSaveEnabled(false); e.setSingleLine(true); e.setMinimumHeight(Math.round(48 * getResources().getDisplayMetrics().density)); if (android.os.Build.VERSION.SDK_INT >= 26) e.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_NO); e.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary)); e.setHintTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary)); content.addView(e); return e; }
+    private void button(String label,Runnable fn) { Button b = new Button(this); b.setText(label); b.setAllCaps(false); content.addView(b,new LinearLayout.LayoutParams(-1,(int)(52*getResources().getDisplayMetrics().density))); IconButtons.apply(b,com.bitpoint.homeservercontrol.ui.R.drawable.ic_action_key); b.setOnClickListener(v -> { if (!busy) fn.run(); }); }
     interface Work { String run() throws Exception; }
     private void task(Work work) { if (busy) return; busy = true; keyMode.setEnabled(false); legacy.setEnabled(false); result.setText("Выполняется…"); worker.execute(() -> { String output;
         try { output = work.run(); } catch (Exception | LinkageError e) { output = "Операция не выполнена. Проверьте ключ, парольную фразу, SSH fingerprint, доступ к серверу или поддержку HTTPS агентом."; }

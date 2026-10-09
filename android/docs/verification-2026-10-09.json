@@ -1,0 +1,46 @@
+{
+  "tests": [
+    {
+      "suite": "com.bitpoint.homeservercontrol.SecretRedactorTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.bitpoint.homeservercontrol.HostKeyPinningTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.bitpoint.homeservercontrol.UiRenderingTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "screenshots": 18,
+  "lintWarnings": 12,
+  "lintRules": {
+    "SdCardPath": 2,
+    "UnusedAttribute": 1,
+    "AndroidGradlePluginVersion": 1,
+    "GradleDependency": 2,
+    "UseCompoundDrawables": 1,
+    "MergeRootFrame": 1,
+    "TooManyViews": 1,
+    "MonochromeLauncherIcon": 1,
+    "RtlHardcoded": 2
+  },
+  "deviceTests": "not executed",
+  "releaseSigning": "awaiting owner choice",
+  "uiPolish": {
+    "configurationFields": "autofill disabled",
+    "sshCredentials": "username/password hints",
+    "drawer": "keyboard focus enabled, physical right preserved",
+    "statusMessages": "resource templates",
+    "background": "single window background"
+  },
+  "lintErrors": 0,
+  "lintFatal": 0
+}

@@ -1,0 +1,12 @@
+{
+  "apk": "artifacts/LocalLS-v0.9.3-ui-debug.apk",
+  "bytes": 1588212,
+  "sha256": "e9535129f75e8d862909fcc0ca8f4ce5ac440360462432ab17395648a685cb84",
+  "package": "com.bitpoint.homeservercontrol",
+  "minSdk": 24,
+  "targetSdk": 37,
+  "manifest": "valid",
+  "signature": "verified for API 24\u201336",
+  "zipAlignment": "valid",
+  "signatureDetails": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1"
+}

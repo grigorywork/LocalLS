@@ -44,7 +44,7 @@ public class CompactMenuInstrumentedTest {
                 for (int id : new int[]{R.id.restartServerButton, R.id.checkButton, R.id.drawerVpnHeader,
                         R.id.wifiConnectButton, R.id.agentRestartButton}) {
                     Button button = activity.findViewById(id);
-                    assertTrue(button.getLayoutParams().height <= Math.round(52 * activity.getResources().getDisplayMetrics().density));
+                    assertTrue(button.getLayoutParams().height >= Math.round(48 * activity.getResources().getDisplayMetrics().density));
                 }
             });
         }

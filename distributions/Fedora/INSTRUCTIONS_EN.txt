@@ -87,7 +87,7 @@ Never publish private keys, tokens, personal profiles or agent configuration.
 Detailed instructions for regular app functions follow.
 ======================================================================
 
-LocalLS Fedora 0.1.1 — user guide
+LocalLS Fedora 0.9.5 — user guide
 For Intel/AMD x86_64 desktop computers. Built and tested in Fedora 44.
 
 WELCOME
@@ -112,8 +112,8 @@ A visual wizard manages this computer's existing Fedora OpenSSH service.
 Export a verified server profile compatible with Android and Windows LocalLS.
 
 1. PACKAGE AND INSTALLATION
-Extract LocalLS-Fedora-0.1.1-with-guides.zip. The Fedora folder contains:
-  LocalLS-0.1.1-Fedora-x86_64.rpm — the real installation package;
+Extract LocalLS-Fedora-0.9.5-with-guides.zip. The Fedora folder contains:
+  LocalLS-0.9.5-Fedora-x86_64.rpm — the real installation package;
   INSTRUCTIONS_RU.txt — the Russian guide;
   INSTRUCTIONS_EN.txt — this English guide;
   BUILD_REPORT.md — actual build and test results;
@@ -122,7 +122,7 @@ TXT documents use UTF-8 with BOM and work in text editors and Windows Notepad.
 Open the RPM in a Fedora package installer that supports local RPM files,
 and authorize the installation using your administrator credentials.
 If the graphical installer does not accept it, use this installation command:
-  sudo dnf install ./LocalLS-0.1.1-Fedora-x86_64.rpm
+  sudo dnf install ./LocalLS-0.9.5-Fedora-x86_64.rpm
 Run it from the directory containing the downloaded RPM; DNF resolves dependencies.
 Launch LocalLS from Fedora's application menu after installation.
 The RPM is currently unsigned. A checksum is not a publisher signature.
@@ -305,4 +305,4 @@ Tailscale session were not tested in the container; see BUILD_REPORT.md.
 Android and Windows remain separate downloads with their working builds preserved.
 
 Project: https://github.com/grigorywork/LocalLS
-Fedora release: https://github.com/grigorywork/LocalLS/releases/tag/fedora-v0.1.1
+Fedora release: https://github.com/grigorywork/LocalLS/releases/tag/v0.9.5

@@ -1,4 +1,4 @@
-# LocalLS Fedora 0.1.1
+# LocalLS Fedora 0.9.5
 
 Версия для Fedora x86_64: клиент SSH/SFTP и графическое управление штатным
 OpenSSH-сервером текущего компьютера. Android и Windows остаются отдельными проектами.
@@ -43,7 +43,7 @@ npm test
 npm run build:rpm
 ```
 
-Результат: `artifacts/LocalLS-0.1.1-Fedora-x86_64.rpm`.
+Результат: `artifacts/LocalLS-0.9.5-Fedora-x86_64.rpm`.
 Скрипт использует установленный официальный Electron из node_modules/electron/dist.
 Для другого доверенного каталога Electron задайте LOCALLS_ELECTRON_DIST.
 Проверка установленного RPM в тестовом контейнере:

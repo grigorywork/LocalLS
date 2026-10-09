@@ -1,0 +1,15 @@
+{
+  "modules": [
+    "core",
+    "data",
+    "transport",
+    "ui",
+    "app"
+  ],
+  "resourceLink": "passed",
+  "javaCompilation": "passed",
+  "jvmTests": "JUnit version 4.13.2\n...\nTime: 8,507\n\nOK (3 tests)",
+  "gradlePackaging": "not verified",
+  "lint": "not verified",
+  "deviceTests": "not executed"
+}
