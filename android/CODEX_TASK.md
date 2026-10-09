@@ -1,4 +1,4 @@
-# CODEX TASK — LocalLS v0.9.3 build gate
+# CODEX TASK — LocalLS v0.9.4 build gate
 
 Работай непрерывно до настоящего APK.
 
@@ -10,10 +10,10 @@
 6. При любой ошибке найди причину, исправь исходники и сразу повтори build.
 7. Не удаляй функции ради прохождения компиляции без объяснения.
 8. Не меняй рабочий протокол Realme/Termux/sshd и не добавляй второй boot-механизм sshd.
-9. После успеха скопируй APK в `artifacts/LocalLS-v0.9.3-debug.apk`.
+9. После успеха скопируй APK в `artifacts/LocalLS-v0.9.4-debug.apk`.
 10. Создай `BUILD_REPORT.md` с `BUILD SUCCESSFUL`, размером APK и SHA-256.
 
-## LocalLS v0.9.3
+## LocalLS v0.9.4
 
 Рабочая v0.8 сохранена отдельно. Новые требования: вложения с подтверждённой отправкой,
 открытие папки сервера по пути, правая шторка шириной 50%, пять цветовых тем,
@@ -24,3 +24,7 @@ applicationId остаётся прежним для обновления и с�
 Последний этап: графический мастер на Realme через официальный Termux SAF/RUN_COMMAND,
 без ручного ввода команд. Сохранять sshd/config/host keys/autostart; новый пароль
 задаётся только явно. Проверять реальный SSH-вход до экспорта публичного профиля.
+
+## Security update 0.9.4
+
+Verify strict SSH key mode without password fallback and pinned HTTPS agent requests. Preserve live server startup, configuration and recovery access. Never commit private identities or fixture credentials.

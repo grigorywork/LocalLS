@@ -10,8 +10,8 @@ android {
         applicationId = "com.bitpoint.homeservercontrol"
         minSdk = 24
         targetSdk = 37
-        versionCode = 12
-        versionName = "0.9.3"
+        versionCode = 13
+        versionName = "0.9.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

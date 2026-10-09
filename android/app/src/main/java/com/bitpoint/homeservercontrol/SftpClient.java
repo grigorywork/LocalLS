@@ -26,9 +26,24 @@ final class SftpClient {
 
     private SftpClient() {}
 
-    static List<RemoteEntry> list(String host, int port, String user, String password,
+    static List<RemoteEntry> list(String host, int port, String user, String password, String trustedFingerprint, String requestedPath) throws Exception { return list(host, port, user, SshCredentials.password(password), trustedFingerprint, requestedPath); }
+    static List<RemoteEntry> list(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, String requestedPath) throws Exception { return list(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, requestedPath); }
+    static String canonicalPath(String host, int port, String user, String password, String trustedFingerprint, String path) throws Exception { return canonicalPath(host, port, user, SshCredentials.password(password), trustedFingerprint, path); }
+    static String canonicalPath(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, String path) throws Exception { return canonicalPath(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, path); }
+    static void download(String host, int port, String user, String password, String trustedFingerprint, String remotePath, OutputStream output, long expectedBytes, ProgressCallback callback) throws Exception { download(host, port, user, SshCredentials.password(password), trustedFingerprint, remotePath, output, expectedBytes, callback); }
+    static void download(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, String remotePath, OutputStream output, long expectedBytes, ProgressCallback callback) throws Exception { download(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, remotePath, output, expectedBytes, callback); }
+    static void upload(String host, int port, String user, String password, String trustedFingerprint, InputStream input, String remotePath, long expectedBytes, ProgressCallback callback) throws Exception { upload(host, port, user, SshCredentials.password(password), trustedFingerprint, input, remotePath, expectedBytes, callback); }
+    static void upload(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, InputStream input, String remotePath, long expectedBytes, ProgressCallback callback) throws Exception { upload(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, input, remotePath, expectedBytes, callback); }
+    static void mkdir(String host, int port, String user, String password, String trustedFingerprint, String path) throws Exception { mkdir(host, port, user, SshCredentials.password(password), trustedFingerprint, path); }
+    static void mkdir(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, String path) throws Exception { mkdir(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, path); }
+    static void rename(String host, int port, String user, String password, String trustedFingerprint, String oldPath, String newPath) throws Exception { rename(host, port, user, SshCredentials.password(password), trustedFingerprint, oldPath, newPath); }
+    static void rename(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, String oldPath, String newPath) throws Exception { rename(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, oldPath, newPath); }
+    static void delete(String host, int port, String user, String password, String trustedFingerprint, RemoteEntry entry) throws Exception { delete(host, port, user, SshCredentials.password(password), trustedFingerprint, entry); }
+    static void delete(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, RemoteEntry entry) throws Exception { delete(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, entry); }
+
+    static List<RemoteEntry> list(String host, int port, String user, SshCredentials credential,
                                   String trustedFingerprint, String requestedPath) throws Exception {
-        Connection connection = connect(host, port, user, password, trustedFingerprint);
+        Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
             ChannelSftp sftp = connection.sftp;
             String path = requestedPath == null || requestedPath.trim().isEmpty()
@@ -62,9 +77,9 @@ final class SftpClient {
         }
     }
 
-    static String canonicalPath(String host, int port, String user, String password,
+    static String canonicalPath(String host, int port, String user, SshCredentials credential,
                                 String trustedFingerprint, String path) throws Exception {
-        Connection connection = connect(host, port, user, password, trustedFingerprint);
+        Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
             connection.sftp.cd(path);
             return connection.sftp.pwd();
@@ -73,10 +88,10 @@ final class SftpClient {
         }
     }
 
-    static void download(String host, int port, String user, String password,
+    static void download(String host, int port, String user, SshCredentials credential,
                          String trustedFingerprint, String remotePath, OutputStream output,
                          long expectedBytes, ProgressCallback callback) throws Exception {
-        Connection connection = connect(host, port, user, password, trustedFingerprint);
+        Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
             connection.sftp.get(remotePath, output, monitor(callback, expectedBytes));
             output.flush();
@@ -85,10 +100,10 @@ final class SftpClient {
         }
     }
 
-    static void upload(String host, int port, String user, String password,
+    static void upload(String host, int port, String user, SshCredentials credential,
                        String trustedFingerprint, InputStream input, String remotePath,
                        long expectedBytes, ProgressCallback callback) throws Exception {
-        Connection connection = connect(host, port, user, password, trustedFingerprint);
+        Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
             connection.sftp.put(input, remotePath, monitor(callback, expectedBytes), ChannelSftp.OVERWRITE);
         } finally {
@@ -96,9 +111,9 @@ final class SftpClient {
         }
     }
 
-    static void mkdir(String host, int port, String user, String password,
+    static void mkdir(String host, int port, String user, SshCredentials credential,
                       String trustedFingerprint, String path) throws Exception {
-        Connection connection = connect(host, port, user, password, trustedFingerprint);
+        Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
             connection.sftp.mkdir(path);
         } finally {
@@ -106,9 +121,9 @@ final class SftpClient {
         }
     }
 
-    static void rename(String host, int port, String user, String password,
+    static void rename(String host, int port, String user, SshCredentials credential,
                        String trustedFingerprint, String oldPath, String newPath) throws Exception {
-        Connection connection = connect(host, port, user, password, trustedFingerprint);
+        Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
             connection.sftp.rename(oldPath, newPath);
         } finally {
@@ -116,9 +131,9 @@ final class SftpClient {
         }
     }
 
-    static void delete(String host, int port, String user, String password,
+    static void delete(String host, int port, String user, SshCredentials credential,
                        String trustedFingerprint, RemoteEntry entry) throws Exception {
-        Connection connection = connect(host, port, user, password, trustedFingerprint);
+        Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
             if (entry.directory) {
                 // Защитное поведение: удаляем только пустую папку. Рекурсивное удаление специально не делаем.
@@ -129,6 +144,23 @@ final class SftpClient {
         } finally {
             connection.close();
         }
+    }
+
+    static void installPublicKey(String host,int port,String user,SshCredentials credential,String pin,String publicKey) throws Exception {
+        if (!publicKey.matches("(?:ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp(?:256|384|521)) [A-Za-z0-9+/=]+ LocalLS")) throw new Exception("Ключ не распознан");
+        Connection connection=connect(host,port,user,credential,pin);
+        try { ChannelSftp s=connection.sftp; String home=s.getHome(),dir=join(home,".ssh"),file=join(dir,"authorized_keys"); SftpATTRS attrs;
+            try { attrs=s.lstat(dir); if(!attrs.isDir()||attrs.isLink())throw new Exception("Небезопасная папка .ssh"); }
+            catch(com.jcraft.jsch.SftpException e){if(e.id!=ChannelSftp.SSH_FX_NO_SUCH_FILE)throw e;s.mkdir(dir);} s.chmod(0700,dir);
+            byte[] old=new byte[0];
+            try { attrs=s.lstat(file); if(!attrs.isReg()||attrs.isLink()||attrs.getSize()>512*1024)throw new Exception("Небезопасный authorized_keys");
+                java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();try(InputStream in=s.get(file)){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1){if(out.size()+n>512*1024)throw new Exception("authorized_keys слишком большой");out.write(b,0,n);}}old=out.toByteArray();
+            }catch(com.jcraft.jsch.SftpException e){if(e.id!=ChannelSftp.SSH_FX_NO_SUCH_FILE)throw e;}
+            String text=new String(old,java.nio.charset.StandardCharsets.UTF_8); String[] expected=publicKey.split(" "); boolean exists=false;
+            for(String line:text.split("\\r?\\n")){String[] parts=line.trim().split("\\s+");if(!line.trim().startsWith("#"))for(int i=0;i+1<parts.length;i++)if(parts[i].equals(expected[0])&&parts[i+1].equals(expected[1]))exists=true;}
+            if(!exists){String addition=(!text.isEmpty()&&!text.endsWith("\n")?"\n":"")+publicKey+"\n";try(OutputStream out=s.put(file,ChannelSftp.APPEND)){out.write(addition.getBytes(java.nio.charset.StandardCharsets.UTF_8));}}
+            s.chmod(0600,file);
+        }finally{connection.close();}
     }
 
     static String parent(String path) {
@@ -167,7 +199,7 @@ final class SftpClient {
         };
     }
 
-    private static Connection connect(String host, int port, String user, String password,
+    private static Connection connect(String host, int port, String user, SshCredentials credential,
                                       String trustedFingerprint) throws Exception {
         if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) {
             throw new Exception("Сначала подтверди SSH fingerprint на главном экране.");
@@ -176,10 +208,10 @@ final class SftpClient {
         // Enforce the trusted key during key exchange, before SSH password authentication.
         jsch.setHostKeyRepository(new PinnedHostKeyRepository(jsch, trustedFingerprint));
         Session session = jsch.getSession(user, host, port);
-        session.setPassword(password);
+        credential.configure(jsch, session);
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "yes");
-        config.put("PreferredAuthentications", "password,keyboard-interactive");
+
         session.setConfig(config);
         // Keepalive помогает при длинных передачах и выключенном экране клиента.
         session.setServerAliveInterval(15_000);

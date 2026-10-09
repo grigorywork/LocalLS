@@ -3,7 +3,7 @@
 %global __strip /bin/true
 %global _binary_payload w6.zstdio
 Name: localls
-Version: 0.1.0
+Version: 0.1.1
 Release: 1
 Summary: LocalLS SSH/SFTP client and graphical Fedora server setup
 License: LicenseRef-Proprietary
@@ -43,5 +43,8 @@ install -D -m 0644 icon.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/lo
 /usr/share/icons/hicolor/256x256/apps/localls.png
 
 %changelog
+* Fri Oct 09 2026 LocalLS <localls-archive@localhost> - 0.1.1-1
+- Add strict SSH public-key authentication and pinned HTTPS agent control.
+
 * Thu Oct 08 2026 LocalLS <localls-archive@localhost> - 0.1.0-1
 - Initial Fedora x86_64 client and graphical system server setup.

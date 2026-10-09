@@ -139,7 +139,8 @@ public class MainActivity extends BaseActivity {
                 prefs.getInt(ServerConfig.KEY_AGENT_PORT, ServerConfig.DEFAULT_AGENT_PORT),
                 prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false), prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false),
                 prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false), prefs.getString(ServerConfig.KEY_PASSWORD_CIPHER, ""),
-                prefs.getString(ServerConfig.KEY_AGENT_TOKEN_CIPHER, ""));
+                prefs.getString(ServerConfig.KEY_AGENT_TOKEN_CIPHER, ""),
+                prefs.getString(SshKeys.MODE,"password"),prefs.getLong(SshKeys.REVISION,0L),prefs.getBoolean(AgentTls.LEGACY,false));
     }
 
     private void invalidateConnectionStats() {
@@ -340,6 +341,8 @@ public class MainActivity extends BaseActivity {
         if (ServerConfig.MODE_VPN.equals(mode)) vpnModeButton.setChecked(true);
         else localModeButton.setChecked(true);
 
+        passwordInput.setEnabled(!SshKeys.keyMode(this));
+        if (SshKeys.keyMode(this)) passwordInput.setText("");
         boolean savePassword = prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false);
         savePasswordCheck.setChecked(savePassword);
 
@@ -465,13 +468,13 @@ public class MainActivity extends BaseActivity {
         checkTask = executor.submit(() -> {
             String usedHost = primaryHost;
             String trustedFingerprint = HostTrustStore.get(this, usedHost, port);
-            ServerStats stats = SshClient.probe(usedHost, port, user, password, trustedFingerprint);
+            ServerStats stats = SshClient.probe(this, usedHost, port, user, password, trustedFingerprint);
 
             if (!stats.reachable && ConnectionSelector.autoFallback(this)) {
                 String alternate = ConnectionSelector.alternateHost(this);
                 if (!TextUtils.isEmpty(alternate) && !alternate.equals(primaryHost)) {
                     String altTrusted = HostTrustStore.get(this, alternate, port);
-                    ServerStats alternateStats = SshClient.probe(alternate, port, user, password, altTrusted);
+                    ServerStats alternateStats = SshClient.probe(this, alternate, port, user, password, altTrusted);
                     if (alternateStats.reachable) {
                         usedHost = alternate;
                         stats = alternateStats;
@@ -592,7 +595,7 @@ public class MainActivity extends BaseActivity {
         final int screen = uiGeneration, request = ++quickGeneration;
         if (quickTask != null) quickTask.cancel(true);
         quickTask = executor.submit(() -> {
-            SshCommandResult result = SshClient.runCommand(host, port, user, password, trusted, command, 8000);
+            SshCommandResult result = SshClient.runCommand(this, host, port, user, password, trusted, command, 8000);
             handler.post(() -> {
                 if (!isUiActive() || screen != uiGeneration || request != quickGeneration) return;
                 String text = result.success ? result.output : "Ошибка: " + result.error;
@@ -626,7 +629,7 @@ public class MainActivity extends BaseActivity {
         final int screen = uiGeneration, request = ++iperfGeneration;
         if (iperfTask != null) iperfTask.cancel(true);
         iperfTask = executor.submit(() -> {
-            SshCommandResult result = SshClient.runCommand(host, port, user, password, trusted, command, 15_000);
+            SshCommandResult result = SshClient.runCommand(this, host, port, user, password, trusted, command, 15_000);
             handler.post(() -> {
                 if (!isUiActive() || screen != uiGeneration || request != iperfGeneration) return;
                 if (result.success) {
@@ -648,7 +651,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private boolean validSshInputs(String host, int port, String user, String password) {
-        if (TextUtils.isEmpty(host) || port <= 0 || TextUtils.isEmpty(user) || TextUtils.isEmpty(password)) {
+        if (TextUtils.isEmpty(host) || port <= 0 || TextUtils.isEmpty(user) || (!SshKeys.keyMode(this) && TextUtils.isEmpty(password))) {
             Toast.makeText(this, "Проверь адрес/порт/логин/пароль", Toast.LENGTH_SHORT).show();
             return false;
         }
@@ -697,6 +700,9 @@ public class MainActivity extends BaseActivity {
     }
 
     private void runAgentAction(String action, boolean confirmed) {
+        if (getSharedPreferences(ServerConfig.PREFS,MODE_PRIVATE).getBoolean(AgentTls.LEGACY,false) && !confirmed) {
+            confirmAgentAction(action,"Старый HTTP-агент: токен будет отправлен без TLS. Продолжить временно?"); return;
+        }
         if (("stop".equals(action) || "restart".equals(action)) && !confirmed) return;
         final String host = activeHost();
         final int port = parseAgentPort();
@@ -710,7 +716,7 @@ public class MainActivity extends BaseActivity {
         final int screen = uiGeneration, request = ++agentGeneration;
         if (agentTask != null) agentTask.cancel(true);
         agentTask = executor.submit(() -> {
-            AgentResult result = AgentClient.request(host, port, token, action);
+            AgentResult result = AgentClient.request(this, host, port, token, action);
             handler.post(() -> {
                 if (!isUiActive() || screen != uiGeneration || request != agentGeneration) return;
                 if (result.success) {

@@ -47,7 +47,7 @@ def verify(apk, sdk):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("apk", nargs="?", default="artifacts/LocalLS-v0.9.3-debug.apk")
+    parser.add_argument("apk", nargs="?", default="artifacts/LocalLS-v0.9.4-debug.apk")
     parser.add_argument("--sdk", default=os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT"))
     args = parser.parse_args()
     if not args.sdk:

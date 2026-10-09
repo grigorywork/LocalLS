@@ -122,9 +122,9 @@ public class FilesActivity extends BaseActivity {
     }
 
     private void finishConnectionOpen(boolean firstOpen) {
-        if (TextUtils.isEmpty(password)) promptPassword(); else refresh();
+        if (!SshKeys.keyMode(this) && TextUtils.isEmpty(password)) promptPassword(); else refresh();
         if (firstOpen && getIntent().getBooleanExtra(FileAttachments.PICK_ON_OPEN, false)
-                && !TextUtils.isEmpty(password)) chooseUploads();
+                && (SshKeys.keyMode(this) || !TextUtils.isEmpty(password))) chooseUploads();
     }
 
     private void bindViews() {
@@ -250,7 +250,7 @@ public class FilesActivity extends BaseActivity {
                 String usedFingerprint = fingerprint;
                 List<RemoteEntry> loaded;
                 try {
-                    loaded = SftpClient.list(usedHost, port, user, password, usedFingerprint, path);
+                    loaded = SftpClient.list(this, usedHost, port, user, password, usedFingerprint, path);
                 } catch (Exception primaryError) {
                     String alternate = ConnectionSelector.alternateHost(this);
                     boolean canFallback = ConnectionSelector.autoFallback(this)
@@ -261,7 +261,7 @@ public class FilesActivity extends BaseActivity {
 
                     String alternateFingerprint = HostTrustStore.get(this, alternate, port);
                     try {
-                        loaded = SftpClient.list(alternate, port, user, password, alternateFingerprint, path);
+                        loaded = SftpClient.list(this, alternate, port, user, password, alternateFingerprint, path);
                         usedHost = alternate;
                         usedFingerprint = alternateFingerprint;
                     } catch (Exception alternateError) {
@@ -543,7 +543,7 @@ public class FilesActivity extends BaseActivity {
                 }
                 try (InputStream in = getContentResolver().openInputStream(uri)) {
                     if (in == null) throw new Exception("Не удалось открыть выбранный файл");
-                    SftpClient.upload(host, port, user, password, fingerprint, in, remotePath, size,
+                    SftpClient.upload(this, host, port, user, password, fingerprint, in, remotePath, size,
                             (bytes, total) -> onTransferProgress(job, bytes, total));
                     failure = null;
                     break;
@@ -588,7 +588,7 @@ public class FilesActivity extends BaseActivity {
                 }
                 try (OutputStream out = getContentResolver().openOutputStream(destination, "wt")) {
                     if (out == null) throw new Exception("Не удалось открыть файл назначения");
-                    SftpClient.download(host, port, user, password, fingerprint, entry.path, out, entry.size,
+                    SftpClient.download(this, host, port, user, password, fingerprint, entry.path, out, entry.size,
                             (bytes, total) -> onTransferProgress(job, bytes, total));
                     failure = null;
                     break;
@@ -741,7 +741,7 @@ public class FilesActivity extends BaseActivity {
                     String name = validFileName(input.getText().toString());
                     if (name == null) return;
                     runFileOperation("Создание папки", () ->
-                            SftpClient.mkdir(host, port, user, password, fingerprint, SftpClient.join(currentPath, name)));
+                            SftpClient.mkdir(this, host, port, user, password, fingerprint, SftpClient.join(currentPath, name)));
                 })
                 .show();
     }
@@ -788,7 +788,7 @@ public class FilesActivity extends BaseActivity {
                     if (name == null || name.equals(entry.name)) return;
                     String target = SftpClient.join(SftpClient.parent(entry.path), name);
                     runFileOperation("Переименование", () ->
-                            SftpClient.rename(host, port, user, password, fingerprint, entry.path, target));
+                            SftpClient.rename(this, host, port, user, password, fingerprint, entry.path, target));
                 })
                 .show();
     }
@@ -802,7 +802,7 @@ public class FilesActivity extends BaseActivity {
                 .setMessage(entry.name + extra)
                 .setNegativeButton("Отмена", null)
                 .setPositiveButton("Удалить", (d, w) -> runFileOperation("Удаление", () ->
-                        SftpClient.delete(host, port, user, password, fingerprint, entry)))
+                        SftpClient.delete(this, host, port, user, password, fingerprint, entry)))
                 .show();
     }
 
@@ -852,7 +852,7 @@ public class FilesActivity extends BaseActivity {
     }
 
     private boolean validConnection() {
-        if (TextUtils.isEmpty(host) || port <= 0 || TextUtils.isEmpty(user) || TextUtils.isEmpty(password)) {
+        if (TextUtils.isEmpty(host) || port <= 0 || TextUtils.isEmpty(user) || (!SshKeys.keyMode(this) && TextUtils.isEmpty(password))) {
             Toast.makeText(this, "Не хватает данных подключения", Toast.LENGTH_LONG).show();
             return false;
         }

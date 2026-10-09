@@ -44,7 +44,7 @@ final class SecurePrefs {
         clearSecret(context, ServerConfig.KEY_AGENT_TOKEN_CIPHER);
     }
 
-    private static void saveSecret(Context context, String prefKey, String value) throws Exception {
+    private static synchronized void saveSecret(Context context, String prefKey, String value) throws Exception {
         SecretKey key = getOrCreateKey();
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key);
@@ -55,7 +55,7 @@ final class SecurePrefs {
         prefs(context).edit().putString(prefKey, payload).apply();
     }
 
-    private static String loadSecret(Context context, String prefKey) {
+    private static synchronized String loadSecret(Context context, String prefKey) {
         try {
             String payload = prefs(context).getString(prefKey, "");
             if (payload == null || payload.isEmpty() || !payload.contains(":")) return "";
@@ -79,6 +79,10 @@ final class SecurePrefs {
     private static void clearSecret(Context context, String prefKey) {
         prefs(context).edit().remove(prefKey).apply();
     }
+
+    static void saveNamed(Context c, String key, String value) throws Exception { saveSecret(c, key, value); }
+    static String loadNamed(Context c, String key) { return loadSecret(c, key); }
+    static void clearNamed(Context c, String key) { clearSecret(c, key); }
 
     private static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE);

@@ -1,45 +1,15 @@
-# Realme Control Agent v0.2
+# LocalLS independent agent 0.3 — HTTPS
 
-Небольшой независимый от SSH агент для **Realme GT Neo 2 / Termux**.
+Независимый Python-агент Termux для Start/Stop/Restart SSH. Обычный SFTP работает без него.
 
-Зачем он нужен: если `sshd` остановлен, обычный SSH-пульт уже не может сам поднять SSH обратно. Этот агент живёт отдельным Python-процессом и умеет локально управлять `sshd`.
+Обновите файлы на серверном устройстве, сохраните резервную копию config.json и выполните `./install.sh`. Установщик сохраняет токен/адрес/порт, добавляет TLS-сертификат RSA 3072 и не изменяет sshd_config, работающий sshd или схему автозапуска. Сертификат действителен 365 дней. Приватный TLS-ключ и конфигурация имеют права 600.
 
-## Безопасность
+Старый процесс агента автоматически не перезапускается. Завершите именно его существующим способом и запустите обновлённый: `python ~/home-server-agent/agent.py`. Не запускайте дубликаты. В LocalLS → Безопасность проверьте HTTPS-сертификат, сверьте SHA-256 с выводом установщика и подтвердите. Только затем проверяйте статус с токеном. Без сертификата новый агент отказывается работать и не откатывается на HTTP.
 
-- доступ защищён случайным Bearer-токеном;
-- токен хранится в `~/home-server-agent/config.json` с правами `600`;
-- **не пробрасывай порт 8787 на роутере в интернет**;
-- используй агент только в домашней LAN или через Tailscale/WireGuard;
-- HTTP не шифруется сам по себе, поэтому для удалённого доступа используй Tailscale/WireGuard.
+Порт 8787 не пробрасывайте в интернет. Для удалённого доступа используйте ограниченный Tailscale. Старый HTTP допускается только явно: сервер `tls=false` вместе с `allow_legacy_http=true`, клиент — временный режим совместимости; токен тогда передаётся без TLS.
 
-## Установка
+Автозапуск `./install-boot.sh` включайте только после ручной проверки и только если он не дублирует имеющийся механизм. Boot-скрипт агента не запускает второй sshd.
 
-Скопируй папку `realme-agent` на Realme, открой Termux в этой папке и запусти:
+## English
 
-```sh
-./install.sh
-```
-
-Скрипт выведет токен. В Home Server Control укажи порт `8787` и этот токен.
-
-## Запуск вручную
-
-```sh
-python ~/home-server-agent/agent.py
-```
-
-## Проверка
-
-```sh
-curl -H "Authorization: Bearer ТВОЙ_ТОКЕН" http://127.0.0.1:8787/status
-```
-
-## Автозапуск агента
-
-Только если сам агент уже проверен вручную:
-
-```sh
-./install-boot.sh
-```
-
-Этот boot-скрипт **не запускает sshd**, поэтому не создаёт второй конкурирующий механизм запуска SSH.
+Agent 0.3 is independent of SSH and provides service start/stop/restart over TLS 1.2+ with a Bearer token. Back up config.json, run the updated install.sh in Termux, manually replace the old running agent process, then compare and trust the SHA-256 certificate in LocalLS Security. The installer preserves the existing token, address, port and boot scheme. It neither changes sshd configuration nor restarts the running sshd. Certificates expire after 365 days. Missing TLS files fail closed; legacy HTTP requires explicit opt-in on both sides. Never forward the agent port to the public internet. Use restricted Tailscale for remote access.

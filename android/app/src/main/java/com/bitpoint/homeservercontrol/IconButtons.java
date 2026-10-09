@@ -58,6 +58,7 @@ final class IconButtons {
     }
     private static int icon(String name) {
         String id = name.toLowerCase(java.util.Locale.ROOT);
+        if (id.contains("security") || id.contains("key")) return R.drawable.ic_action_key;
         if (id.contains("save")) return R.drawable.ic_action_save;
         if (id.contains("minimize")) return R.drawable.ic_action_download;
         if (id.contains("export")) return R.drawable.ic_action_upload;
@@ -87,6 +88,7 @@ final class IconButtons {
         if (id.contains("settings")) return R.drawable.ic_action_settings;
         if (id.contains("history") || id.contains("uptime")) return R.drawable.ic_action_history;
         if (id.contains("diagnostics") || id.contains("iperf")) return R.drawable.ic_action_diagnostics;
+        if (id.contains("security") || id.contains("key")) return R.drawable.ic_action_key;
         if (id.contains("save")) return R.drawable.ic_action_save;
         if (id.contains("copy")) return R.drawable.ic_action_copy;
         if (id.contains("minimize")) return R.drawable.ic_action_download;

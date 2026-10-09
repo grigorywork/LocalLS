@@ -34,7 +34,7 @@ function safeDownloadName(value) {
 }
 function call(sftp, method, ...args) { return new Promise((resolve, reject) => sftp[method](...args, (err, result) => err ? reject(err) : resolve(result))); }
 function publicError(err) {
-  const known={NO_TOKEN:'Сохраните токен существующего агента в настройках сервера.',NOT_INSTALLED:'Установите официальный клиент Tailscale.',NOT_CONNECTED:'Сначала подключитесь к SSH-серверу.',FILES_ONLY:'Для передачи выберите файлы внутри папки.',DEST_EXISTS:'Файл с таким именем уже существует.',EXISTS:'Это имя уже занято.',NO_KEY:'Не удалось получить ключ SSH-сервера.'};
+  const known={KEY_INVALID:'Ключ не распознан или неверна парольная фраза.',KEY_WEAK:'Используйте RSA не менее 3072 бит или Ed25519/ECDSA.',KEY_UNSUPPORTED:'Тип SSH-ключа не поддерживается.',KEY_GENERATION_FAILED:'Не удалось создать SSH-ключ.',KEY_REMOTE_UNSAFE:'Папка .ssh или authorized_keys имеет небезопасный тип или размер.',KEY_MISSING:'Создайте или импортируйте SSH-ключ в разделе безопасности.',KEY_BOOTSTRAP_REQUIRED:'Для установки публичного ключа введите действующий пароль сервера.',AGENT_TRUST_REQUIRED:'Сначала проверьте и подтвердите HTTPS-сертификат агента.',AGENT_TLS_FAILED:'Защищённое соединение агента не установлено: проверьте HTTPS, сертификат и порт.',AGENT_FAILED:'Агент не выполнил запрос.',NO_TOKEN:'Сохраните токен существующего агента в настройках сервера.',NOT_INSTALLED:'Установите официальный клиент Tailscale.',NOT_CONNECTED:'Сначала подключитесь к SSH-серверу.',FILES_ONLY:'Для передачи выберите файлы внутри папки.',DEST_EXISTS:'Файл с таким именем уже существует.',EXISTS:'Это имя уже занято.',NO_KEY:'Не удалось получить ключ SSH-сервера.'};
   if(known[err?.message])return known[err.message];
   if (err?.code === 'HOST_KEY_CHANGED') return 'Ключ сервера изменился. Подключение заблокировано.';
   if (err?.code === 'ABORT_ERR' || err?.name === 'AbortError') return 'Передача отменена';
@@ -58,8 +58,11 @@ class Server extends EventEmitter {
         authHandler: ['none'], hostVerifier: key => { found = true; resolve(fingerprint(key)); return false; } });
     });
   }
-  async connect(p, password, trusted) {
+  async connect(p, credential, trusted) {
     p = profile(p); this.disconnect();
+    const auth=typeof credential==='string'?{method:'password',password:credential}:credential;
+    if(!auth||!['password','key'].includes(auth.method))throw new Error('AUTH_INVALID');
+    if(auth.method==='key')require('./security.cjs').inspectIdentity(auth.privateKey,auth.passphrase||'');
     if (!trusted || !/^SHA256:[A-Za-z0-9+/]{43}$/.test(trusted)) throw Object.assign(new Error('UNTRUSTED'), { code: 'HOST_KEY_CHANGED' });
     const c = new this.Client(); this.client = c;
     await new Promise((resolve, reject) => {
@@ -67,7 +70,7 @@ class Server extends EventEmitter {
       c.on('error', err => reject(mismatch ? Object.assign(new Error('CHANGED'), { code: 'HOST_KEY_CHANGED' }) : err));
       c.on('close', () => { if (this.client === c) { this.sftp = null; this.client = null; this.emit('closed'); } reject(new Error('CLOSED')); });
       c.once('ready', resolve);
-      c.connect({ host: p.host, port: p.port, username: p.user, password,
+      c.connect({ host: p.host, port: p.port, username: p.user, ...(auth.method==='key'?{privateKey:auth.privateKey,passphrase:auth.passphrase||'',authHandler:['publickey']}:{password:auth.password||'',authHandler:['password']}),
         readyTimeout: 15000, keepaliveInterval: 15000, keepaliveCountMax: 3,
         hostVerifier: key => { mismatch = fingerprint(key) !== trusted; return !mismatch; } });
     });

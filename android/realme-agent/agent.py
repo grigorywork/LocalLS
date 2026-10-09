@@ -4,19 +4,20 @@ import os
 import secrets
 import shutil
 import signal
+import ssl
 import subprocess
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-BASE = Path.home() / "home-server-agent"
+BASE = Path(os.environ.get("LOCALLS_AGENT_CONFIG_DIR", str(Path.home() / "home-server-agent")))
 CONFIG_PATH = BASE / "config.json"
 
 
 def load_config():
     BASE.mkdir(parents=True, exist_ok=True)
     if not CONFIG_PATH.exists():
-        cfg = {"host": "0.0.0.0", "port": 8787, "token": secrets.token_urlsafe(32)}
+        cfg = {"host": "0.0.0.0", "port": 8787, "token": secrets.token_urlsafe(32), "tls": True, "tls_cert": str(BASE / "agent-cert.pem"), "tls_key": str(BASE / "agent-key.pem")}
         CONFIG_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
         os.chmod(CONFIG_PATH, 0o600)
         return cfg
@@ -83,7 +84,11 @@ def restart_sshd():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "HomeServerAgent/0.2"
+    server_version = "LocalLSAgent/0.3"
+
+    def setup(self):
+        self.request.settimeout(8)
+        super().setup()
 
     def log_message(self, fmt, *args):
         print("%s - %s" % (self.address_string(), fmt % args), flush=True)
@@ -110,7 +115,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == "/status":
             pids = sshd_pids()
-            self.send_json(200, {"ok": True, "sshd": "running" if pids else "stopped", "pids": pids, "agent": "0.2"})
+            self.send_json(200, {"ok": True, "sshd": "running" if pids else "stopped", "pids": pids, "agent": "0.3"})
         else:
             self.send_json(404, {"ok": False, "error": "not_found"})
 
@@ -133,6 +138,19 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     if not TOKEN:
         raise SystemExit("Token is empty in config.json")
-    print(f"Home Server Agent 0.2 listening on {HOST}:{PORT}", flush=True)
-    print(f"Config: {CONFIG_PATH}", flush=True)
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    if CFG.get("tls", True):
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        certificate = Path(CFG.get("tls_cert", str(BASE / "agent-cert.pem")))
+        private_key = Path(CFG.get("tls_key", str(BASE / "agent-key.pem")))
+        if not certificate.is_file() or not private_key.is_file():
+            raise SystemExit("TLS certificate is missing; run the updated installer. No HTTP fallback.")
+        if private_key.stat().st_mode & 0o077:
+            raise SystemExit("TLS private key requires permissions 600")
+        context.load_cert_chain(str(certificate), str(private_key))
+        server.socket = context.wrap_socket(server.socket, server_side=True, do_handshake_on_connect=False)
+    elif not CFG.get("allow_legacy_http", False):
+        raise SystemExit("HTTP requires explicit allow_legacy_http=true. HTTPS is recommended.")
+    print(f"LocalLS Agent 0.3 listening on {HOST}:{PORT} ({'HTTPS' if CFG.get('tls',True) else 'legacy HTTP'})", flush=True)
+    server.serve_forever()
