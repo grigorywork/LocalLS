@@ -322,7 +322,7 @@ a9fd290dcd936da037b02ffa354654d9db1f6a8fe5ad3403cccf92b0cdb7ea1b
 
 Проект: https://github.com/grigorywork/LocalLS
 Windows-релиз: https://github.com/grigorywork/LocalLS/releases/tag/windows-v0.1.1
-Документы: https://github.com/grigorywork/LocalLS/tree/security-ssh-https-20261009/distributions/Windows
+Документы: https://github.com/grigorywork/LocalLS/tree/main/distributions/Windows
 В BUILD_REPORT.md указаны действительно выполненные проверки. Установщик
 и его состав проверены, но установка и запуск на физической Windows-машине
 в среде сборки не проверялись. Эта инструкция относится к выпущенной 0.1.1.

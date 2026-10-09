@@ -321,7 +321,7 @@ Compare Hash against the value above or SHA256SUMS.txt.
 
 Project: https://github.com/grigorywork/LocalLS
 Windows release: https://github.com/grigorywork/LocalLS/releases/tag/windows-v0.1.1
-Documents: https://github.com/grigorywork/LocalLS/tree/security-ssh-https-20261009/distributions/Windows
+Documents: https://github.com/grigorywork/LocalLS/tree/main/distributions/Windows
 BUILD_REPORT.md records checks actually performed. The installer and its
 contents were verified; installation and runtime on a physical Windows PC
 were not tested in the build environment. This guide describes released 0.1.1.

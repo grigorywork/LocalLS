@@ -331,7 +331,7 @@ and numeric error code. Never include a password, agent token or private key.
 
 Project: https://github.com/grigorywork/LocalLS
 Android release: https://github.com/grigorywork/LocalLS/releases/tag/android-v0.9.4
-Documents: https://github.com/grigorywork/LocalLS/tree/security-ssh-https-20261009/distributions/Android
+Documents: https://github.com/grigorywork/LocalLS/tree/main/distributions/Android
 Save a public profile before changing devices. Local history and saved secrets
 are not exported in that profile. BUILD_REPORT.md records checks actually
 performed and device-testing limits. This guide describes released 0.9.4,

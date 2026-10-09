@@ -332,7 +332,7 @@ Android не становятся доступны автоматически ч
 
 Проект: https://github.com/grigorywork/LocalLS
 Android-релиз: https://github.com/grigorywork/LocalLS/releases/tag/android-v0.9.4
-Документы: https://github.com/grigorywork/LocalLS/tree/security-ssh-https-20261009/distributions/Android
+Документы: https://github.com/grigorywork/LocalLS/tree/main/distributions/Android
 Сохраняйте публичный профиль перед сменой устройства. Локальная история и
 сохранённые секреты не являются частью экспортируемого профиля.
 Сведения о фактически выполненных тестах и ограничениях устройств находятся
