@@ -88,6 +88,7 @@ jobs:
         run: |
           python3 ../tools/check_versions.py
           npm ci
+          npm exec -- install-electron
       - name: Unit tests and build RPM
         run: |
           npm test
