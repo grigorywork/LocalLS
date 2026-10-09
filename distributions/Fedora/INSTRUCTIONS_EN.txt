@@ -1,4 +1,93 @@
-﻿LocalLS Fedora 0.1.0 — user guide
+﻿SECURITY UPDATE (October 9, 2026)
+
+LocalLS supports SSH private-key authentication. A user identity key grants
+login; a server host key identifies the server. They are different keys.
+
+MIGRATE WITHOUT LOSING ACCESS
+1. Update over the existing installation, keeping app data.
+2. Connect with the existing credentials and verify the server fingerprint.
+3. Open Settings → Security / SSH key (Russian UI: Безопасность / SSH-ключ).
+   On Android this is inside application settings. Generate RSA 3072 or import
+   an existing private key with its passphrase if encrypted.
+4. On Windows/Fedora enable Save secrets in Connection and save settings first.
+   Persistence requires working OS encryption. Otherwise generated keys remain
+   only in memory until full exit. If the keyring is unavailable, import a key
+   you already own and keep the original file protected with a passphrase and
+   suitable filesystem permissions. Android uses Android Keystore encryption.
+5. In Security enter the current server password in the one-time installation
+   field and click Install key and verify login. Confirm host and account.
+6. LocalLS appends the public key to ~/.ssh/authorized_keys, preserving existing
+   entries, and sets .ssh to 700 and authorized_keys to 600. It opens a fresh
+   key-only connection. Only after that succeeds does the client select key
+   authentication and remove the stored password for this profile.
+7. Reconnect, browse SFTP and transfer a test file.
+8. Repeat for every device. Prefer a separate identity per device for revocation.
+9. Verify after fully exiting and reopening LocalLS. Do not disable server
+   passwords before this succeeds and you have another working way to access
+   the server directly.
+
+Key mode fails closed for a missing/wrong key; it never falls back to a password.
+Password mode is available for an explicit migration while the server permits it.
+Export .pub contains only public material. Public profile export does not transfer
+private keys, passphrases, passwords or agent tokens. Create/import and enroll
+an identity separately on the receiving device. Removing the local identity does
+not revoke it remotely: remove its authorized_keys line while keeping other keys.
+Uninstalling/resetting Android can destroy its Keystore identity; establish
+another tested login first. Private-key export is not implemented in this release.
+
+CONTROL AGENT: HTTPS
+SSH/SFTP works without an agent. An independent agent provides SSH service
+start/stop/restart, including when SSH is down. Agent 0.3 uses TLS 1.2+ and a
+random Bearer token. Download LocalLS-Agent-0.3.zip separately from the new
+release and extract it on the server phone. Back up the previous configuration.
+In Termux run ./install.sh from the extracted folder. It preserves the existing
+token, bind address, port and boot scheme, creates an RSA 3072 certificate and
+prints its SHA-256 fingerprint. Never post the token output in logs or issues.
+The installer does not restart an existing agent process. Stop that particular
+old process using the existing method and start the updated one manually.
+Do not run two agents on the same port or disturb the running sshd.
+Keep the original agent port/token in LocalLS. In Security choose Check agent
+HTTPS certificate, compare SHA-256 with the server, then confirm trust.
+The bootstrap request sends no token. Requests are blocked until trust exists;
+a substituted certificate also blocks requests. Check replacements independently.
+Certificates expire after 365 days; renew in advance and confirm the new pin.
+Self-signed TLS is trusted by the exact certificate fingerprint. Initial trust
+still depends on your independent verification, even on a home network.
+Old HTTP agents need explicit temporary compatibility; the app asks confirmation
+because tokens then travel without TLS. This option is off by default. Keep it
+off with a new HTTPS agent.
+
+SERVER PASSWORD POLICY
+This update does not automatically disable server passwords or modify sshd_config,
+SSH ports or sshd startup mechanisms. A key-only client does not prevent another
+client from authenticating with a password while the server still allows it.
+After testing every identity, an administrator can separately enforce:
+  PubkeyAuthentication yes
+  PasswordAuthentication no
+  KbdInteractiveAuthentication no
+  AuthenticationMethods publickey
+Termux usually uses $PREFIX/etc/ssh/sshd_config; Fedora uses /etc/ssh/sshd_config
+and included files. Back up configuration, inspect Include/Match, run sshd -t
+before applying, and inspect effective sshd -T settings for the target account
+and address. Apply via the existing service mechanism with a backup session,
+then test a fresh connection. Administrative privileges depend on the server OS.
+Do not copy these settings blindly or close the only working session first.
+
+NETWORK EXPOSURE
+Outbound internet for server updates is different from inbound public access.
+Moving SSH from port 22 to 8022 is not a substitute for keys and a firewall.
+Avoid router port forwarding; check UPnP and IPv6 firewall rules. IPv6 may lack
+NAT protection. For remote access prefer Tailscale with restricted grants/ACL,
+verified devices and a protected account. Fedora's Open SSH firewall action
+allows the service in the current zone; it does not automatically restrict it
+to your home subnet. Review the zone, interface and allowed sources in Fedora.
+This build environment did not verify the public reachability of your server.
+Never publish private keys, tokens, personal profiles or agent configuration.
+
+Detailed instructions for regular app functions follow.
+======================================================================
+
+LocalLS Fedora 0.9.5 — user guide
 For Intel/AMD x86_64 desktop computers. Built and tested in Fedora 44.
 
 WELCOME
@@ -23,8 +112,8 @@ A visual wizard manages this computer's existing Fedora OpenSSH service.
 Export a verified server profile compatible with Android and Windows LocalLS.
 
 1. PACKAGE AND INSTALLATION
-Extract LocalLS-Fedora-0.1.0-with-guides.zip. The Fedora folder contains:
-  LocalLS-0.1.0-Fedora-x86_64.rpm — the real installation package;
+Extract LocalLS-Fedora-0.9.5-with-guides.zip. The Fedora folder contains:
+  LocalLS-0.9.5-Fedora-x86_64.rpm — the real installation package;
   INSTRUCTIONS_RU.txt — the Russian guide;
   INSTRUCTIONS_EN.txt — this English guide;
   BUILD_REPORT.md — actual build and test results;
@@ -33,7 +122,7 @@ TXT documents use UTF-8 with BOM and work in text editors and Windows Notepad.
 Open the RPM in a Fedora package installer that supports local RPM files,
 and authorize the installation using your administrator credentials.
 If the graphical installer does not accept it, use this installation command:
-  sudo dnf install ./LocalLS-0.1.0-Fedora-x86_64.rpm
+  sudo dnf install ./LocalLS-0.9.5-Fedora-x86_64.rpm
 Run it from the directory containing the downloaded RPM; DNF resolves dependencies.
 Launch LocalLS from Fedora's application menu after installation.
 The RPM is currently unsigned. A checksum is not a publisher signature.
@@ -136,7 +225,7 @@ LocalLS neither creates nor replaces that password.
 «Пароль учётной записи» (Account password) opens the OS account settings.
 If the account has no password or server policy prohibits password authentication,
 configure the account or policy using normal Fedora administration tools.
-The current SSH client supports passwords; private-key login is not implemented.
+The local-server wizard checks passwords; the normal client supports private-key login via Security.
 
 Verify access and export:
   1) Enter the actual local SSH port, normally 22.
@@ -216,4 +305,4 @@ Tailscale session were not tested in the container; see BUILD_REPORT.md.
 Android and Windows remain separate downloads with their working builds preserved.
 
 Project: https://github.com/grigorywork/LocalLS
-Fedora release: https://github.com/grigorywork/LocalLS/releases/tag/fedora-v0.1.0
+Fedora release: https://github.com/grigorywork/LocalLS/releases/tag/v0.9.5

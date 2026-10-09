@@ -7,7 +7,7 @@
 |---|---|---|
 | core | Конфигурационные константы, модели ответов, секреты в памяти, скрытие секретов | JDK 17 |
 | data | SharedPreferences, Keystore, история, SAF и данные скорости | core, Android |
-| transport | SSH/SFTP, pinning, поиск сервера, HTTP-клиент агента | core, Android JSON, JSch |
+| transport | SSH/SFTP, pinning, поиск сервера, HTTP-клиент агента | core, data (Keystore для SSH-ключей), Android JSON, JSch |
 | ui | Темы, рисунки/рамки, типографика, графики и раскрывающиеся разделы | core, data, Android |
 | app | Экраны, Android services/receivers и связывание функций | все четыре модуля |
 

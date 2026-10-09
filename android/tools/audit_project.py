@@ -21,7 +21,7 @@ for p in all_xml:
 
 # Build config checks.
 app_gradle=(ROOT/'app'/'build.gradle.kts').read_text(encoding='utf-8')
-for needle in ['minSdk = 24','compileSdk = 37','targetSdk = 37','versionCode = 12','versionName = "0.9.3"']:
+for needle in ['minSdk = 24','compileSdk = 37','targetSdk = 37','versionCode = 14','versionName = "0.9.5"']:
     if needle not in app_gradle:
         warnings.append(f'Expected build setting not found: {needle}')
 

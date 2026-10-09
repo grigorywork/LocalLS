@@ -1,3 +1,5 @@
+> LocalLS 0.9.5 is a release candidate. Downloads will be published after all platform checks and Android signing compatibility are verified.
+
 # LocalLS
 
 Компактный SSH/SFTP-клиент для Android, Windows и Fedora: две панели файлов, загрузка и скачивание,
@@ -13,19 +15,19 @@
 установщик и подробные инструкции для Блокнота на русском и английском,
 с приветствием и описанием назначения приложения.
 
-- [Android: полный комплект с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.3/LocalLS-Android-0.9.3-with-guides.zip)
-- [Fedora: полный комплект RPM с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/fedora-v0.1.0/LocalLS-Fedora-0.1.0-with-guides.zip)
-- [Windows: полный комплект с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-Windows-0.1.0-with-guides.zip)
+- [Android: полный комплект с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Android-0.9.5-with-guides.zip)
+- [Fedora: полный комплект RPM с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Fedora-0.9.5-with-guides.zip)
+- [Windows: полный комплект с инструкциями RU/EN](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Windows-0.9.5-with-guides.zip)
 
-- [Скачать Windows EXE — LocalLS 0.1.0](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-0.1.0-Windows-x64-Setup.exe)
-- [Скачать Android APK — LocalLS 0.9.3](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.3/LocalLS-v0.9.3-debug.apk)
-- [Windows ZIP](https://github.com/grigorywork/LocalLS/releases/download/windows-v0.1.0/LocalLS-Windows-x64.zip) и [все сохранённые релизы](https://github.com/grigorywork/LocalLS/releases).
+- [Скачать Windows EXE — LocalLS 0.9.5](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-0.9.5-Windows-x64-Setup.exe)
+- [Скачать Android APK — LocalLS 0.9.5](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-v0.9.5-debug.apk)
+- [Windows ZIP](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Windows-0.9.5-with-guides.zip) и [все сохранённые релизы](https://github.com/grigorywork/LocalLS/releases).
 
 | Приложение | Версия | Система | Установочный файл |
 | --- | --- | --- | --- |
-| LocalLS Android | 0.9.3 | Android 7.0+ (minSdk 24) | `LocalLS-v0.9.3-debug.apk` |
-| LocalLS Fedora | 0.1.0 | Fedora x86_64 (проверено в Fedora 44) | `LocalLS-0.1.0-Fedora-x86_64.rpm` |
-| LocalLS Desktop | 0.1.0 | Windows 10/11 x64 | `LocalLS-0.1.0-Windows-x64-Setup.exe` |
+| LocalLS Android | 0.9.5 | Android 7.0+ (minSdk 24) | `LocalLS-v0.9.5-debug.apk` |
+| LocalLS Fedora | 0.9.5 | Fedora x86_64 (проверено в Fedora 44) | `LocalLS-0.9.5-Fedora-x86_64.rpm` |
+| LocalLS Desktop | 0.9.5 | Windows 10/11 x64 | `LocalLS-0.9.5-Windows-x64-Setup.exe` |
 
 APK, EXE и RPM размещаются в **Releases** этого репозитория отдельно от исходников.
 Загрузка GitHub «Source code» содержит исходники; установочные файлы выбирайте в списке Assets.
@@ -34,16 +36,16 @@ SHA-256 установщиков указан в `SHA256SUMS.txt` каждого
 
 ## Структура
 
-- [`android/`](android/README.md) — Android 0.9.3, Gradle Wrapper, UI, SSH/SFTP, мастер Termux, тесты и документация.
+- [`android/`](android/README.md) — Android 0.9.5, Gradle Wrapper, UI, SSH/SFTP, мастер Termux, тесты и документация.
 - [`android/realme-agent/`](android/realme-agent/README.md) — существующий независимый агент управления SSH.
-- [`desktop/`](desktop/README.md) — Windows-клиент 0.1.0 на Electron, установщик NSIS, тесты и значки.
+- [`desktop/`](desktop/README.md) — Windows-клиент 0.9.5 на Electron, установщик NSIS, тесты и значки.
 - [`android/BUILD_REPORT.md`](android/BUILD_REPORT.md) и [`desktop/BUILD_REPORT.md`](desktop/BUILD_REPORT.md) — результаты настоящих сборок и выполненных проверок.
 - [`linux/`](linux/README.md) — Fedora-клиент и графический мастер штатного OpenSSH, RPM и тесты.
 - [`docs/`](docs/) — сведения о проверке артефактов и скриншоты тестового интерфейса.
 
 Android и Windows продолжают работать с существующим Termux/OpenSSH-сервером.
-Fedora 0.1.0 — клиент и мастер настройки текущего ПК как сервера; используется существующий sshd.service.
-Windows 0.1.0 — клиент; создание сервера на ПК в этой версии не реализовано.
+Fedora 0.9.5 — клиент и мастер настройки текущего ПК как сервера; используется существующий sshd.service.
+Windows 0.9.5 — клиент; создание сервера на ПК в этой версии не реализовано.
 VPN использует установленный официальный Tailscale, собственный VPN-сервис не встроен.
 Приложения не добавляют конкурирующий механизм запуска sshd.
 
@@ -93,3 +95,9 @@ Fedora: Node.js 22, rpm-build, штатные библиотеки рабоче�
 
 Лицензия для исходников пока не выбрана. Публичное размещение само по себе не выдаёт
 разрешение на распространение и модификацию; лицензии зависимостей принадлежат их авторам.
+
+## Обновление безопасности от 9 октября 2026
+
+SSH-ключи с проверкой нового входа, без парольного fallback; HTTPS-агент 0.3 с проверкой точного сертификата. Рабочая схема запуска сервера сохраняется. [Переход на ключи — русский](SECURITY_GUIDE_RU.txt), [English](SECURITY_GUIDE_EN.txt). Парольный вход сервера отдельно отключается только после проверки всех ключей и резервного доступа.
+
+Публикация обновления безопасности от 9 октября 2026: [проверенные установщики и SHA-256](docs/SECURITY_PUBLICATION_REPORT.md).

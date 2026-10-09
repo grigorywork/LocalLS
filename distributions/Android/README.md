@@ -1,15 +1,15 @@
-# LocalLS Android 0.9.3
+# LocalLS Android 0.9.5
 
 Добро пожаловать в LocalLS! Пользуйтесь своим личным сервером с телефона:
 открывайте папки, передавайте файлы и следите за скоростью. Для нового серверного
 телефона предусмотрен мастер подготовки Termux/OpenSSH.
 
-- **[Скачать комплект с папкой Android — APK и инструкции RU/EN](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.3/LocalLS-Android-0.9.3-with-guides.zip)**
-- [Скачать APK отдельно](https://github.com/grigorywork/LocalLS/releases/download/android-v0.9.3/LocalLS-v0.9.3-debug.apk)
+- **[Скачать комплект с папкой Android — APK и инструкции RU/EN](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-Android-0.9.5-with-guides.zip)**
+- [Скачать APK отдельно](https://github.com/grigorywork/LocalLS/releases/download/v0.9.5/LocalLS-v0.9.5-debug.apk)
 - [Подробная инструкция на русском — TXT](INSTRUCTIONS_RU.txt)
 - [Detailed English user guide — TXT](INSTRUCTIONS_EN.txt)
 
-В ZIP: `Android/LocalLS-v0.9.3-debug.apk`, обе инструкции, `BUILD_REPORT.md`
+В ZIP: `Android/LocalLS-v0.9.5-debug.apk`, обе инструкции, `BUILD_REPORT.md`
 и `SHA256SUMS.txt`. Установите APK на Android 7.0+ и следуйте нужной инструкции.
 Сборка подписана debug-сертификатом. Существующий рабочий сервер можно использовать
 сразу, без повторного запуска мастера.
@@ -19,3 +19,5 @@ transfer files and monitor speed. A guided Termux/OpenSSH preparation wizard is
 available on the server phone. Download the complete package above, extract its
 Android folder, install the APK on Android 7.0+ and read the English TXT guide.
 The current application interface uses Russian labels. The APK is debug-signed.
+
+Обновление безопасности: SSH-ключи без парольного fallback; HTTPS-агент с проверкой сертификата. Подробная миграция описана в TXT-инструкциях.

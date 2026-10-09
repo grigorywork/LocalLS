@@ -1,1 +1,2 @@
 distributions/**/*.txt text eol=crlf
+/SECURITY_GUIDE_*.txt text eol=crlf

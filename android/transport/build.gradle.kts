@@ -13,5 +13,6 @@ android {
 dependencies {
     testImplementation("junit:junit:4.13.2")
     implementation(project(":core"))
+    implementation(project(":data"))
     implementation("com.github.mwiede:jsch:2.28.7")
 }

@@ -24,6 +24,32 @@ import static org.junit.Assert.*;
 @Config(sdk = 30, qualifiers = "ru-rRU-w360dp-h640dp-mdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 public class UiRenderingTest {
+    public static class ProgrammaticActivity extends BaseActivity { }
+
+    @Test @Config(sdk = 35)
+    public void programmaticScreensRespectSystemBars() {
+        org.robolectric.android.controller.ActivityController<ProgrammaticActivity> controller =
+                org.robolectric.Robolectric.buildActivity(ProgrammaticActivity.class).create();
+        try {
+            ProgrammaticActivity activity = controller.get();
+            Button button = new Button(activity);
+            button.setTag("tile");
+            button.setText("Проверить SSH");
+            activity.setContentView(button);
+            View content = activity.findViewById(android.R.id.content);
+            content.dispatchApplyWindowInsets(new android.view.WindowInsets.Builder()
+                    .setInsets(android.view.WindowInsets.Type.systemBars(), android.graphics.Insets.of(3, 20, 4, 30))
+                    .build());
+            assertEquals(3, content.getPaddingLeft());
+            assertEquals(20, content.getPaddingTop());
+            assertEquals(4, content.getPaddingRight());
+            assertEquals(30, content.getPaddingBottom());
+            assertNotNull("Programmatic buttons use the common icon treatment", button.getCompoundDrawables()[1]);
+        } finally {
+            controller.destroy();
+        }
+    }
+
     @Test public void dashboardCaptionsFitEveryThemeAndFontSize() throws Exception {
         Context app = RuntimeEnvironment.getApplication();
         for (int theme = 0; theme < ThemeCatalog.IDS.length; theme++) {

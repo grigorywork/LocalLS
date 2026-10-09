@@ -2,7 +2,7 @@
 from pathlib import Path
 import re, sys
 ROOT=Path(__file__).resolve().parents[1]
-ALLOWED={'core':set(),'data':{'core'},'transport':{'core'},'ui':{'core','data'},'app':{'core','data','transport','ui'}}
+ALLOWED={'core':set(),'data':{'core'},'transport':{'core','data'},'ui':{'core','data'},'app':{'core','data','transport','ui'}}
 errors=[]; classes={}; sources=[]
 for module in ALLOWED:
     for p in (ROOT/module/'src/main/java').rglob('*.java'):

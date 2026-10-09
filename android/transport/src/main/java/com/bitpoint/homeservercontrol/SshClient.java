@@ -17,7 +17,12 @@ import java.util.Properties;
 final class SshClient {
     private SshClient() {}
 
-    static ServerStats probe(String host, int port, String user, String password, String trustedFingerprint) {
+    static ServerStats probe(String host, int port, String user, String password, String trustedFingerprint) { return probe(host, port, user, SshCredentials.password(password), trustedFingerprint); }
+    static ServerStats probe(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint) { return probe(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint); }
+    static SshCommandResult runCommand(String host, int port, String user, String password, String trustedFingerprint, String command, int timeoutMs) { return runCommand(host, port, user, SshCredentials.password(password), trustedFingerprint, command, timeoutMs); }
+    static SshCommandResult runCommand(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, String command, int timeoutMs) { return runCommand(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, command, timeoutMs); }
+
+    static ServerStats probe(String host, int port, String user, SshCredentials credential, String trustedFingerprint) {
         ServerStats stats = new ServerStats();
         long start = System.nanoTime();
 
@@ -52,15 +57,15 @@ final class SshClient {
         }
         stats.hostKeyTrusted = true;
 
-        if (password == null || password.isEmpty()) {
-            stats.error = "SSH-ключ совпал. Введите пароль для полной диагностики.";
+        if (!credential.available()) {
+            stats.error = "SSH-ключ совпал. Загрузите ключ или введите пароль для полной диагностики.";
             return stats;
         }
 
         Session session = null;
         try {
             JSch jsch = new JSch();
-            session = buildSession(jsch, host, port, user, password, trustedFingerprint);
+            session = buildSession(jsch, host, port, user, credential, trustedFingerprint);
             session.connect(5000);
             stats.authenticated = true;
             stats.uptime = clean(execute(session, "uptime", 6000));
@@ -84,20 +89,21 @@ final class SshClient {
 
         } catch (Exception e) {
             stats.error = "SSH доступен, но вход не выполнен: "
-                    + SecretRedactor.redact(safeMessage(e), password);
+                    + safeMessage(e);
         } finally {
             if (session != null && session.isConnected()) session.disconnect();
         }
         return stats;
     }
 
-    static SshCommandResult runCommand(String host, int port, String user, String password,
+    static SshCommandResult runCommand(String host, int port, String user, SshCredentials credential,
                                        String trustedFingerprint, String command, int timeoutMs) {
         SshCommandResult result = new SshCommandResult();
+        if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) { result.error = "Сначала подтверди fingerprint сервера."; return result; }
         Session session = null;
         try {
             JSch jsch = new JSch();
-            session = buildSession(jsch, host, port, user, password, trustedFingerprint);
+            session = buildSession(jsch, host, port, user, credential, trustedFingerprint);
             session.connect(5000);
 
             HostKey hostKey = session.getHostKey();
@@ -111,17 +117,17 @@ final class SshClient {
                 return result;
             }
 
-            result.output = SecretRedactor.redact(clean(execute(session, command, timeoutMs)), password);
+            result.output = SecretRedactor.redact(clean(execute(session, command, timeoutMs)), credential.password, credential.passphrase);
             result.success = true;
         } catch (Exception e) {
-            result.error = SecretRedactor.redact(safeMessage(e), password);
+            result.error = safeMessage(e);
         } finally {
             if (session != null && session.isConnected()) session.disconnect();
         }
         return result;
     }
 
-    private static Session buildSession(JSch jsch, String host, int port, String user, String password,
+    private static Session buildSession(JSch jsch, String host, int port, String user, SshCredentials credential,
                                         String trustedFingerprint) throws Exception {
         if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) {
             throw new Exception("Сначала подтверди fingerprint сервера.");
@@ -130,11 +136,11 @@ final class SshClient {
         // during key exchange, before password authentication is attempted.
         jsch.setHostKeyRepository(new PinnedHostKeyRepository(jsch, trustedFingerprint));
         Session session = jsch.getSession(user, host, port);
-        session.setPassword(password);
+        credential.configure(jsch, session);
 
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "yes");
-        config.put("PreferredAuthentications", "password,keyboard-interactive");
+
         session.setConfig(config);
         // Не даём Android/Wi-Fi тихо "заморозить" длительное SSH-соединение.
         session.setServerAliveInterval(15_000);
@@ -184,13 +190,15 @@ final class SshClient {
                 while (input.available() > 0) {
                     int n = input.read(buffer);
                     if (n < 0) break;
+                    if (out.size() + n > 64 * 1024) throw new Exception("Ответ SSH слишком большой");
                     out.write(buffer, 0, n);
                 }
                 if (channel.isClosed()) {
                     while (input.available() > 0) {
                         int n = input.read(buffer);
                         if (n < 0) break;
-                        out.write(buffer, 0, n);
+                        if (out.size() + n > 64 * 1024) throw new Exception("Ответ SSH слишком большой");
+                    out.write(buffer, 0, n);
                     }
                     break;
                 }
@@ -252,7 +260,9 @@ final class SshClient {
     }
 
     private static String safeMessage(Exception e) {
-        String m = e.getMessage();
-        return (m == null || m.trim().isEmpty()) ? e.getClass().getSimpleName() : m;
+        if (e instanceof java.net.SocketTimeoutException) return "Сервер не ответил вовремя";
+        if (e instanceof java.net.ConnectException) return "Порт недоступен";
+        if (e instanceof java.net.UnknownHostException) return "Адрес сервера не найден";
+        return "Проверьте ключ или пароль, доступ к серверу и поддерживаемые алгоритмы";
     }
 }

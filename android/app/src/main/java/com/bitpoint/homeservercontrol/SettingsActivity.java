@@ -29,6 +29,7 @@ public class SettingsActivity extends BaseActivity {
         saveAgentTokenCheck = findViewById(R.id.settingsSaveAgentTokenCheck);
         backgroundMonitorCheck = findViewById(R.id.settingsBackgroundMonitorCheck);
         load();
+        findViewById(R.id.securitySettingsButton).setOnClickListener(v -> startActivity(new android.content.Intent(this, SecurityActivity.class)));
 
         findViewById(R.id.settingsBackButton).setOnClickListener(v -> finish());
         findViewById(R.id.settingsSaveButton).setOnClickListener(v -> save());
@@ -117,9 +118,9 @@ public class SettingsActivity extends BaseActivity {
                 .setMessage("Агент нужен только для кнопок Start / Stop / Restart, когда SSH уже недоступен.\n\n"
                         + "1. Скопируй папку серверного агента из комплекта проекта на серверное устройство.\n\n"
                         + "2. В Termux открой эту папку и выполни:\n./install.sh\n\n"
-                        + "3. Скрипт покажет случайный токен. Введи его здесь и включи сохранение в Keystore.\n\n"
+                        + "3. Скрипт создаст HTTPS-сертификат и покажет случайный токен. Введи его здесь и включи сохранение в Keystore.\n\n"
                         + "4. Запусти агент вручную:\npython ~/home-server-agent/agent.py\n\n"
-                        + "5. Проверь кнопкой «Проверить агент» на Dashboard. Только после успешной ручной проверки можно включать install-boot.sh.\n\n"
+                        + "5. Открой «Безопасность» → «Проверить HTTPS-сертификат агента». Сверь SHA-256 с выводом установщика и подтверди. Затем проверь статус агента. Только после проверки можно включать install-boot.sh.\n\n"
                         + "Агент не должен запускать второй sshd сам по себе и его порт 8787 нельзя открывать в WAN.")
                 .setPositiveButton("Понятно", null)
                 .show();

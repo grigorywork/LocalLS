@@ -236,4 +236,5 @@
     <string name="command_result_format">"%1$s\n\nРезультат:\n%2$s"</string>
     <string name="status_latency_format">"Отклик SSH: %1$d мс"</string>
     <string name="status_port_unavailable">Порт: —</string>
+    <string name="security_settings_entry">Безопасность / SSH-ключ</string>
 </resources>

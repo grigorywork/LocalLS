@@ -9,13 +9,25 @@ import java.nio.charset.StandardCharsets;
 final class AgentClient {
     private AgentClient() {}
 
-    static AgentResult request(String host, int port, String token, String action) {
+    static AgentResult request(android.content.Context context,String host,int port,String token,String action) {
+        return request(host,port,token,action,AgentTls.pin(context,host,port),SshKeys.prefs(context).getBoolean(AgentTls.LEGACY,false));
+    }
+    static AgentResult request(String host,int port,String token,String action) { return request(host,port,token,action,"",false); }
+    static AgentResult request(String host,int port,String token,String action,String pin,boolean legacyHTTP) {
         AgentResult result = new AgentResult();
         HttpURLConnection connection = null;
         try {
+            if (!java.util.Arrays.asList("status","start","stop","restart").contains(action) || token==null || token.isEmpty()
+                    || token.length()>4096 || token.contains("\r") || token.contains("\n")) throw new Exception("Неверные параметры агента");
+            if(!legacyHTTP && (pin==null || !pin.matches("SHA256:[a-f0-9]{64}")))throw new Exception("Подтвердите HTTPS-сертификат агента");
             String method = "status".equals(action) ? "GET" : "POST";
-            URL url = new URL("http", host, port, "/" + action);
+            URL url = new URL(legacyHTTP?"http":"https", host, port, "/" + action);
             connection = (HttpURLConnection) url.openConnection();
+            if(!legacyHTTP){javax.net.ssl.HttpsURLConnection https=(javax.net.ssl.HttpsURLConnection)connection;
+                https.setSSLSocketFactory(AgentTls.factory(pin,null));
+                // Identity is the exact pinned leaf certificate; local/Tailscale names may differ.
+                https.setHostnameVerifier((name,session)->true);
+            }
             connection.setRequestMethod(method);
             connection.setConnectTimeout(2500);
             connection.setReadTimeout(5000);
@@ -36,10 +48,10 @@ final class AgentClient {
                 result.body = SecretRedactor.redact(response == null ? "" : readAll(response), token);
             }
             result.success = result.httpCode >= 200 && result.httpCode < 300;
-            if (!result.success) result.error = "HTTP " + result.httpCode + ": " + result.body;
+            if (!result.success) { result.error = "Агент отклонил запрос: HTTP " + result.httpCode; result.body=""; }
         } catch (Exception e) {
-            result.error = e.getMessage() == null ? e.getClass().getSimpleName()
-                    : SecretRedactor.redact(e.getMessage(), token);
+            result.error = legacyHTTP ? "Агент не выполнил запрос. Проверьте адрес, порт и токен."
+                    : "HTTPS-агент недоступен. Проверьте сертификат, TLS, адрес, порт и токен. Токен не отправляется до проверки сертификата.";
         } finally {
             if (connection != null) connection.disconnect();
         }

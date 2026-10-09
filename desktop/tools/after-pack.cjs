@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const clientVersion = require('../package.json').version.split('.').map(Number);
 module.exports = async context => {
   if (context.electronPlatformName !== 'win32') return;
   const PE = await import('pe-library');
@@ -13,8 +14,8 @@ module.exports = async context => {
     R.Resource.IconGroupEntry.replaceIconsForResource(res.entries, group.id, group.lang, ico.icons.map(i => i.data));
   }
   for (const vi of R.Resource.VersionInfo.fromEntries(res.entries)) {
-    vi.setFileVersion(0, 1, 0, 0, 1033);
-    vi.setProductVersion(0, 1, 0, 0, 1033);
+    vi.setFileVersion(...clientVersion, 0, 1033);
+    vi.setProductVersion(...clientVersion, 0, 1033);
     vi.setStringValues({ lang: 1033, codepage: 1200 }, {
       FileDescription: 'LocalLS — SSH / SFTP', ProductName: 'LocalLS', CompanyName: 'LocalLS',
       OriginalFilename: 'LocalLS.exe', InternalName: 'LocalLS', LegalCopyright: 'LocalLS'
