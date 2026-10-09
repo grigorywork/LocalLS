@@ -1,5 +1,3 @@
-> LocalLS 0.9.5 is a release candidate. Downloads will be published after all platform checks and Android signing compatibility are verified.
-
 # LocalLS
 
 Компактный SSH/SFTP-клиент для Android, Windows и Fedora: две панели файлов, загрузка и скачивание,

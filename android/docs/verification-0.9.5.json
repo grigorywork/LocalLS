@@ -6,5 +6,6 @@
   "renderedScreenshots": 18,
   "build": "BUILD SUCCESSFUL",
   "deviceTests": "Not executed for merged 0.9.5",
-  "signing": "Preview certificate differs from published 0.9.4"
+  "signing": "Original published 0.9.4 certificate verified; APK payload unchanged",
+  "compatibleWithPublished094": true
 }

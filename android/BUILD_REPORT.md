@@ -1,97 +1,23 @@
-# LocalLS Android 0.9.4 — BUILD_REPORT
+# LocalLS Android 0.9.5 — build verification
 
-Дата: 9 октября 2026. Итог: **BUILD SUCCESSFUL**.
-Настоящий APK собран Gradle; подпись, Manifest и zip alignment проверены SDK tools.
+Status: merged application builds successfully. Original 0.9.4 signing certificate independently verified; the final APK payload matches the tested preview.
 
-| Параметр | Значение |
-|---|---|
-| Gradle Wrapper | 9.6.0 |
-| Android Gradle Plugin | 9.4.1 |
-| compileSdk | 37, SDK Platform android-37.0 |
-| minSdk | 24 — Android 7.0; совместим с Galaxy A01 по версии ОС |
-| targetSdk | 37 |
-| Build Tools | 36.0.0 |
-| Platform Tools | 37.0.1 |
-| JDK | OpenJDK 17 |
-| Версия приложения | 0.9.4, versionCode 13 |
-| Package | com.bitpoint.homeservercontrol |
-| APK | artifacts/LocalLS-v0.9.4-debug.apk |
-| Размер | 1376878 байт |
-| SHA-256 | 473aeade948671d24b696843e2f61d6b36d1eda70f511dcf6fecc3b5d6b62291 |
-| Manifest | valid |
-| Подпись | APK Signature Scheme v2; прежний debug-сертификат |
+- versionName: 0.9.5; versionCode: 14.
+- Package: com.bitpoint.homeservercontrol; minSdk 24; targetSdk 37.
+- Gradle 9.6.0, Android Gradle Plugin 9.4.1, JDK 17.
+- Local Gradle build: BUILD SUCCESSFUL; 8 passing tests; 18 rendered screenshots.
+- Architecture: 56 production classes in 5 modules; zero errors.
+- Lint: 15 warnings, zero errors.
+- GitHub Android run 37926821271: successful build, audits, all four real Agent HTTPS security tests and APK verification.
+- Merged Android device instrumentation APK builds; device instrumentation was not executed for 0.9.5.
 
-Команда: `./gradlew clean assembleDebug assembleDebugAndroidTest --offline --no-daemon --console=plain`.
-Финальная сборка: BUILD SUCCESSFUL in 1m 22s, 64 tasks executed.
-APK действительно находится также в app/build/outputs/apk/debug/app-debug.apk.
-Подпись прежней 0.9.3 и новой 0.9.4 совпадает: обновление поверх совместимой копии.
+Preview artifact: artifacts/LocalLS-v0.9.5-preview-debug.apk.
+Preview SHA-256: 22d8892b725232835cd9f3037f2701386547309318c99bbad7d73c95132e1b07.
+APK Manifest, ZIP integrity, signature API 24–36 and 16 KiB alignment verified with SDK tools.
 
-## Изменения безопасности
+Final artifact: LocalLS-v0.9.5-debug.apk; 1418730 bytes.
+Final SHA-256: 4cf2a043914dba45658fd372ca23210d609eedbb9a0e4d90306f382dfd88311d.
+Certificate SHA-256: 3b4c5a568105f73bf999f288a041255a57ee5cfc83253b99e5f2c07789f1f9ba.
+All 72 payload entries match the tested preview byte-for-byte. APK signature API 24–36, Manifest and alignment pass. Signing compatibility with published 0.9.4 is established; installation on a physical phone was not tested.
 
-Создание/импорт RSA 3072 и поддерживаемых SSH-ключей. Приватная часть и парольная
-фраза шифруются AES-GCM через Android Keystore, привязаны к адресу/порту/аккаунту.
-Строгий publickey-вход без парольного fallback. Публичный ключ устанавливается
-через SFTP с сохранением authorized_keys, ограничений и прав 700/600. После нового
-успешного входа клиент переключается на ключ и удаляет сохранённый пароль.
-Серверный пароль, конфигурация/порт и существующий запуск sshd не меняются.
-
-HTTPS управляющего агента использует точный SHA-256 pin сертификата. Первичное
-получение сертификата не отправляет токен; без подтверждения и при подмене запрос
-блокируется. Старый HTTP допускается только явно, по умолчанию выключен.
-Экран безопасности защищён FLAG_SECURE; секретные поля не сохраняют состояние.
-Новый Python-агент 0.3 распространяется отдельно, не создаёт второй запуск sshd.
-
-## Реально выполнено
-
-- Реальная чистая Android-сборка APK и AndroidTest APK, BUILD SUCCESSFUL.
-- Статический аудит: 0 errors, 0 warnings.
-- aapt читает badging и Manifest; apksigner подтверждает подпись API 24–36;
-  zipalign и ZIP CRC валидны, правильный package/minSdk/targetSdk.
-- Установка APK adb install -r на Android 10 / API 29 эмулятор: Success.
-- SecurityInstrumentedTest: **OK (3 tests)**, 49.5 s. Проверены реальный Android
-  Keystore, отсутствие приватного PEM в SharedPreferences, привязка к профилю,
-  создание ключа, установка через SFTP и реальный вход по RSA/OpenSSH private key,
-  неверный ключ/изменённый host key, HTTPS pin и отказ без/при неверном pin.
-- RuntimeInstrumentedTest: 4/4; SshSftpInstrumentedTest: 4/4 на API 29. Проверены
-  запуск, сохранение IP/порта/пользователя, Local/VPN-профили, история, Keystore,
-  ошибочный пароль, SFTP roundtrip 128 KiB, вложения, foreground service,
-  передача 8 MiB после сворачивания и измеренный график скорости. В общем прогоне
-  15 тестов первоначально упал один Core-тест сообщения о fingerprint; причина
-  исправлена до финальной сборки. Финальный повтор Core + Security на окончательном
-  APK: **OK (10 tests)**, 35.168 s, все проверки прошли.
-- Дополнительная проверка реальных собранных протокольных классов на JDK 17:
-  RSA/OpenSSH-вход, SFTP, host pin, HTTPS. Она не заменяет тест Keystore/UI.
-- Python-агент: 4/4 изолированных теста HTTPS/авторизации/сохранения токена,
-  отказ без сертификата, без разрешения HTTP и при неверных правах TLS-ключа.
-
-## Ошибки и исправления
-
-Добавлены отсутствовавшие ключи и защита управляющего токена TLS; ограничены
-ответы серверов, сохранены ограниченные ключи authorized_keys, исключён fallback. Проверка регрессий выявила потерю понятной подсказки
-о необходимости подтвердить SSH fingerprint; исправлен ранний отказ до подключения.
-Сборочная среда запрещала сетевые сокеты Gradle/adb и запись кэшей в HOME:
-использованы разрешённые сокеты и отдельные рабочие каталоги SDK/кэшей.
-KVM отсутствовал: эмулятор запущен в программном режиме. Первое streamed install
-не дождалось системной службы package; штатный push install завершился Success.
-Эти ошибки среды не заменены фиктивным APK или пропуском Android-сборки.
-
-## Аудит исходников, артефактов и логов
-
-Исходники, APK (включая распакованные entries), app.asar и build/instrumentation
-логи просканированы на известные секреты сессии/тестов и тестовый приватный ключ:
-находок нет. Полный Android logcat после тестов получить не удалось: adb потерял
-эмулятор; два чтения завершились timeout. Это ограничение не считается успешной
-проверкой полного системного журнала. Инструментальные тесты на устройстве до
-потери соединения завершились OK; отсутствие секретов в ошибках/настройках проверено.
-
-## Ограничения
-
-Физические Galaxy A01 и пользовательский сервер Termux не подключены к этой среде.
-Wi-Fi реального телефона, Tailscale-аккаунт, IPv6/WAN и работа после энергосбережения
-производителя не проверены. Ключевой вход клиента не выключает парольный вход сервера:
-для этого сначала нужны проверенные ключи всех устройств и резервный доступ.
-Debug APK и публичные исходники не содержат встроенных пользовательских ключей,
-паролей/токенов. Приватный ключ приложения не экспортируется; держите другой
-проверенный ключ для восстановления перед удалением приложения/сбросом данных.
-
-Подробные инструкции: distributions/Android/INSTRUCTIONS_RU.txt и INSTRUCTIONS_EN.txt.
+See docs/BUILD_REPORT_v0.9.4_BASELINE.md for historical device tests of 0.9.4.
