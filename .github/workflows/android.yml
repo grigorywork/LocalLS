@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main, master, 'codex/**']
-    paths: ['android/**', '.github/workflows/android.yml']
+    paths: ['android/**', 'realme-agent/**', 'tools/check_versions.py', 'versions.json', '.github/workflows/android.yml']
   pull_request:
-    paths: ['android/**', '.github/workflows/android.yml']
+    paths: ['android/**', 'realme-agent/**', 'tools/check_versions.py', 'versions.json', '.github/workflows/android.yml']
 permissions:
   contents: read
 jobs:
@@ -34,6 +34,7 @@ jobs:
           python3 tools/audit_architecture.py
           python3 tools/test_agent_security.py
           python3 tools/test_wizard_agent.py
+          python3 tools/test_signed_payload.py
           chmod +x gradlew
           ./gradlew --no-daemon :core:test :transport:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
       - name: Verify preview APK
@@ -49,6 +50,7 @@ jobs:
             android/artifacts/LocalLS-v0.9.6-preview-debug.apk
             android/artifacts/preview-verification.json
             android/app/build/reports/
+            android/app/build/test-results/
             android/app/build/ui-previews/
             android/core/build/test-results/
             android/transport/build/test-results/
