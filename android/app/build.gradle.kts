@@ -9,6 +9,26 @@ val releaseKeyPassword = providers.environmentVariable("LOCALLS_RELEASE_KEY_PASS
 val hasReleaseSigning = listOf(releaseStore, releaseStorePassword, releaseAlias, releaseKeyPassword)
     .all { !it.isNullOrBlank() }
 
+abstract class PrepareWizardAssets : DefaultTask() {
+    @get:InputFile abstract val agentSource: RegularFileProperty
+    @get:InputFile abstract val installerSource: RegularFileProperty
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
+    @TaskAction fun prepare() {
+        val destination = outputDirectory.get().asFile
+        destination.mkdirs()
+        agentSource.get().asFile.copyTo(destination.resolve("agent.py"), overwrite = true)
+        installerSource.get().asFile.copyTo(destination.resolve("wizard_install.py"), overwrite = true)
+    }
+}
+val prepareWizardAssets = tasks.register<PrepareWizardAssets>("prepareWizardAssets") {
+    agentSource.set(layout.projectDirectory.file("../realme-agent/agent.py"))
+    installerSource.set(layout.projectDirectory.file("../realme-agent/wizard_install.py"))
+    outputDirectory.set(layout.buildDirectory.dir("generated/wizard-assets"))
+}
+androidComponents.onVariants { variant ->
+    variant.sources.assets?.addGeneratedSourceDirectory(prepareWizardAssets) { it.outputDirectory }
+}
+
 val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
     doLast {
         check(hasReleaseSigning) { "Set all four LOCALLS_RELEASE_* signing environment variables." }
@@ -27,8 +47,8 @@ android {
         applicationId = "com.bitpoint.homeservercontrol"
         minSdk = 24
         targetSdk = 37
-        versionCode = 14
-        versionName = "0.9.5"
+        versionCode = 15
+        versionName = "0.9.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

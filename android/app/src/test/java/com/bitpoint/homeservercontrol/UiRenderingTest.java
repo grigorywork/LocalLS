@@ -26,6 +26,34 @@ import static org.junit.Assert.*;
 public class UiRenderingTest {
     public static class ProgrammaticActivity extends BaseActivity { }
 
+    @Test public void serverWizardControlsFitThemesAndLargeFonts() throws Exception {
+        Context app = RuntimeEnvironment.getApplication();
+        for (int theme : new int[]{0, 2, 4}) {
+            ThemeCatalog.select(app, theme);
+            for (float scale : new float[]{1f, 1.5f, 2f}) {
+                Configuration config = new Configuration(app.getResources().getConfiguration()); config.fontScale = scale;
+                Context context = new ContextThemeWrapper(app.createConfigurationContext(config), ThemeCatalog.style(app));
+                View root = LayoutInflater.from(context).inflate(R.layout.activity_server_setup, null);
+                IconButtons.decorate(root);
+                root.measure(View.MeasureSpec.makeMeasureSpec(360, View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(640, View.MeasureSpec.EXACTLY));
+                root.layout(0, 0, 360, 640);
+                checkCaptions(root, scale);
+                View content = ((ScrollView) root).getChildAt(0);
+                Bitmap bitmap = Bitmap.createBitmap(content.getWidth(), content.getHeight(), Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(bitmap);
+                canvas.drawColor(ThemeCatalog.color(context, com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));
+                content.draw(canvas);
+                File directory = new File("build/ui-previews"); directory.mkdirs();
+                try (FileOutputStream stream = new FileOutputStream(new File(directory,
+                        "wizard-" + ThemeCatalog.IDS[theme] + "-font-" + scale + ".png"))) {
+                    assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream));
+                }
+                bitmap.recycle();
+            }
+        }
+    }
+
     @Test @Config(sdk = 35)
     public void programmaticScreensRespectSystemBars() {
         org.robolectric.android.controller.ActivityController<ProgrammaticActivity> controller =

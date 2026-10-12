@@ -33,6 +33,11 @@ public final class ServerSetupActivity extends BaseActivity {
     private TextView status;
     private CheckBox createPassword;
     private boolean busy, quickPrepare, awaitingReload, leftForReload;
+    private final ServerWizardState wizard = new ServerWizardState();
+    private long completionSeen;
+    private int checkedAgentPort;
+    private TextView wizardSummary;
+    private TextView[] stepViews;
     private long reloadOpenedAt;
     private String verifiedFingerprint = "";
     private JSONObject exportProfile;
@@ -42,11 +47,31 @@ public final class ServerSetupActivity extends BaseActivity {
             if (!busy && !message.contentEquals(status.getText())) status.setText(message);
             boolean pending = !setup.getString("pending", "").isEmpty();
             if (pending && System.currentTimeMillis() - setup.getLong("pending_at", 0) > 600000) {
+                wizard.set("agent".equals(setup.getString("pending_kind", "ssh")) ? ServerWizardState.Step.AGENT : ServerWizardState.Step.SSH,
+                        ServerWizardState.Status.FAILED, "Время ожидания истекло. Открой Termux и повтори этот шаг; существующий сервер сохранён.");
                 setup.edit().remove("pending").putString("status", "Время ожидания истекло. Проверь Termux и повтори подготовку.").apply();
                 pending = false;
             }
             findViewById(R.id.startServerSetupButton).setEnabled(!busy && !pending);
             findViewById(R.id.verifyServerSetupButton).setEnabled(!busy && !pending && !setup.getString("user", "").isEmpty());
+            refreshPrerequisites();
+            long completed = setup.getLong("completed_at", 0);
+            if (!busy && completed > completionSeen && !pending) {
+                completionSeen = completed;
+                String kind = setup.getString("last_kind", "ssh");
+                if (setup.getInt("last_termux_error", -2) == -1 && setup.getInt("last_exit_code", -1) == 0) {
+                    if ("agent".equals(kind)) verifyAgent();
+                    else {
+                        verifiedFingerprint = "";
+                        wizard.resetFrom(ServerWizardState.Step.SSH);
+                        if (!password.getText().toString().isEmpty() || hasLocalKey()) verify();
+                        else wizard.set(ServerWizardState.Step.SSH, ServerWizardState.Status.WAITING,
+                                getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_need_credential));
+                    }
+                } else wizard.set("agent".equals(kind) ? ServerWizardState.Step.AGENT : ServerWizardState.Step.SSH,
+                        ServerWizardState.Status.FAILED, setup.getString("status", ""));
+            }
+            renderWizard();
             handler.postDelayed(this, 1000);
         }
     };
@@ -54,6 +79,12 @@ public final class ServerSetupActivity extends BaseActivity {
         super.onCreate(state);
         setContentView(R.layout.activity_server_setup);
         setup = getSharedPreferences(TermuxSetup.PREFS, MODE_PRIVATE);
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        completionSeen = setup.getLong("completed_at", 0);
+        wizardSummary = findViewById(R.id.serverWizardSummary);
+        stepViews = new TextView[]{findViewById(R.id.wizardTermuxStep), findViewById(R.id.wizardFolderStep),
+                findViewById(R.id.wizardPermissionStep), findViewById(R.id.wizardSshStep),
+                findViewById(R.id.wizardKeyStep), findViewById(R.id.wizardAgentStep)};
         if (state != null) {
             awaitingReload = state.getBoolean("awaiting_termux_reload", false);
             leftForReload = awaitingReload;
@@ -94,10 +125,12 @@ public final class ServerSetupActivity extends BaseActivity {
         findViewById(R.id.startServerSetupButton).setOnClickListener(v -> prepareServer());
         findViewById(R.id.verifyServerSetupButton).setOnClickListener(v -> verify());
         findViewById(R.id.exportServerProfileButton).setOnClickListener(v -> export());
+        findViewById(R.id.setupServerKeyButton).setOnClickListener(v -> installKey());
+        findViewById(R.id.setupServerAgentButton).setOnClickListener(v -> prepareAgent());
         findViewById(R.id.importServerProfileButton).setOnClickListener(v -> startActivityForResult(
                 new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE), IMPORT));
         findViewById(R.id.closeServerSetupButton).setOnClickListener(v -> finish());
-        showFolder();
+        showFolder(); refreshPrerequisites(); renderWizard();
         quickPrepare = state == null && getIntent().getBooleanExtra("auto_prepare", false);
         if (quickPrepare) handler.post(this::prepareServer);
     }
@@ -137,7 +170,8 @@ public final class ServerSetupActivity extends BaseActivity {
     }
     private void prepareServer() {
         if (busy || !setup.getString("pending", "").isEmpty()) return;
-        if (!TermuxSetup.installed(this)) { message("Сначала установи Termux на серверном устройстве."); return; }
+        if (!TermuxSetup.installed(this)) { message(getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_termux_missing)); return; }
+        if (!TermuxPackage.supported(this)) { message(getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_termux_untrusted)); return; }
         if (setup.getString("tree", "").isEmpty()) { message("Сначала выбери корневую папку Termux."); return; }
         if (checkSelfPermission(TermuxSetup.PERMISSION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{TermuxSetup.PERMISSION}, PERMISSION); return;
@@ -155,7 +189,11 @@ public final class ServerSetupActivity extends BaseActivity {
                 .setNegativeButton("Отмена", null).setPositiveButton("Подготовить", (dialog, which) -> beginPreparation(change, value)).show();
     }
     private void beginPreparation(boolean change, String value) {
+        if (busy || !setup.getString("pending", "").isEmpty()) return;
         verifiedFingerprint = "";
+        wizard.set(ServerWizardState.Step.SSH, ServerWizardState.Status.RUNNING,
+                getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_preparing_ssh));
+        renderWizard();
         findViewById(R.id.exportServerProfileButton).setEnabled(false);
         busy = true;
         status.setText(com.bitpoint.homeservercontrol.ui.R.string.status_6ecd2c217d67);
@@ -189,6 +227,7 @@ public final class ServerSetupActivity extends BaseActivity {
                     } else TermuxSetup.run(this);
                 }
                 else {
+                    wizard.set(ServerWizardState.Step.FOLDER, ServerWizardState.Status.FAILED, problem);
                     setup.edit().putString("status", problem).apply();
                     status.setText(problem);
                     message(problem);
@@ -197,33 +236,171 @@ public final class ServerSetupActivity extends BaseActivity {
         });
     }
 
-    private void verify() {
+    private boolean hasLocalKey() {
+        return SshKeys.keyCredentials(this, LocalServerVerification.LOOPBACK, setup.getInt("port", 0),
+                setup.getString("user", "")).available();
+    }
+    private void refreshPrerequisites() {
+        if (!TermuxSetup.installed(this)) {
+            wizard.set(ServerWizardState.Step.TERMUX, ServerWizardState.Status.FAILED,
+                    getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_termux_missing)); return;
+        }
+        if (!TermuxPackage.supported(this)) {
+            wizard.set(ServerWizardState.Step.TERMUX, ServerWizardState.Status.FAILED,
+                    getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_termux_untrusted)); return;
+        }
+        wizard.set(ServerWizardState.Step.TERMUX, ServerWizardState.Status.READY, TermuxSetup.version(this));
+        String tree = setup.getString("tree", "");
+        boolean folderGranted = false;
+        for (android.content.UriPermission permission : getContentResolver().getPersistedUriPermissions())
+            if (permission.getUri().toString().equals(tree) && permission.isReadPermission() && permission.isWritePermission())
+                folderGranted = true;
+        if (tree.isEmpty() || !folderGranted) {
+            if (wizard.status(ServerWizardState.Step.FOLDER) == ServerWizardState.Status.READY)
+                wizard.resetFrom(ServerWizardState.Step.FOLDER);
+            wizard.set(ServerWizardState.Step.FOLDER, ServerWizardState.Status.WAITING,
+                    getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_need_folder));
+        } else wizard.set(ServerWizardState.Step.FOLDER, ServerWizardState.Status.READY, "");
+        boolean allowed = checkSelfPermission(TermuxSetup.PERMISSION) == PackageManager.PERMISSION_GRANTED;
+        if (!allowed && wizard.status(ServerWizardState.Step.PERMISSION) == ServerWizardState.Status.READY)
+            wizard.resetFrom(ServerWizardState.Step.PERMISSION);
+        wizard.set(ServerWizardState.Step.PERMISSION, allowed ? ServerWizardState.Status.READY : ServerWizardState.Status.WAITING,
+                allowed ? "" : getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_need_permission));
+    }
+    private boolean prerequisitesReady() {
+        refreshPrerequisites();
+        for (ServerWizardState.Step step : new ServerWizardState.Step[]{ServerWizardState.Step.TERMUX,
+                ServerWizardState.Step.FOLDER, ServerWizardState.Step.PERMISSION})
+            if (wizard.status(step) != ServerWizardState.Status.READY) { message(wizard.detail(step)); return false; }
+        return true;
+    }
+    private void renderWizard() {
+        int[] labels = {com.bitpoint.homeservercontrol.ui.R.string.wizard_step_termux,
+                com.bitpoint.homeservercontrol.ui.R.string.wizard_step_folder,
+                com.bitpoint.homeservercontrol.ui.R.string.wizard_step_permission,
+                com.bitpoint.homeservercontrol.ui.R.string.wizard_step_ssh,
+                com.bitpoint.homeservercontrol.ui.R.string.wizard_step_key,
+                com.bitpoint.homeservercontrol.ui.R.string.wizard_step_agent};
+        for (ServerWizardState.Step step : ServerWizardState.Step.values()) {
+            int stateText = wizard.status(step) == ServerWizardState.Status.READY ? com.bitpoint.homeservercontrol.ui.R.string.wizard_ready
+                    : wizard.status(step) == ServerWizardState.Status.RUNNING ? com.bitpoint.homeservercontrol.ui.R.string.wizard_running
+                    : wizard.status(step) == ServerWizardState.Status.FAILED ? com.bitpoint.homeservercontrol.ui.R.string.wizard_failed
+                    : com.bitpoint.homeservercontrol.ui.R.string.wizard_waiting;
+            String detail = wizard.detail(step);
+            String text = detail.isEmpty() ? getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_step_status,
+                    getString(labels[step.ordinal()]), getString(stateText))
+                    : getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_step_status_detail,
+                    getString(labels[step.ordinal()]), getString(stateText), detail);
+            if (!text.contentEquals(stepViews[step.ordinal()].getText())) stepViews[step.ordinal()].setText(text);
+        }
+        String summary = wizard.complete() ? getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_complete)
+                : wizard.sshReady() ? getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_ssh_only)
+                : getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_not_ready);
+        if (!summary.contentEquals(wizardSummary.getText())) wizardSummary.setText(summary);
+        boolean pending = !setup.getString("pending", "").isEmpty();
+        findViewById(R.id.setupServerKeyButton).setEnabled(wizard.sshReady() && !busy && !pending);
+        findViewById(R.id.setupServerAgentButton).setEnabled(wizard.sshReady() && !busy && !pending);
+        findViewById(R.id.exportServerProfileButton).setEnabled(wizard.sshReady() && !verifiedFingerprint.isEmpty() && !busy && !pending);
+    }
+    interface CheckedWork { void run() throws Exception; }
+    private void task(ServerWizardState.Step step, CheckedWork work, Runnable success) {
         if (busy || !setup.getString("pending", "").isEmpty()) return;
-        final String secret = password.getText().toString();
-        if (secret.isEmpty()) { message("Введи пароль сервера для проверки входа."); return; }
-        busy = true;
-        verifiedFingerprint = "";
-        findViewById(R.id.exportServerProfileButton).setEnabled(false);
-        status.setText(com.bitpoint.homeservercontrol.ui.R.string.status_681fa4dbaeb8);
-        int port = setup.getInt("port", 8022);
-        String user = setup.getString("user", "");
+        busy = true; wizard.set(step, ServerWizardState.Status.RUNNING, ""); renderWizard();
         worker.execute(() -> {
-            String fingerprint = "";
-            try {
-                fingerprint = SshClient.probeFingerprint("127.0.0.1", port, user);
-                if (!SshClient.runCommand("127.0.0.1", port, user, secret, fingerprint, ":", 5000).success) fingerprint = "";
-            } catch (Exception e) { /* Never log password or raw exception. */ }
-            final String result = fingerprint;
+            String reason = "";
+            try { work.run(); }
+            catch (LocalServerVerification.Failure failure) { reason = failure.reason; }
+            catch (Exception | LinkageError failure) { reason = "operation"; }
+            final String problem = reason;
             handler.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 busy = false;
-                verifiedFingerprint = result;
-                String text = result.isEmpty() ? "Вход не подтверждён. Проверь пароль и активный порт sshd."
-                        : "SSH и пароль проверены. Пользователь: " + user + ", порт: " + port + "\nКлюч: " + result;
-                setup.edit().putString("status", text).apply();
-                status.setText(text);
-                findViewById(R.id.exportServerProfileButton).setEnabled(!result.isEmpty());
+                if (problem.isEmpty()) success.run();
+                else {
+                    String text = recovery(problem, step);
+                    if ("ssh_stopped".equals(problem)) wizard.set(ServerWizardState.Step.SSH, ServerWizardState.Status.FAILED, text);
+                    wizard.set(step, ServerWizardState.Status.FAILED, text);
+                    status.setText(text);
+                }
+                renderWizard();
             });
+        });
+    }
+    private String recovery(String reason, ServerWizardState.Step step) {
+        int id;
+        switch (reason) {
+            case "host_key": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_host_key_failure; break;
+            case "credential": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_need_credential; break;
+            case "ssh_unreachable": case "parameters": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_ssh_failure; break;
+            case "authentication": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_auth_failure; break;
+            case "key_storage": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_key_storage_failure; break;
+            case "agent_http": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_http_failure; break;
+            case "agent_certificate": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_certificate_failure; break;
+            case "agent_token": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_token_failure; break;
+            case "agent_config": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_config_failure; break;
+            case "agent_status": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_status_failure; break;
+            case "agent_unreachable": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_unreachable_failure; break;
+            case "ssh_stopped": id = com.bitpoint.homeservercontrol.ui.R.string.wizard_ssh_stopped; break;
+            default: id = step == ServerWizardState.Step.KEY ? com.bitpoint.homeservercontrol.ui.R.string.wizard_key_failure
+                    : step == ServerWizardState.Step.AGENT ? com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_failure
+                    : com.bitpoint.homeservercontrol.ui.R.string.wizard_ssh_failure;
+        }
+        return getString(id);
+    }
+    private void verify() {
+        if (!prerequisitesReady() || busy) return;
+        final String secret = password.getText().toString();
+        final String[] fingerprint = {""};
+        verifiedFingerprint = "";
+        task(ServerWizardState.Step.SSH, () -> fingerprint[0] = LocalServerVerification.verifySsh(this, setup, secret), () -> {
+            verifiedFingerprint = fingerprint[0];
+            wizard.set(ServerWizardState.Step.SSH, ServerWizardState.Status.READY,
+                    getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_ssh_endpoint,
+                            setup.getString("user", ""), LocalServerVerification.LOOPBACK, setup.getInt("port", 0),
+                            getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_network_address,
+                            localIp().isEmpty() ? getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_no_network_address) : localIp()), verifiedFingerprint));
+            if (secret.isEmpty()) wizard.set(ServerWizardState.Step.KEY, ServerWizardState.Status.READY,
+                    getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_key_verified));
+            status.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_ssh_verified));
+            if (secret.isEmpty() && setup.getBoolean("agent_setup_approved", false)) runAgentPreparation();
+        });
+    }
+    private void installKey() {
+        if (!wizard.sshReady() || !prerequisitesReady() || busy) return;
+        final String secret = password.getText().toString();
+        final String fingerprint = verifiedFingerprint;
+        new AlertDialog.Builder(this).setTitle(com.bitpoint.homeservercontrol.ui.R.string.wizard_key_button)
+                .setMessage(com.bitpoint.homeservercontrol.ui.R.string.wizard_key_confirmation)
+                .setNegativeButton("Отмена", null).setPositiveButton("Настроить", (dialog, which) ->
+                task(ServerWizardState.Step.KEY, () -> LocalServerVerification.installAndVerifyKey(this, setup, secret, fingerprint), () -> {
+                    password.setText(""); confirmation.setText(""); createPassword.setChecked(false);
+                    wizard.set(ServerWizardState.Step.KEY, ServerWizardState.Status.READY,
+                            getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_key_verified));
+                    status.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_key_verified));
+                })).show();
+    }
+    private void prepareAgent() {
+        if (!wizard.sshReady() || !prerequisitesReady() || busy) return;
+        new AlertDialog.Builder(this).setTitle(com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_button)
+                .setMessage(com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_confirmation)
+                .setNegativeButton("Отмена", null).setPositiveButton("Подготовить", (dialog, which) ->
+                { setup.edit().putBoolean("agent_setup_approved", true).apply(); runAgentPreparation(); }).show();
+    }
+    private void runAgentPreparation() {
+        Uri tree = Uri.parse(setup.getString("tree", ""));
+        task(ServerWizardState.Step.AGENT, () -> TermuxSetup.prepareAgent(this, tree), () -> {
+                    status.setText(setup.getString("status", ""));
+                    if (setup.getString("pending", "").isEmpty()) wizard.set(ServerWizardState.Step.AGENT,
+                            ServerWizardState.Status.FAILED, getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_failure));
+                });
+    }
+    private void verifyAgent() {
+        if (!prerequisitesReady()) return;
+        Uri tree = Uri.parse(setup.getString("tree", ""));
+        task(ServerWizardState.Step.AGENT, () -> checkedAgentPort = LocalServerVerification.verifyAgent(this, tree), () -> {
+            wizard.set(ServerWizardState.Step.AGENT, ServerWizardState.Status.READY,
+                    getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_verified, checkedAgentPort));
+            status.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.wizard_agent_verified, checkedAgentPort));
         });
     }
     private void export() {

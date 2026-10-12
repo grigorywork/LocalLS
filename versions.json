@@ -1,0 +1,12 @@
+{
+  "android": {
+    "version": "0.9.6",
+    "versionCode": 15
+  },
+  "windows": {
+    "version": "0.9.5"
+  },
+  "fedora": {
+    "version": "0.9.5"
+  }
+}

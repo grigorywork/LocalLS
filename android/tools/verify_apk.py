@@ -31,7 +31,7 @@ def verify(apk, sdk):
     package = re.search(r"package: name='([^']+)'", badging).group(1)
     version_name = re.search(r"versionName='([^']+)'", badging).group(1)
     version_code = int(re.search(r"versionCode='(\d+)'", badging).group(1))
-    if version_name != "0.9.5" or version_code != 14:
+    if version_name != "0.9.6" or version_code != 15:
         raise ValueError("Unexpected Android release version")
     minimum = int(re.search(r"sdkVersion:'(\d+)'", badging).group(1))
     target = int(re.search(r"targetSdkVersion:'(\d+)'", badging).group(1))
@@ -40,10 +40,11 @@ def verify(apk, sdk):
     if "launchable-activity: name='com.bitpoint.homeservercontrol.MainActivity'" not in badging:
         raise ValueError("Launcher missing")
     run(aapt, "dump", "xmltree", apk, "AndroidManifest.xml")
-    signature = run(signer, "verify", "--verbose", "--min-sdk-version", "24", "--max-sdk-version", "36", apk)
+    signature = run(signer, "verify", "--verbose", "--min-sdk-version", "24", "--max-sdk-version", "36", "--print-certs", apk)
     run(align, "-c", "-P", "16", "4", apk)
     return {"apk": str(apk), "bytes": apk.stat().st_size,
             "sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
+            "certificateSha256": re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-f]+)", signature).group(1),
             "package": package, "versionName": version_name, "versionCode": version_code,
             "minSdk": minimum, "targetSdk": target,
             "manifest": "valid", "signature": "verified for API 24–36",
@@ -52,7 +53,7 @@ def verify(apk, sdk):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("apk", nargs="?", default="artifacts/LocalLS-v0.9.5-debug.apk")
+    parser.add_argument("apk", nargs="?", default="artifacts/LocalLS-v0.9.6-debug.apk")
     parser.add_argument("--sdk", default=os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT"))
     args = parser.parse_args()
     if not args.sdk:

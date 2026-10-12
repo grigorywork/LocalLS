@@ -1,9 +1,9 @@
-# LocalLS v0.9.5
+# LocalLS Android 0.9.6
 
 Локальный рефакторинг 8 октября 2026: [архитектура](docs/ARCHITECTURE.md),
 [аудит](docs/AUDIT_2026-10-08.md), [подпись выпуска](docs/RELEASE_SIGNING.md).
-Актуальная проверка изменений — в LOCAL_BUILD_REPORT.md; исходный BUILD_REPORT.md
-сохранён как историческая запись.
+Актуальная проверка 0.9.6 — в BUILD_REPORT.md. Исторические отчёты сохранены отдельно.
+Новый мастер: [описание и ограничения](docs/SERVER_WIZARD_0.9.6.md).
 
 Android-пульт и SFTP-проводник для личного сервера на Termux/OpenSSH.
 Продолжение Home Server Control; рабочая v0.8 сохранена отдельно.
@@ -158,7 +158,7 @@ foreground service, CPU/Wi-Fi locks, история, mkdir/rename/удалени
 
 JDK 17, Gradle 9.6.0, AGP 9.4.1, Android Platform android-37.0, Build Tools 36.0.0.
 minSdk 24, compileSdk/targetSdk 37. applicationId com.bitpoint.homeservercontrol
-сохранён для обновления поверх предыдущего APK; versionCode 12, versionName 0.9.5.
+сохранён для обновления поверх предыдущего APK; versionCode 15, versionName 0.9.6.
 
 ```bash
 python3 tools/audit_project.py

@@ -33,16 +33,21 @@ jobs:
           python3 tools/audit_project.py
           python3 tools/audit_architecture.py
           python3 tools/test_agent_security.py
+          python3 tools/test_wizard_agent.py
           chmod +x gradlew
           ./gradlew --no-daemon :core:test :transport:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
-      - name: Verify test APK
-        run: python3 tools/verify_apk.py app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify preview APK
+        run: |
+          mkdir -p artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/LocalLS-v0.9.6-preview-debug.apk
+          python3 tools/verify_apk.py artifacts/LocalLS-v0.9.6-preview-debug.apk > artifacts/preview-verification.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: LocalLS-Android-verification
+          name: LocalLS-Android-0.9.6-preview-and-verification
           path: |
-            android/app/build/outputs/apk/debug/app-debug.apk
+            android/artifacts/LocalLS-v0.9.6-preview-debug.apk
+            android/artifacts/preview-verification.json
             android/app/build/reports/
             android/app/build/ui-previews/
             android/core/build/test-results/
