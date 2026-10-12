@@ -164,12 +164,12 @@
     <string name="ui_startserversetupbutton_text_9dc1e4" formatted="false">Подготовить сервер</string>
     <string name="ui_activity_server_setup_text_4460ec" formatted="false">OpenSSH установится при отсутствии. Работающий sshd останется запущенным. Автозапуск и конфигурация sshd сохранятся. Папка файлов: Termux / LocalLS.</string>
     <string name="ui_serversetupstatus_text_fb21c0" formatted="false">Сервер ещё не проверен</string>
-    <string name="ui_verifyserversetupbutton_text_adad8c" formatted="false">Проверить SSH и пароль</string>
+    <string name="ui_verifyserversetupbutton_text_adad8c" formatted="false">Проверить SSH-вход</string>
     <string name="ui_activity_server_setup_text_ca7fb6" formatted="false">4. Подключение другого устройства</string>
     <string name="ui_serversetuphostinput_hint_6a9f30" formatted="false">IP-адрес сервера в Wi-Fi</string>
     <string name="ui_exportserverprofilebutton_text_3a7ef3" formatted="false">Экспорт профиля</string>
     <string name="ui_activity_server_setup_text_b06c59" formatted="false">Передай файл на другое устройство и нажми «Импорт профиля». Сверь отпечаток SSH-ключа с сервером. Пароль вводится отдельно и в профиль не попадает.</string>
-    <string name="ui_closeserversetupbutton_text_398c7d" formatted="false">Готово</string>
+    <string name="ui_closeserversetupbutton_text_398c7d" formatted="false">Закрыть мастер</string>
     <string name="ui_settingspasswordinput_hint_a5ddaa" formatted="false">Пароль SSH</string>
     <string name="ui_activity_settings_text_ee972b" formatted="false">Серверный агент</string>
     <string name="ui_agentwizardbutton_text_61313c" formatted="false">Мастер установки агента</string>
@@ -237,4 +237,52 @@
     <string name="status_latency_format">"Отклик SSH: %1$d мс"</string>
     <string name="status_port_unavailable">Порт: —</string>
     <string name="security_settings_entry">Безопасность / SSH-ключ</string>
+    <string name="wizard_title">Этот телефон — сервер</string>
+    <string name="wizard_not_ready">Итог: сервер ещё не проверен</string>
+    <string name="wizard_ssh_only">SSH-вход проверен. Ключ и HTTPS-агент показываются отдельно ниже.</string>
+    <string name="wizard_complete">Сервер готов: SSH-вход, ключ и HTTPS-агент проверены. Настройки парольного входа сохранены.</string>
+    <string name="wizard_step_termux">1. Официальный Termux</string>
+    <string name="wizard_step_folder">2. Первый запуск и папка</string>
+    <string name="wizard_step_permission">3. Доступ к командам</string>
+    <string name="wizard_step_ssh">4. OpenSSH и реальный вход</string>
+    <string name="wizard_step_key">5. SSH-ключ</string>
+    <string name="wizard_step_agent">6. HTTPS-агент</string>
+    <string name="wizard_ready">проверено</string>
+    <string name="wizard_running">выполняется</string>
+    <string name="wizard_failed">нужно исправить</string>
+    <string name="wizard_waiting">ожидает действия</string>
+    <string name="wizard_termux_missing">Установи официальный Termux с F-Droid или GitHub Termux. Открой его один раз и дождись подготовки среды.</string>
+    <string name="wizard_termux_untrusted">Подпись или поставщик папки Termux не распознаны. Используй официальный источник Termux; существующие данные и сервер не удаляй.</string>
+    <string name="wizard_need_folder">Открой Termux первый раз, затем выбери его корневую папку и разреши чтение и запись.</string>
+    <string name="wizard_need_permission">Разреши LocalLS выполнять команды Termux. Кнопка подготовки откроет запрос Android.</string>
+    <string name="wizard_need_credential">Введи действующий пароль для проверки входа. Пустое поле использует сохранённый SSH-ключ этого сервера. На новом сервере пароль задаётся только при явном выборе и подтверждении.</string>
+    <string name="wizard_preparing_ssh">Подготавливаем OpenSSH, сохраняя текущий сервер…</string>
+    <string name="wizard_ssh_verified">SSH-вход проверен. Можно настроить ключ и HTTPS-агент или экспортировать публичный профиль.</string>
+    <string name="wizard_host_key_failure">SSH-ключ не совпал с ключами Termux или ранее доверенным сервером. Вход заблокирован, секрет не отправлен. Проверь сервер; его ключи автоматически не заменяются.</string>
+    <string name="wizard_ssh_failure">SSH недоступен или параметры не подтверждены. Открой Termux и повтори подготовку; существующие ключи, конфигурация и автозапуск сохраняются.</string>
+    <string name="wizard_auth_failure">Сервер отклонил вход. Проверь введённый пароль или установленный SSH-ключ и повтори проверку.</string>
+    <string name="wizard_key_storage_failure">Не удалось сохранить SSH-ключ в Android Keystore. Проверь блокировку экрана и доступ к хранилищу; парольный доступ сервера сохранён.</string>
+    <string name="wizard_key_button">Настроить SSH-ключ</string>
+    <string name="wizard_key_confirmation">Используем существующий ключ этого сервера или создадим RSA 3072. Добавим публичную часть, сохраним authorized_keys и проверим новое соединение только по ключу. Парольный вход сервера и ключи других устройств не отключаются.</string>
+    <string name="wizard_key_verified">Ключ проверен отдельным соединением. Настройки парольного входа сервера сохранены.</string>
+    <string name="wizard_key_failure">Ключ не подтверждён. Проверь действующий пароль, доступ к .ssh и предыдущий SSH-вход; повтори этот шаг. Существующие ключи и пароль сервера сохраняются.</string>
+    <string name="wizard_agent_button">Подготовить HTTPS-агент</string>
+    <string name="wizard_agent_confirmation">Установим Python/OpenSSL только при отсутствии и подготовим существующий агент LocalLS. Работающий HTTPS-агент, токен, сертификат и SSH сохраняются. Новый агент запускается отдельно от SSH; существующий автозапуск не меняется. Старый HTTP-агент автоматически не заменяется.</string>
+    <string name="wizard_agent_verified">HTTPS-агент проверен: порт %1$d, сертификат совпал, токен принят.</string>
+    <string name="wizard_agent_http_failure">Существующий агент использует HTTP. Он сохранён. Сначала выполни согласованное обновление агента на HTTPS, затем повтори этот шаг; SSH работает независимо.</string>
+    <string name="wizard_agent_certificate_failure">HTTPS-сертификат не совпал. Токен не отправлен; существующий сертификат сохранён. Проверь агент и его порт, затем повтори.</string>
+    <string name="wizard_agent_token_failure">HTTPS подтвердился, но агент отклонил токен. Проверь приватную конфигурацию агента; не отправляй токен в сообщения или публичный профиль.</string>
+    <string name="wizard_agent_failure">HTTPS-агент не подтверждён. Проверь папку Termux, порт и настройки TLS, повтори этот шаг. Проверенный SSH остаётся доступным.</string>
+    <string name="wizard_agent_config_failure">Конфигурация агента не прошла проверку: нужны корректный порт, TLS и непустой токен. Файл сохранён; проверь настройки агента и повтори.</string>
+    <string name="wizard_agent_status_failure">На HTTPS-порту ответил другой сервис или несовместимый агент. Проверь порт и версию LocalLS Agent; существующий процесс сохранён.</string>
+    <string name="wizard_agent_unreachable_failure">HTTPS-агент не ответил после проверки сертификата. Проверь его адрес, порт и запуск, затем повтори шаг.</string>
+    <string name="wizard_ssh_stopped">HTTPS-агент доступен, но SSH сейчас остановлен. Нажми «Подготовить сервер» и повтори проверку входа.</string>
+    <string name="wizard_network_address">Адрес в Wi-Fi: %1$s</string>
+    <string name="wizard_no_network_address">не найден; подключи телефон к Wi-Fi</string>
+    <string name="wizard_step_status">%1$s · %2$s</string>
+    <string name="wizard_step_status_detail">%1$s · %2$s
+%3$s</string>
+    <string name="wizard_ssh_endpoint">%1$s@%2$s:%3$d
+%4$s
+%5$s</string>
 </resources>

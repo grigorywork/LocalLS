@@ -32,7 +32,11 @@ final class TermuxSetup {
             "mkdir -p \"$HOME/LocalLS\"\n" +
             "if ! pgrep -x sshd >/dev/null 2>&1; then sshd; fi\n" +
             "printf 'USER=%s\\n' \"$(whoami)\"\n" +
-            "printf 'PORT=%s\\n' \"$(sshd -T 2>/dev/null | awk 'tolower($1) == \"port\" {print $2; exit}')\"\n";
+            "printf 'PORT=%s\\n' \"$(sshd -T 2>/dev/null | awk 'tolower($1) == \"port\" {print $2; exit}')\"\n" +
+            "for key in /data/data/com.termux/files/usr/etc/ssh/ssh_host_*_key.pub; do\n" +
+            " [ -f \"$key\" ] || continue\n" +
+            " printf 'HOSTKEY=%s\\n' \"$(ssh-keygen -lf \"$key\" -E sha256 | awk '{print $2}')\"\n" +
+            "done\n";
 
     static boolean installed(Context context) {
         try { context.getPackageManager().getPackageInfo(PACKAGE, 0); return true; }
@@ -99,6 +103,7 @@ final class TermuxSetup {
     }
 
     static void configure(Context context, Uri tree, char[] password) throws Exception {
+        if (!TermuxPackage.supported(context)) throw new SecurityException("Неподдерживаемая подпись Termux");
         if (!"com.termux.documents".equals(tree.getAuthority())
                 || !HOME.equals(DocumentsContract.getTreeDocumentId(tree))) {
             throw new IllegalArgumentException("Выбери корневую папку Termux, а не её подпапку.");
@@ -109,8 +114,14 @@ final class TermuxSetup {
         String previous = readProperties(context, properties);
         String enabled = enableExternalApps(previous);
         if (!externalAppsAllowed(enabled)) throw new ExternalAppsNotEnabledException();
-        write(context, properties, enabled.getBytes(StandardCharsets.UTF_8));
-        if (!externalAppsAllowed(readProperties(context, properties))) throw new ExternalAppsNotEnabledException();
+        try {
+            write(context, properties, enabled.getBytes(StandardCharsets.UTF_8));
+            if (!externalAppsAllowed(readProperties(context, properties))) throw new ExternalAppsNotEnabledException();
+        } catch (Exception failure) {
+            try { write(context, properties, previous.getBytes(StandardCharsets.UTF_8)); }
+            catch (Exception ignored) { /* Caller reports recovery; never expose file contents. */ }
+            throw failure;
+        }
         if (password.length > 0) {
             byte[] hash = passwordHash(password);
             try { write(context, child(context, tree, root, ".termux_authinfo", false), hash); }
@@ -155,11 +166,60 @@ final class TermuxSetup {
     }
 
     static void run(Context context) {
+        run(context, "ssh", SCRIPT);
+    }
+
+    static void prepareAgent(Context context, Uri tree) throws Exception {
+        if (!TermuxPackage.supported(context)) throw new SecurityException();
+        String directory = ".localls-setup-" + UUID.randomUUID();
+        Uri root = DocumentsContract.buildDocumentUriUsingTree(tree, HOME);
+        Uri staging = DocumentsContract.createDocument(context.getContentResolver(), root,
+                DocumentsContract.Document.MIME_TYPE_DIR, directory);
+        if (staging == null) throw new java.io.IOException();
+        for (String name : new String[]{"agent.py", "wizard_install.py"}) {
+            try (InputStream source = context.getAssets().open(name)) {
+                java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+                byte[] block = new byte[4096]; int count;
+                while ((count = source.read(block)) != -1) buffer.write(block, 0, count);
+                write(context, child(context, tree, staging, name, false), buffer.toByteArray());
+            }
+        }
+        String script = "set -eu\nexport PATH=/data/data/com.termux/files/usr/bin:$PATH\n" +
+                "trap 'rm -f \"$HOME/" + directory + "/agent.py\" \"$HOME/" + directory + "/wizard_install.py\"; rmdir \"$HOME/" + directory + "\" 2>/dev/null || true' EXIT\n" +
+                "if ! command -v python >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then\n" +
+                " apt-get update </dev/null >/dev/null 2>&1 || exit 40\n" +
+                " DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::=--force-confold install -y python openssl-tool </dev/null >/dev/null 2>&1 || exit 50\nfi\n" +
+                "python \"$HOME/" + directory + "/wizard_install.py\" --source \"$HOME/" + directory + "/agent.py\"\n";
+        run(context, "agent", script);
+    }
+
+    static byte[] readHomeFile(Context context, Uri tree, String path, int limit) throws Exception {
+        if (!path.startsWith(HOME + "/") || path.contains("/../") || path.endsWith("/..")) throw new SecurityException();
+        Uri uri = DocumentsContract.buildDocumentUriUsingTree(tree, path);
+        try (InputStream stream = context.getContentResolver().openInputStream(uri)) {
+            if (stream == null) throw new java.io.IOException();
+            java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+            byte[] block = new byte[4096]; int count;
+            while ((count = stream.read(block)) != -1) {
+                if (buffer.size() + count > limit) throw new java.io.IOException();
+                buffer.write(block, 0, count);
+            }
+            return buffer.toByteArray();
+        }
+    }
+
+    private static void run(Context context, String kind, String script) {
+        if (!TermuxPackage.supported(context)) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                    .putString("status", "Проверка подписи Termux не пройдена. Используй официальный источник; данные Termux не удаляй.").apply();
+            return;
+        }
+        if (!context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("pending", "").isEmpty()) return;
         String nonce = UUID.randomUUID().toString();
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .remove("last_termux_error").remove("last_exit_code")
-                .putString("pending", nonce).putLong("pending_at", System.currentTimeMillis())
-                .putString("status", "Подготовка OpenSSH…").apply();
+                .putString("pending", nonce).putString("pending_kind", kind).putLong("pending_at", System.currentTimeMillis())
+                .putString("status", "agent".equals(kind) ? "Подготовка HTTPS-агента…" : "Подготовка OpenSSH…").apply();
         Intent result = new Intent(context, TermuxResultReceiver.class).setAction("localls.setup." + nonce);
         int flags = PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_CANCEL_CURRENT;
         if (Build.VERSION.SDK_INT >= 31) flags |= PendingIntent.FLAG_MUTABLE;
@@ -167,7 +227,7 @@ final class TermuxSetup {
         Intent command = new Intent("com.termux.RUN_COMMAND")
                 .setClassName(PACKAGE, "com.termux.app.RunCommandService")
                 .putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash")
-                .putExtra("com.termux.RUN_COMMAND_ARGUMENTS", new String[]{"-c", SCRIPT})
+                .putExtra("com.termux.RUN_COMMAND_ARGUMENTS", new String[]{"-c", script})
                 .putExtra("com.termux.RUN_COMMAND_WORKDIR", HOME)
                 .putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
                 .putExtra("com.termux.RUN_COMMAND_BACKGROUND_CUSTOM_LOG_LEVEL", "0")

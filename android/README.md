@@ -1,9 +1,9 @@
-# LocalLS v0.9.5
+# LocalLS Android 0.9.6
 
 Локальный рефакторинг 8 октября 2026: [архитектура](docs/ARCHITECTURE.md),
 [аудит](docs/AUDIT_2026-10-08.md), [подпись выпуска](docs/RELEASE_SIGNING.md).
-Актуальная проверка изменений — в LOCAL_BUILD_REPORT.md; исходный BUILD_REPORT.md
-сохранён как историческая запись.
+Актуальная проверка 0.9.6 — в BUILD_REPORT.md. Исторические отчёты сохранены отдельно.
+Новый мастер: [описание и ограничения](docs/SERVER_WIZARD_0.9.6.md).
 
 Android-пульт и SFTP-проводник для личного сервера на Termux/OpenSSH.
 Продолжение Home Server Control; рабочая v0.8 сохранена отдельно.
@@ -45,7 +45,7 @@ Termux и числовые коды. Сырой errmsg, stdout/stderr и сек�
   Форму внешнего значка запуска выбирает Android launcher; облако с молнией сохранено.
 - «Перезапуск SSH» на Dashboard и в серверном popup вызывает /restart независимого серверного агента
   после подтверждения. Перезагрузка телефона не выполняется. Нужны существующий агент и его токен.
-- «Настройки → Этот телефон — сервер» открывает мастер и сразу запускает безопасную подготовку,
+- «Меню → Этот телефон — сервер» открывает мастер и сразу запускает безопасную подготовку,
   когда Termux, доступ к папке и RUN_COMMAND уже разрешены. При первом запуске мастер показывает
   недостающий шаг Android; пароль не заменяется автоматически. Настройки удалённого сервера не переписываются.
 - Keystore читается/записывается в отдельном последовательном потоке. SSH, команды, iperf и агент
@@ -127,10 +127,13 @@ auto fallback. Обычный Tailscale без exit node сохраняет ма
    Конфигурация сохраняется (--force-confold), существующие host keys сохраняются.
    Если sshd уже работает, второй экземпляр не запускается. Мастер не добавляет
    автозапуск и не останавливает/перезапускает существующий sshd.
-6. «Проверить SSH и пароль» выполняет настоящий вход к локальному sshd.
+6. «Проверить SSH-вход» выполняет настоящий вход к локальному sshd.
    Только успешный вход разрешает экспорт профиля. Проверь Wi-Fi IP сервера
    в поле формы, сохрани LocalLS-server.json и передай его на другое устройство.
-7. На устройстве для подключения выбери «Импорт профиля», сверь отпечаток с экраном сервера,
+7. Нажми «Настроить SSH-ключ»: новый вход проверяется отдельным соединением только по ключу.
+   Затем подготовь HTTPS-агент. Полная готовность требует успешных статусов всех шести шагов.
+   Парольный вход автоматически не отключается.
+8. На устройстве для подключения выбери «Импорт профиля», сверь отпечаток с экраном сервера,
    затем введи пароль на основном экране приложения. В профиле пароля и токенов нет.
    Замена уже доверенного ключа при импорте блокируется.
 
@@ -147,26 +150,26 @@ SSH/SFTP pinning до передачи пароля, Android Keystore, Local/Tai
 отключённый по умолчанию fallback, очередь передач, один retry, прогресс/ETA/скорость,
 foreground service, CPU/Wi-Fi locks, история, mkdir/rename/удаление файла или пустой
 папки, диагностика, discovery, мониторинг, iperf3 и независимый серверный агент.
-Файлы realme-agent и схема запуска sshd не изменены.
+Действующие agent.py/install.sh и схема запуска sshd сохранены; wizard_install.py добавлен для безопасной подготовки HTTPS.
 
 Очередь выполняется в FilesActivity. Сворачивание через Home поддерживается;
 закрытие/уничтожение экрана отменяет очередь. При обрыве overwrite upload возможен
-частичный целевой файл; атомарная отправка запланирована в основе v1.0.
+частичный целевой файл; атомарная отправка и возобновление запланированы в следующем этапе (#4).
 Смена темы не пересоздаёт FilesActivity во время активной передачи.
 
 ## Сборка
 
 JDK 17, Gradle 9.6.0, AGP 9.4.1, Android Platform android-37.0, Build Tools 36.0.0.
 minSdk 24, compileSdk/targetSdk 37. applicationId com.bitpoint.homeservercontrol
-сохранён для обновления поверх предыдущего APK; versionCode 12, versionName 0.9.5.
+сохранён для обновления поверх предыдущего APK; versionCode 15, versionName 0.9.6.
 
 ```bash
 python3 tools/audit_project.py
 ./gradlew clean assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
 mkdir -p artifacts
-cp app/build/outputs/apk/debug/app-debug.apk artifacts/LocalLS-v0.9.5-debug.apk
+cp app/build/outputs/apk/debug/app-debug.apk artifacts/LocalLS-v0.9.6-preview-debug.apk
 python3 tools/verify_apk.py --sdk "$ANDROID_SDK_ROOT"
-adb install -r artifacts/LocalLS-v0.9.5-debug.apk
+adb install -r artifacts/LocalLS-v0.9.6-preview-debug.apk
 ```
 
 На Windows: `gradlew.bat clean assembleDebug`; bootstrap scripts находятся в tools.
@@ -206,7 +209,7 @@ adb install -r artifacts/LocalLS-v0.9.5-debug.apk
 Создаётся `artifacts/LocalLS-v0.9.5-preview.apk`, читаемый Android build-tools.
 Это настоящий Android APK, однако SDK-сборка не подменяет обязательный Gradle gate.
 7 октября 2026 дополнительный сетевой доступ позволил повторить полную Gradle-сборку:
-`BUILD SUCCESSFUL`. Актуальные функции теперь входят в `artifacts/LocalLS-v0.9.5-debug.apk`;
+`BUILD SUCCESSFUL`. Актуальные функции теперь входят в `artifacts/LocalLS-v0.9.6-preview-debug.apk`;
 preview не заменяет итоговый APK. SHA, версии, реальные результаты
 проверок и ограничения устройств указаны в BUILD_REPORT.md.
 
