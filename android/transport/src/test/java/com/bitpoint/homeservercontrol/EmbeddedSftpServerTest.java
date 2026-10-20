@@ -91,6 +91,86 @@ public class EmbeddedSftpServerTest {
             assertTrue(stats.authenticated);assertTrue(stats.hostKeyTrusted);assertTrue(stats.sftpOnly);assertEquals("",stats.error);
         }
     }
+    @Test public void simultaneousClientsTransferDifferentFiles() throws Exception {
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,temp.newFolder().toPath());
+            java.util.concurrent.ExecutorService workers=java.util.concurrent.Executors.newFixedThreadPool(2);
+            try {
+                java.util.List<java.util.concurrent.Future<?>> tasks=new java.util.ArrayList<>();
+                for(int i=0;i<2;i++) {final int index=i;tasks.add(workers.submit(() -> {
+                    Session connection=null;
+                    try {connection=session(port,"localls",true);connection.connect(5000);ChannelSftp files=(ChannelSftp)connection.openChannel("sftp");files.connect(4000);
+                        byte[] bytes=new byte[8*1024*1024+index];new java.util.Random(index+10).nextBytes(bytes);
+                        files.put(new ByteArrayInputStream(bytes),"/parallel-"+index);ByteArrayOutputStream result=new ByteArrayOutputStream();files.get("/parallel-"+index,result);
+                        assertArrayEquals(bytes,result.toByteArray());files.disconnect();
+                    } catch(Exception e) {throw new RuntimeException(e);} finally {if(connection!=null)connection.disconnect();}
+                }));}
+                for(java.util.concurrent.Future<?> task:tasks)task.get(30,java.util.concurrent.TimeUnit.SECONDS);
+            } finally {workers.shutdownNow();}
+        }
+    }
+    @Test public void resumesUploadAndSupportsEmptyAndUnicodeFiles() throws Exception {
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,temp.newFolder().toPath());
+            Session connection=session(port,"localls",true);connection.connect(5000);
+            try {ChannelSftp files=(ChannelSftp)connection.openChannel("sftp");files.connect(4000);
+                byte[] bytes=new byte[2*1024*1024+7];new java.util.Random(77).nextBytes(bytes);
+                String name="/Файл с пробелом.bin";
+                files.put(new ByteArrayInputStream(Arrays.copyOf(bytes,bytes.length/2)),name);
+                files.put(new ByteArrayInputStream(bytes),name,ChannelSftp.RESUME);
+                ByteArrayOutputStream result=new ByteArrayOutputStream();files.get(name,result);assertArrayEquals(bytes,result.toByteArray());
+                files.put(new ByteArrayInputStream(new byte[0]),"/пустой.txt");assertEquals(0,files.stat("/пустой.txt").getSize());
+                files.disconnect();
+            } finally {connection.disconnect();}
+        }
+    }
+    @Test public void connectionLimitRejectsFifthSessionAndStoppingDisconnectsClients() throws Exception {
+        EmbeddedSftpServer server=new EmbeddedSftpServer();java.util.List<Session> connections=new java.util.ArrayList<>();
+        try {int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,temp.newFolder().toPath());
+            for(int i=0;i<4;i++){Session connection=session(port,"localls",true);connections.add(connection);connection.connect(5000);}
+            Session excess=session(port,"localls",true);
+            try{excess.connect(4000);fail("Fifth authenticated session accepted");}catch(JSchException expected){}finally{excess.disconnect();}
+            ChannelSftp files=(ChannelSftp)connections.get(0).openChannel("sftp");files.connect(4000);server.close();
+            try{files.ls("/");fail("Client still works after stop");}catch(SftpException expected){}
+        } finally {server.close();for(Session connection:connections)connection.disconnect();}
+    }
+    @Test public void busyPortDoesNotPreventRetryAndDirectForwardAndHardlinkAreDenied() throws Exception {
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {
+            Path root=temp.newFolder().toPath();
+            try(java.net.ServerSocket occupied=new java.net.ServerSocket(0)) {
+                try{server.start("127.0.0.1",occupied.getLocalPort(),"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);fail("Started on busy port");}catch(IOException expected){}
+            }
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            Session connection=session(port,"localls",true);connection.connect(5000);
+            try{ChannelSftp files=(ChannelSftp)connection.openChannel("sftp");files.connect(4000);files.put(new ByteArrayInputStream(new byte[]{42}),"/original");
+                try{files.hardlink("/original","/alias");fail("Hardlink accepted");}catch(SftpException expected){}
+                ChannelDirectTCPIP direct=(ChannelDirectTCPIP)connection.openChannel("direct-tcpip");direct.setHost("127.0.0.1");direct.setPort(port);
+                try{direct.connect(2000);fail("Direct forward accepted");}catch(JSchException expected){}finally{direct.disconnect();}
+                files.disconnect();
+            }finally{connection.disconnect();}
+        }
+    }
+    @Test public void independentOpenSshClientCanTransferWithStrictHostChecking() throws Exception {
+        Path work=temp.newFolder().toPath(),root=Files.createDirectory(work.resolve("share"));
+        Path identity=work.resolve("id_rsa");Files.write(identity,clientPrivate);
+        Files.setPosixFilePermissions(identity,java.util.EnumSet.of(java.nio.file.attribute.PosixFilePermission.OWNER_READ,java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            Session captured=session(port,"localls",true);captured.connect(5000);
+            String hostEntry="[127.0.0.1]:"+port+" "+captured.getHostKey().getType()+" "+captured.getHostKey().getKey()+"\n";captured.disconnect();
+            Path known=work.resolve("known_hosts");Files.write(known,hostEntry.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            byte[] bytes=new byte[3*1024*1024+31];new java.util.Random(991).nextBytes(bytes);
+            Path input=work.resolve("input.bin"),output=work.resolve("output.bin"),batch=work.resolve("batch.txt"),log=work.resolve("openssh.log");Files.write(input,bytes);
+            String commands="put "+input+" /independent.bin\nget /independent.bin "+output+"\nrm /independent.bin\n";
+            Files.write(batch,commands.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            Process process=new ProcessBuilder("sftp","-b",batch.toString(),"-P",String.valueOf(port),"-i",identity.toString(),
+                    "-o","BatchMode=yes","-o","StrictHostKeyChecking=yes","-o","UserKnownHostsFile="+known,
+                    "-o","IdentitiesOnly=yes","-o","IdentityAgent=none","localls@127.0.0.1").redirectErrorStream(true).redirectOutput(log.toFile()).start();
+            if(!process.waitFor(20,java.util.concurrent.TimeUnit.SECONDS)){process.destroyForcibly();fail("OpenSSH client timeout");}
+            assertEquals(new String(Files.readAllBytes(log),java.nio.charset.StandardCharsets.UTF_8),0,process.exitValue());
+            assertArrayEquals(bytes,Files.readAllBytes(output));assertFalse(Files.exists(root.resolve("independent.bin")));
+        }
+    }
     @Test public void privateAndMalformedAndWeakPublicKeysAreRejected() throws Exception {
         for(String value:new String[]{new String(clientPrivate,"UTF-8"),"ssh-rsa invalid","ssh-ed25519 AAAA","",clientPublic+clientPublic}) {
             try{EmbeddedSftpServer.authorizedKey(value);fail("Invalid public key accepted");}catch(Exception expected){}
