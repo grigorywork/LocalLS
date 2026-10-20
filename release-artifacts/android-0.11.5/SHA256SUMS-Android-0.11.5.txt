@@ -1,0 +1,6 @@
+aa1ef97aebe3ce0957b49c537599e138260c1cd3a35721da996614ae5ebf9bab  LocalLS-0.11.5-release.apk
+5463e352866e08c4e803ea2afc1afd5b9777fdac19dc0739bc42a93e07e338b4  LocalLS-0.11.5-source.zip
+e5f33baca8dfca4841fb84aea304283e927450c48a07c58dfea58b15a8994d41  LocalLS-0.11.5-verification.json
+d423468f02cf6bbd06a8b484680881e3d1da1dbdd6c6e156637c78f76a9c7d1a  LocalLS-0.11.5-report.md
+3b40c8b4aea4c456c2b64c5ba0d753e129e4931cfc8dfa9d59e13bb6e5f04c60  LocalLS-0.11.5-release-notes.md
+3c9f03c513bd77f412f89d4b6434ec74aa9fec8c5d2770a23c9d6bac8c572cf4  LocalLS-0.11.5-setup.txt
