@@ -22,7 +22,7 @@ import static org.junit.Assert.*;
 public class LastModIntegrationTest {
     static final String AUTHORITY="mod.documents";
     public static class Documents extends DocumentsProvider {
-        File root;CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);boolean hold,deny;
+        File root;CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);boolean hold,deny;String deniedName;
         @Override public boolean onCreate(){return true;}
         File file(String id)throws FileNotFoundException{try{File f=new File(root,id.equals("root")?"":id.substring(5)).getCanonicalFile();if(!f.toPath().startsWith(root.getCanonicalFile().toPath()))throw new IOException();return f;}catch(Exception e){throw new FileNotFoundException();}}
         String id(File f){String p=root.toURI().relativize(f.toURI()).getPath();if(p.endsWith("/"))p=p.substring(0,p.length()-1);return p.isEmpty()?"root":"root/"+p;}
@@ -36,7 +36,7 @@ public class LastModIntegrationTest {
             File folder=file(parent),target=new File(folder,name);for(int n=1;target.exists();n++)target=new File(folder,name+" ("+n+")");
             try{if(DocumentFiles.DIRECTORY.equals(mime)){if(!target.mkdir())throw new IOException();}else if(!target.createNewFile())throw new IOException();return id(target);}catch(IOException e){throw new FileNotFoundException();}}
         @Override public ParcelFileDescriptor openDocument(String id,String mode,CancellationSignal signal)throws FileNotFoundException{
-            if(deny && mode.contains("w"))throw new SecurityException("write denied");
+            if((deny || (deniedName!=null && file(id).getName().equals(deniedName))) && mode.contains("w"))throw new SecurityException("write denied");
             if(hold && mode.contains("w")){entered.countDown();try{if(!release.await(8,TimeUnit.SECONDS))throw new FileNotFoundException();}catch(InterruptedException e){Thread.currentThread().interrupt();throw new FileNotFoundException();}}
             return ParcelFileDescriptor.open(file(id),ParcelFileDescriptor.parseMode(mode));}
         @Override public void deleteDocument(String id)throws FileNotFoundException{if(!file(id).delete())throw new FileNotFoundException();}
@@ -82,6 +82,58 @@ public class LastModIntegrationTest {
             assertFalse(new File(provider.root,path).exists());provider.deny=false;receiver.retry();
             await(()->{try(AutoReceive.Queue q=new AutoReceive.Queue(app)){return q.next()==null && !AutoReceive.active;}});
             assertArrayEquals(new byte[]{2,4,6},Files.readAllBytes(new File(provider.root,path).toPath()));
+        }
+    }
+    @Test public void missingPendingSourceDoesNotBlockNextFile()throws Exception{
+        app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,tree.toString()).commit();
+        File root=EmbeddedServerService.share(app);root.mkdirs();String good="after-missing-"+System.nanoTime()+".bin";Files.write(new File(root,good).toPath(),new byte[]{7,8,9});
+        try(AutoReceive.Queue q=new AutoReceive.Queue(app)){q.offer("deleted-pending.bin",12,1);File f=new File(root,good);q.offer(good,f.length(),f.lastModified());}
+        try(AutoReceive receiver=new AutoReceive(app)){
+            await(()->new File(provider.root,good).length()==3 && !AutoReceive.active);
+            assertArrayEquals(new byte[]{7,8,9},Files.readAllBytes(new File(provider.root,good).toPath()));
+            try(AutoReceive.Queue q=new AutoReceive.Queue(app)){assertNull(q.next());}
+        }
+    }
+    @Test public void oneDeniedFileDoesNotBlockNextAndOnlyFailureIsRetried()throws Exception{
+        app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,tree.toString()).commit();
+        File root=EmbeddedServerService.share(app);root.mkdirs();String bad="denied-"+System.nanoTime()+".bin",good="after-denied-"+System.nanoTime()+".bin";
+        Files.write(new File(root,bad).toPath(),new byte[]{1});Files.write(new File(root,good).toPath(),new byte[]{2});provider.deniedName=bad;
+        try(AutoReceive.Queue q=new AutoReceive.Queue(app)){for(String path:new String[]{bad,good}){File f=new File(root,path);q.offer(path,f.length(),f.lastModified());}}
+        try(AutoReceive receiver=new AutoReceive(app)){
+            await(()->new File(provider.root,good).length()==1 && !AutoReceive.active);assertTrue(AutoReceive.error);
+            try(AutoReceive.Queue q=new AutoReceive.Queue(app)){assertEquals(bad,q.next().path);}
+            provider.deniedName=null;receiver.retry();await(()->{try(AutoReceive.Queue q=new AutoReceive.Queue(app)){return q.next()==null && !AutoReceive.active;}});
+            assertFalse(AutoReceive.diagnostic,AutoReceive.error);assertEquals(2,provider.root.listFiles().length);
+            assertArrayEquals(new byte[]{1},Files.readAllBytes(new File(provider.root,bad).toPath()));assertArrayEquals(new byte[]{2},Files.readAllBytes(new File(provider.root,good).toPath()));
+        }
+    }
+    @Test public void discardedPathCanBeReceivedAgainWithSameMetadata(){
+        try(AutoReceive.Queue q=new AutoReceive.Queue(app)){
+            q.offer("recreated.bin",5,100);AutoReceive.Queue.Item old=q.next();q.discard(old);assertNull(q.next());
+            q.offer("recreated.bin",5,100);AutoReceive.Queue.Item fresh=q.next();assertNotNull(fresh);assertNotEquals(old.id,fresh.id);
+            q.done(old);assertNotNull(q.next());q.done(fresh);assertNull(q.next());
+        }
+    }
+    @Test public void incomingBurstWhileCopyIsBusyIsSavedExactlyOnceWithoutUi()throws Exception{
+        app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,tree.toString()).commit();
+        File root=EmbeddedServerService.share(app);root.mkdirs();provider.hold=true;
+        try(AutoReceive receiver=new AutoReceive(app)){
+            for(int n=0;n<16;n++){
+                String name="burst-"+n+".bin";Files.write(new File(root,name).toPath(),new byte[]{(byte)n});receiver.received(name);
+                if(n==0)assertTrue(provider.entered.await(5,TimeUnit.SECONDS));
+            }
+            provider.release.countDown();await(()->{try(AutoReceive.Queue q=new AutoReceive.Queue(app)){return q.next()==null && !AutoReceive.active && provider.root.listFiles().length==16;}});
+            for(int n=0;n<16;n++)assertArrayEquals(new byte[]{(byte)n},Files.readAllBytes(new File(provider.root,"burst-"+n+".bin").toPath()));
+        }finally{provider.release.countDown();}
+    }
+    @Test public void existingVersion0116QueueOpensWithoutReset(){
+        File path=app.getDatabasePath("completed-uploads.db");path.getParentFile().mkdirs();
+        try(android.database.sqlite.SQLiteDatabase db=android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(path,null)){
+            db.execSQL("CREATE TABLE uploads(path TEXT PRIMARY KEY, size INTEGER NOT NULL, modified INTEGER NOT NULL, saved INTEGER NOT NULL DEFAULT 0)");
+            db.execSQL("INSERT INTO uploads(path,size,modified,saved) VALUES('old-pending.bin',123,456,0)");db.setVersion(1);
+        }
+        try(AutoReceive.Queue q=new AutoReceive.Queue(app)){
+            AutoReceive.Queue.Item item=q.next();assertEquals("old-pending.bin",item.path);assertEquals(123,item.size);assertEquals(456,item.modified);q.done(item);assertNull(q.next());
         }
     }
     @Test public void durableQueueDoesNotLoseNewVersionWhilePreviousCopyFinishes(){try(AutoReceive.Queue q=new AutoReceive.Queue(app)){
