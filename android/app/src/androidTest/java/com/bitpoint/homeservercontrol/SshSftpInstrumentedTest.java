@@ -99,165 +99,44 @@ public class SshSftpInstrumentedTest {
         } catch (Exception expected) { }
     }
 
-    @Test
-    public void filesQueueContinuesInBackgroundAndStopsForegroundGuard() throws Exception {
-        org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT >= 29);
-        context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE).edit().clear()
-                .putString(ServerConfig.KEY_LOCAL_HOST, host)
-                .putInt(ServerConfig.KEY_PORT, port).putString(ServerConfig.KEY_USER, user)
-                .putString("last_remote_path", "/").commit();
-        HostTrustStore.trust(context, host, port, pin);
-        String name = "background-" + java.util.UUID.randomUUID() + ".bin";
-        ContentValues values = new ContentValues();
-        values.put(MediaStore.Downloads.DISPLAY_NAME, name);
-        values.put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream");
-        Uri uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-        assertNotNull(uri);
-        try {
-            try (OutputStream out = context.getContentResolver().openOutputStream(uri, "wt")) {
-                assertNotNull(out);
-                byte[] chunk = new byte[1024 * 1024];
-                for (int i = 0; i < 8; i++) out.write(chunk);
+    @Test public void serviceUploadsAfterFileScreenCloses()throws Exception{
+        org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT>=29);
+        context.getSharedPreferences(ServerConfig.PREFS,0).edit().clear().putString(ServerConfig.KEY_LOCAL_HOST,host).putInt(ServerConfig.KEY_PORT,port).putString(ServerConfig.KEY_USER,user).commit();
+        HostTrustStore.trust(context,host,port,pin);installFixtureKey();
+        String name="background-"+java.util.UUID.randomUUID()+".bin";byte[] data=new byte[8*1024*1024+17];new java.util.Random(77).nextBytes(data);
+        ContentValues values=new ContentValues();values.put(MediaStore.Downloads.DISPLAY_NAME,name);values.put(MediaStore.Downloads.MIME_TYPE,"application/octet-stream");
+        Uri uri=context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);assertNotNull(uri);
+        try{
+            try(OutputStream out=context.getContentResolver().openOutputStream(uri,"w")){assertNotNull(out);out.write(data);}
+            android.content.Intent launch=new android.content.Intent(context,FilesActivity.class).putExtra("own_server",false);
+            try(ActivityScenario<FilesActivity> scenario=ActivityScenario.launch(launch)){
+                scenario.onActivity(activity->{try{TransferForegroundService.enqueue(activity,TransferForegroundService.UPLOAD,java.util.Collections.singletonList(FileNodes.document(activity,uri)),"/",null);}catch(Exception e){throw new AssertionError(e);}});
+                long end=System.currentTimeMillis()+15000;while(!guardRunning() && !TransferForegroundService.state.active && System.currentTimeMillis()<end)Thread.sleep(50);
+                assertTrue(guardRunning() || TransferForegroundService.state.active);
             }
-            installFixtureKey();
-            try (ActivityScenario<FilesActivity> scenario = ActivityScenario.launch(FilesActivity.class)) {
-                scenario.onActivity(activity -> {
-                    try {
-                        Method method = FilesActivity.class.getDeclaredMethod("enqueueUpload", Uri.class);
-                        method.setAccessible(true);
-                        method.invoke(activity, uri);
-                    } catch (Exception e) { throw new AssertionError(e); }
-                    assertFalse(activity.getIntent().hasExtra("password"));
-                });
-                long deadline = System.currentTimeMillis() + 15000;
-                while (!guardRunning() && System.currentTimeMillis() < deadline) Thread.sleep(100);
-                assertTrue("Foreground guard must start", guardRunning());
-                java.util.concurrent.atomic.AtomicBoolean graphHasSpeed = new java.util.concurrent.atomic.AtomicBoolean();
-                deadline = System.currentTimeMillis() + 25000;
-                while (!graphHasSpeed.get() && System.currentTimeMillis() < deadline) {
-                    scenario.onActivity(activity -> {
-                        try {
-                            java.lang.reflect.Field field = MetricChartView.class.getDeclaredField("values");
-                            field.setAccessible(true);
-                            @SuppressWarnings("unchecked") List<Float> visible = (List<Float>) field.get(
-                                    activity.findViewById(R.id.filesSpeedChart));
-                            graphHasSpeed.set(visible.stream().anyMatch(value -> value != null && value > 0));
-                        } catch (Exception e) { throw new AssertionError(e); }
-                    });
-                    if (!graphHasSpeed.get()) Thread.sleep(250);
-                }
-                assertTrue("Visible chart must contain measured speed", graphHasSpeed.get());
-                android.graphics.Bitmap screenshot = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
-                if (screenshot != null) {
-                    try (java.io.FileOutputStream image = new java.io.FileOutputStream(new java.io.File(
-                            context.getExternalFilesDir(null), "transfer-preview.png"))) {
-                        screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, image);
-                    } finally { screenshot.recycle(); }
-                }
-                InstrumentationRegistry.getInstrumentation().getUiAutomation()
-                        .executeShellCommand("input keyevent KEYCODE_HOME").close();
-                deadline = System.currentTimeMillis() + 120000;
-                while (!TransferLogStore.render(context).contains(name)
-                        && System.currentTimeMillis() < deadline) Thread.sleep(250);
-                String history = TransferLogStore.render(context);
-                assertTrue(history, history.contains(name) && history.contains("готово"));
-                assertFalse(history.contains(secret));
-                assertFalse("Foreground guard must stop after queue", guardRunning());
-                TransferSpeedStore.Snapshot speed = TransferSpeedStore.snapshot();
-                assertTrue("Real transfer must produce speed samples", speed.peak > 0);
-                assertFalse(speed.active);
-                assertEquals("Завершено", speed.state);
-                assertTrue("Speed history must include SFTP", MetricHistoryStore.read(context).stream()
-                        .anyMatch(sample -> sample.speedMbps > 0));
-            }
-            assertEquals("Завершено", TransferSpeedStore.snapshot().state);
-            SftpClient.delete(host, port, user, secret, pin, new RemoteEntry(name, "/" + name, false, 0, 0));
-        } finally {
-            context.getContentResolver().delete(uri, null, null);
-        }
+            long end=System.currentTimeMillis()+120000;while(TransferForegroundService.state.active && System.currentTimeMillis()<end)Thread.sleep(100);
+            assertFalse(TransferForegroundService.state.diagnostic,TransferForegroundService.state.error);
+            ByteArrayOutputStream copy=new ByteArrayOutputStream();SftpClient.download(host,port,user,secret,pin,"/"+name,copy,data.length,null);assertArrayEquals(data,copy.toByteArray());
+            assertFalse(TransferLogStore.render(context).contains(secret));SftpClient.delete(host,port,user,secret,pin,new RemoteEntry(name,"/"+name,false,data.length,0));
+        }finally{context.getContentResolver().delete(uri,null,null);}
     }
-
-    @Test
-    public void attachedDocumentWaitsForSendAndOpensChosenServerFolder() throws Exception {
-        org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT >= 29);
-        String folder = "/attachments-" + java.util.UUID.randomUUID();
-        String name = "attached-" + java.util.UUID.randomUUID() + ".bin";
-        byte[] data = new byte[32 * 1024];
-        new java.util.Random(92).nextBytes(data);
-        SftpClient.mkdir(host, port, user, secret, pin, folder);
-        context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE).edit().clear()
-                .putString(ServerConfig.KEY_LOCAL_HOST, host).putInt(ServerConfig.KEY_PORT, port)
-                .putString(ServerConfig.KEY_USER, user).putString("last_remote_path", "/").commit();
-        HostTrustStore.trust(context, host, port, pin);
-        ContentValues values = new ContentValues();
-        values.put(MediaStore.Downloads.DISPLAY_NAME, name);
-        values.put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream");
-        Uri uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-        assertNotNull(uri);
-        try {
-            try (OutputStream out = context.getContentResolver().openOutputStream(uri, "wt")) {
-                assertNotNull(out); out.write(data);
+    @Test public void pickerSendsIntoChosenFolderAndRecreationDoesNotReplayAttachment()throws Exception{
+        org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT>=29);String folder="/picker-"+java.util.UUID.randomUUID(),name="file.bin";byte[] data={5,6,7};
+        context.getSharedPreferences(ServerConfig.PREFS,0).edit().clear().putString(ServerConfig.KEY_LOCAL_HOST,host).putInt(ServerConfig.KEY_PORT,port).putString(ServerConfig.KEY_USER,user).commit();
+        HostTrustStore.trust(context,host,port,pin);installFixtureKey();SftpClient.mkdir(host,port,user,secret,pin,folder);
+        ContentValues values=new ContentValues();values.put(MediaStore.Downloads.DISPLAY_NAME,name);values.put(MediaStore.Downloads.MIME_TYPE,"application/octet-stream");Uri uri=context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);assertNotNull(uri);
+        try{
+            try(OutputStream out=context.getContentResolver().openOutputStream(uri,"w")){assertNotNull(out);out.write(data);}
+            try(ActivityScenario<FilesActivity> scenario=ActivityScenario.launch(new android.content.Intent(context,FilesActivity.class).putExtra("own_server",false))){
+                scenario.onActivity(activity->{assertFalse(activity.openRemotePath("relative/path"));assertTrue(activity.openRemotePath(folder));activity.onActivityResult(501,android.app.Activity.RESULT_OK,new android.content.Intent().setData(uri));});
+                long end=System.currentTimeMillis()+30000;while(SftpClient.list(host,port,user,secret,pin,folder).isEmpty() && System.currentTimeMillis()<end)Thread.sleep(100);
+                while(TransferForegroundService.state.active && System.currentTimeMillis()<end)Thread.sleep(100);
+                assertFalse(TransferForegroundService.state.diagnostic,TransferForegroundService.state.error);scenario.recreate();Thread.sleep(300);
+                List<RemoteEntry> files=SftpClient.list(host,port,user,secret,pin,folder);assertEquals(1,files.size());ByteArrayOutputStream copy=new ByteArrayOutputStream();SftpClient.download(host,port,user,secret,pin,files.get(0).path,copy,3,null);assertArrayEquals(data,copy.toByteArray());
+                SftpClient.delete(host,port,user,secret,pin,files.get(0));
             }
-            installFixtureKey();
-            android.content.Intent launch = new android.content.Intent(context, FilesActivity.class);
-            FileAttachments.put(launch, java.util.Collections.singletonList(uri));
-            try (ActivityScenario<FilesActivity> scenario = ActivityScenario.launch(launch)) {
-                scenario.onActivity(activity -> {
-                    assertFalse(activity.openRemotePath("relative/path"));
-                    assertTrue(activity.openRemotePath(folder));
-                });
-                long deadline = System.currentTimeMillis() + 30000;
-                while (!folder.equals(context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE)
-                        .getString("last_remote_path", "")) && System.currentTimeMillis() < deadline) Thread.sleep(100);
-                assertEquals(folder, context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE)
-                        .getString("last_remote_path", ""));
-                scenario.onActivity(activity -> {
-                    activity.onActivityResult(501, android.app.Activity.RESULT_OK, new android.content.Intent().setData(uri));
-                    assertEquals(android.view.View.VISIBLE, activity.findViewById(R.id.attachmentsPanel).getVisibility());
-                    assertTrue(((android.widget.Button) activity.findViewById(R.id.filesSendAttachmentsButton))
-                            .getText().toString().contains("(1)"));
-                });
-                assertTrue("Picking a document must not upload it", SftpClient.list(host,port,user,secret,pin,folder).isEmpty());
-                assertFalse(guardRunning());
-                scenario.onActivity(activity -> {
-                    activity.findViewById(R.id.filesSendAttachmentsButton).performClick();
-                    try {
-                        java.lang.reflect.Field field = FilesActivity.class.getDeclaredField("pendingSendDialog");
-                        field.setAccessible(true);
-                        android.app.AlertDialog dialog = (android.app.AlertDialog) field.get(activity);
-                        assertNotNull(dialog); assertTrue(dialog.isShowing());
-                    } catch (Exception e) { throw new AssertionError(e); }
-                });
-                assertTrue("Confirmation must precede upload", SftpClient.list(host,port,user,secret,pin,folder).isEmpty());
-                scenario.onActivity(activity -> {
-                    try {
-                        java.lang.reflect.Field field = FilesActivity.class.getDeclaredField("pendingSendDialog");
-                        field.setAccessible(true);
-                        ((android.app.AlertDialog) field.get(activity)).getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
-                    } catch (Exception e) { throw new AssertionError(e); }
-                });
-                java.util.concurrent.atomic.AtomicBoolean cleared = new java.util.concurrent.atomic.AtomicBoolean();
-                deadline = System.currentTimeMillis() + 10000;
-                while (!cleared.get() && System.currentTimeMillis() < deadline) {
-                    scenario.onActivity(activity -> cleared.set(activity.findViewById(R.id.attachmentsPanel).getVisibility() == android.view.View.GONE));
-                    Thread.sleep(100);
-                }
-                assertTrue("Confirmed attachments must leave the staging panel", cleared.get());
-                deadline = System.currentTimeMillis() + 60000;
-                while (!TransferLogStore.render(context).contains(name) && System.currentTimeMillis() < deadline) Thread.sleep(200);
-                assertTrue(TransferLogStore.render(context), TransferLogStore.render(context).contains(name)
-                        && TransferLogStore.render(context).contains("готово"));
-                ByteArrayOutputStream downloaded = new ByteArrayOutputStream();
-                SftpClient.download(host,port,user,secret,pin,folder+"/"+name,downloaded,data.length,null);
-                assertArrayEquals(data, downloaded.toByteArray());
-
-                scenario.recreate();
-                scenario.onActivity(activity -> assertEquals("Sent attachments must not be replayed from original Intent",
-                        android.view.View.GONE, activity.findViewById(R.id.attachmentsPanel).getVisibility()));
-            }
-            SftpClient.delete(host,port,user,secret,pin,new RemoteEntry(name,folder+"/"+name,false,data.length,0));
             SftpClient.delete(host,port,user,secret,pin,new RemoteEntry("folder",folder,true,0,0));
-        } finally { context.getContentResolver().delete(uri,null,null); }
+        }finally{context.getContentResolver().delete(uri,null,null);}
     }
 
     private boolean guardRunning() {

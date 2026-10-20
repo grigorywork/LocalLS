@@ -22,8 +22,11 @@ public class EmbeddedServerService extends Service {
         status=ServerStartupFailure.hint(stage,error)+"\nКод: "+stage+" / "+error.getClass().getSimpleName();
     }
     private final Handler startupWatchdog=new Handler(Looper.getMainLooper());
+    private final Runnable renewPower=new Runnable(){public void run(){if(!destroyed && wake!=null){wake.acquire(15*60*1000L);startupWatchdog.postDelayed(this,10*60*1000L);}}};
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private EmbeddedSftpServer server;
+    private AutoReceive autoReceive;
+    static final String RETRY_SAVE="localls.embedded.RETRY_SAVE";
     private volatile boolean destroyed;
     private PowerManager.WakeLock wake;
     static File share(Context c) { return new File(c.getFilesDir(),"sftp-share"); }
@@ -60,6 +63,7 @@ public class EmbeddedServerService extends Service {
     }
     @Override public int onStartCommand(Intent intent,int flags,int id) {
         if(intent!=null && AUTHORIZE.equals(intent.getAction())) {approve(intent,id);return START_NOT_STICKY;}
+        if(intent!=null && RETRY_SAVE.equals(intent.getAction())){if(autoReceive!=null)autoReceive.retry();else stopSelf(id);return START_NOT_STICKY;}
         launchRequested=0;lastStage="SERVICE_RECEIVED";
         if(intent!=null && STOP.equals(intent.getAction())) { stopSelf();return START_NOT_STICKY; }
         if(Build.VERSION.SDK_INT<26) { status="Встроенный сервер требует Android 8 или новее";stopSelf();return START_NOT_STICKY; }
@@ -76,6 +80,7 @@ public class EmbeddedServerService extends Service {
         } catch(RuntimeException e) {failure("FOREGROUND",e);stopSelf();return START_NOT_STICKY;}
         starting=true;diagnostic="";lastStage="SERVICE_STARTING";status="Запуск сервера…";
         SharedPreferences p=getSharedPreferences(PREFS,MODE_PRIVATE);
+        p.edit().putBoolean("server_role",true).apply();
         final String publicKey=p.getString("allowed_key", ""), user=p.getString("user","localls");
         final int port=p.getInt("port",8022);
         startupWatchdog.postDelayed(() -> {
@@ -89,14 +94,14 @@ public class EmbeddedServerService extends Service {
                 KeyPair identity=EmbeddedServerIdentity.loadOrCreate(this);
                 if(destroyed)return;
                 stage="NETWORK";
-                EmbeddedSftpServer next=new EmbeddedSftpServer();
+                EmbeddedSftpServer next=new EmbeddedSftpServer();autoReceive=new AutoReceive(this);next.onReceived(autoReceive::received);
                 boundPort=allowed==null?next.startWaiting("0.0.0.0",port,user,identity,share(this).toPath()):
                         next.start("0.0.0.0",port,user,allowed,identity,share(this).toPath());server=next;
                 waitingForClient=allowed==null;
                 if(destroyed) { next.close();return; }
                 fingerprint=EmbeddedSftpServer.fingerprint(identity);
                 stage="POWER";
-                PowerManager pm=getSystemService(PowerManager.class);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:EmbeddedSftp");wake.acquire(6*60*60*1000L);
+                PowerManager pm=getSystemService(PowerManager.class);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:EmbeddedSftp");wake.setReferenceCounted(false);wake.acquire(15*60*1000L);startupWatchdog.post(renewPower);
                 lastStage=waitingForClient?"WAITING_CLIENT":"RUNNING";running=true;
                 if(destroyed) { running=false;next.close();return; }
                 status=runningStatus();
@@ -108,7 +113,7 @@ public class EmbeddedServerService extends Service {
     }
     @Override public void onTimeout(int id,int type) { status="Сервер остановлен: Android ограничил время фоновой службы. Запусти его снова.";stopSelf(); }
     @Override public void onDestroy() {
-        destroyed=true;startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;waitingForClient=false;
+        destroyed=true;if(autoReceive!=null)autoReceive.close();startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;waitingForClient=false;
         if(status.startsWith("Сервер работает") || status.startsWith("Сервер готов") || status.startsWith("Запуск"))status="Сервер выключен";
         worker.execute(() -> { try { if(server!=null)server.close(); } catch(Exception ignored) { }
             if(wake!=null && wake.isHeld())wake.release(); });

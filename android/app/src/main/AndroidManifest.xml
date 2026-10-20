@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="29" />
@@ -25,7 +26,7 @@
         <activity android:name=".EmbeddedFilesActivity" android:exported="false" />
         <activity android:name=".EmbeddedServerActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <service android:name=".LocalFileExportService" android:exported="false" android:foregroundServiceType="dataSync" />
-        <service android:name=".EmbeddedServerService" android:exported="false" android:foregroundServiceType="dataSync" />
+        <service android:name=".EmbeddedServerService" android:exported="false" android:foregroundServiceType="connectedDevice" />
         <activity android:name=".FilesActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ServerSetupActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <receiver android:name=".TermuxResultReceiver" android:exported="false" />
@@ -51,7 +52,7 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
-        <service android:name=".TransferForegroundService" android:exported="false" android:foregroundServiceType="dataSync" />
+        <service android:name=".TransferForegroundService" android:exported="false" android:foregroundServiceType="connectedDevice" />
         <service android:name=".ServerMonitorJobService" android:exported="false" android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
 </manifest>

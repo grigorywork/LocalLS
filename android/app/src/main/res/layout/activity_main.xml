@@ -10,6 +10,7 @@
                 <TextView android:id="@+id/localServerSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/local_server_stopped" android:textColor="?attr/hscTextSecondary" android:textSize="14sp" android:paddingBottom="8dp" />
                 <Button android:id="@+id/localServerQuickButton" android:layout_width="match_parent" android:layout_height="48dp" android:text="@string/open_my_server" style="@style/Widget.HSC.SecondaryButton" />
             </LinearLayout>
+            <Switch android:id="@+id/showClientSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="Подключаться к другому серверу" android:visibility="gone" />
             <LinearLayout android:id="@+id/remoteConnectionCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/panel_bg" android:layout_marginTop="12dp" android:padding="12dp">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/role_connection" android:textColor="?attr/hscTextPrimary" android:textSize="20sp" android:paddingBottom="8dp" android:textStyle="bold" />
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/role_connection_hint" android:textColor="?attr/hscTextSecondary" android:textSize="14sp" android:paddingBottom="8dp" />

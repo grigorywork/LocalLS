@@ -219,6 +219,44 @@ final class SftpClient {
         };
     }
 
+
+    /** One pinned connection per tree, bounded recursion is enforced by the caller. */
+    static final class TreeSession implements AutoCloseable {
+        private final Connection c;
+        TreeSession(String host,int port,String user,SshCredentials key,String pin)throws Exception{c=connect(host,port,user,key,pin);}
+        List<RemoteEntry> list(String path)throws Exception{
+            SftpATTRS parent=c.sftp.lstat(path);if(parent.isLink() || !parent.isDir())throw new java.io.IOException("Папка недоступна");
+            List<RemoteEntry> out=new ArrayList<>();
+            @SuppressWarnings("unchecked") Vector<ChannelSftp.LsEntry> raw=c.sftp.ls(path);
+            for(ChannelSftp.LsEntry e:raw){String name=e.getFilename();if(name.equals(".")||name.equals(".."))continue;
+                TransferPaths.name(name);SftpATTRS a=e.getAttrs();if(a==null || a.isLink() || (!a.isDir() && !a.isReg()))continue;
+                if(out.size()>=10000)throw new java.io.IOException("Слишком много файлов");
+                out.add(new RemoteEntry(name,join(path,name),a.isDir(),a.getSize(),a.getMTime()));}
+            return out;
+        }
+        private boolean exists(String path)throws Exception{try{c.sftp.lstat(path);return true;}catch(com.jcraft.jsch.SftpException e){if(e.id==ChannelSftp.SSH_FX_NO_SUCH_FILE)return false;throw e;}}
+        String unique(String parent,String name)throws Exception{
+            TransferPaths.name(name);String path=join(parent,name);if(!exists(path))return path;
+            for(int i=1;i<10000;i++){String next=join(parent,TransferPaths.duplicate(name,i));if(!exists(next))return next;}
+            throw new java.io.IOException("Слишком много одинаковых имён");
+        }
+        String folder(String parent,String name)throws Exception{String path=unique(parent,name);c.sftp.mkdir(path);return path;}
+        void read(String path,OutputStream out,ProgressCallback progress)throws Exception{
+            SftpATTRS a=c.sftp.lstat(path);if(a.isLink() || !a.isReg())throw new java.io.IOException("Недопустимый файл");
+            final long[] copied={0};c.sftp.get(path,out,monitor((n,total)->{copied[0]=n;return progress==null || progress.onProgress(n,total);},a.getSize()));
+            if(Thread.currentThread().isInterrupted() || copied[0]!=a.getSize())throw new java.io.InterruptedIOException();out.flush();
+        }
+        String write(String parent,String name,InputStream input,long size,ProgressCallback progress)throws Exception{
+            String target=unique(parent,name),temp=join(parent,".localls-upload-"+java.util.UUID.randomUUID()+".part");
+            boolean moved=false;final long[] copied={0};final boolean[] keepGoing={true};
+            try{c.sftp.put(input,temp,monitor((n,total)->{copied[0]=n;keepGoing[0]=progress==null || progress.onProgress(n,total);return keepGoing[0];},size),ChannelSftp.OVERWRITE);
+                if(!keepGoing[0] || Thread.currentThread().isInterrupted() || (size>0 && copied[0]!=size))throw new java.io.InterruptedIOException();
+                c.sftp.rename(temp,target);moved=true;return target;
+            }finally{if(!moved)try{c.sftp.rm(temp);}catch(Exception ignored){}}
+        }
+        @Override public void close(){c.close();}
+    }
+
     private static Connection connect(String host, int port, String user, SshCredentials credential,
                                       String trustedFingerprint) throws Exception {
         if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) {

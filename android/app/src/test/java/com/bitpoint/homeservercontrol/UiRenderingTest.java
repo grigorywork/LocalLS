@@ -96,12 +96,16 @@ public class UiRenderingTest {
             Configuration config = new Configuration(app.getResources().getConfiguration());
             config.fontScale = scale;
             Context context = new ContextThemeWrapper(app.createConfigurationContext(config), ThemeCatalog.style(app));
-            View root = LayoutInflater.from(context).inflate(R.layout.activity_files, null);
+            Configuration original=new Configuration(app.getResources().getConfiguration());
+            app.getResources().updateConfiguration(config,app.getResources().getDisplayMetrics());
+            var screen=org.robolectric.Robolectric.buildActivity(FilesActivity.class,new android.content.Intent(app,FilesActivity.class).putExtra("own_server",true)).create();
+            View root=((ViewGroup)screen.get().findViewById(android.R.id.content)).getChildAt(0);
             IconButtons.decorate(root);
             root.measure(View.MeasureSpec.makeMeasureSpec(360, View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(640, View.MeasureSpec.EXACTLY));
             root.layout(0, 0, 360, 640);
-            assertTrue("File list disappeared at fontScale=" + scale, root.findViewById(R.id.remoteFileList).getHeight() >= 80);
+            assertTrue("Server list disappeared at fontScale=" + scale+" height="+((View)root.findViewById(R.id.remoteFileList).getParent()).getHeight(), ((View)root.findViewById(R.id.remoteFileList).getParent()).getHeight() >= 80);
+            assertTrue("Phone list disappeared at fontScale="+scale,((View)root.findViewById(R.id.phoneFileList).getParent()).getHeight()>=80);
             checkCaptions(root, scale);
             Bitmap bitmap = Bitmap.createBitmap(360, 640, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bitmap);
@@ -112,6 +116,7 @@ public class UiRenderingTest {
                 assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream));
             }
             bitmap.recycle();
+            screen.destroy();app.getResources().updateConfiguration(original,app.getResources().getDisplayMetrics());
         }
     }
     @Test public void serverWizardFitsSmallScreenWithLargeText() throws Exception {

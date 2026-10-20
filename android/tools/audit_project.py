@@ -98,7 +98,7 @@ for p in text_files:
 # Required v0.8 features should have concrete source hooks.
 feature_needles={
     'transfer progress': 'transferProgressBar',
-    'transfer cancellation': 'cancelCurrentTransfer',
+    'transfer cancellation': 'TransferForegroundService.cancel',
     'mkdir': 'SftpClient.mkdir',
     'rename': 'SftpClient.rename',
     'delete': 'SftpClient.delete',
@@ -106,8 +106,8 @@ feature_needles={
     'network screen': 'NetworkActivity',
     'settings screen': 'SettingsActivity',
     'ssh keepalive': 'setServerAliveInterval',
-    'transfer retry': 'MAX_TRANSFER_ATTEMPTS',
-    'smoothed transfer speed': 'smoothedBytesPerSecond',
+    'transfer retry': 'TransferForegroundService.retry',
+    'smoothed transfer speed': 'smoothedSpeed',
     'persistable SAF permission': 'takePersistableUriPermission',
     'config migration': 'ConfigMigrator',
     'connection fallback': 'KEY_AUTO_FALLBACK',

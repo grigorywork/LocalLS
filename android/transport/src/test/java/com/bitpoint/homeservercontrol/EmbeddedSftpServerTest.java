@@ -49,6 +49,24 @@ public class EmbeddedSftpServerTest {
             try{deniedAgain.connect(4000);fail("Old authorization survived explicit locked restart");}catch(JSchException expected){}finally{deniedAgain.disconnect();}
         }
     }
+    @Test public void atomicFolderUploadsNotifyOnlyFinalNamesAndCancellationDoesNotPublish()throws Exception{
+        Path root=temp.newFolder().toPath();java.util.concurrent.BlockingQueue<String> received=new java.util.concurrent.LinkedBlockingQueue<>();
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            server.onReceived(received::add);int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            String pin=EmbeddedSftpServer.fingerprint(host);SshCredentials credential=SshCredentials.key(new String(clientPrivate,"UTF-8"),"");
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",credential,pin)){
+                String folder=tree.folder("/","Папка");tree.folder(folder,"пустая");byte[] payload=new byte[2*1024*1024+17];new java.util.Random(71).nextBytes(payload);
+                String first=tree.write(folder,"файл.bin",new ByteArrayInputStream(payload),payload.length,(done,total)->true);
+                assertEquals("Папка/файл.bin",received.poll(5,java.util.concurrent.TimeUnit.SECONDS));
+                ByteArrayOutputStream copy=new ByteArrayOutputStream();tree.read(first,copy,(done,total)->true);assertArrayEquals(payload,copy.toByteArray());assertNull(received.poll(100,java.util.concurrent.TimeUnit.MILLISECONDS));
+                tree.write(folder,"файл.bin",new ByteArrayInputStream(new byte[]{9}),1,(done,total)->true);
+                assertEquals("Папка/файл (1).bin",received.poll(5,java.util.concurrent.TimeUnit.SECONDS));assertArrayEquals(payload,Files.readAllBytes(root.resolve("Папка/файл.bin")));
+                try{tree.write(folder,"cancel.bin",new ByteArrayInputStream(payload),0,(done,total)->false);fail("Cancelled unknown-length stream was published");}catch(java.io.InterruptedIOException expected){}
+                assertFalse(Files.exists(root.resolve("Папка/cancel.bin")));assertNull(received.poll(100,java.util.concurrent.TimeUnit.MILLISECONDS));
+                for(RemoteEntry e:tree.list(folder))assertFalse(e.name.startsWith(".localls-upload-"));
+            }
+        }
+    }
     @Test public void transferRenameAndDeleteWithinShare() throws Exception {
         Path root=temp.newFolder().toPath();
         try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {

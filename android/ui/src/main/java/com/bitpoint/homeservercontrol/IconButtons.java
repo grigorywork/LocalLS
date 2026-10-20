@@ -18,7 +18,10 @@ final class IconButtons {
             String name = "";
             try { name = view.getResources().getResourceEntryName(view.getId()); }
             catch (android.content.res.Resources.NotFoundException ignored) { }
-            apply(button, icon(name));
+            if("file_toolbar".equals(button.getTag())){
+                button.setCompoundDrawables(null,null,null,null);button.setGravity(Gravity.CENTER);
+                button.setMinLines(1);button.setMaxLines(3);button.setAllCaps(false);button.setIncludeFontPadding(false);
+            }else apply(button, icon(name));
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;

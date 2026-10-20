@@ -15,7 +15,7 @@ import java.util.concurrent.*;
 
 public class EmbeddedServerActivity extends BaseActivity {
     private EditText port,user,key;
-    private TextView state,address;
+    private TextView state,address,receiveState;
     private boolean checkingKey;
     private Button start,importKey;
     private final Handler ui=new Handler(Looper.getMainLooper());
@@ -47,18 +47,23 @@ public class EmbeddedServerActivity extends BaseActivity {
         importKey=button(layout,"Добавить телефон 2 (.pub)",() -> pick(910,"*/*",false));
         text(layout,"Для замены ранее добавленного ключа останови сервер. Закрытый ключ остаётся только на телефоне 2.",14);
         text(layout,"3. Принимай файлы",20);
-        text(layout,"Другому устройству доступна только папка LocalLS. Присланные файлы появятся здесь. При удалении приложения эта папка и ключ сервера удаляются.",14);
-        button(layout,"Добавить файлы в папку сервера",() -> pick(911,"*/*",true));
-        button(layout,"Файлы сервера / сохранить на телефон",() -> startActivity(new Intent(this,EmbeddedFilesActivity.class)));
+        text(layout,"Другому устройству доступна только папка LocalLS. Завершённые передачи сохраняются на телефон автоматически, без подтверждения каждого файла. Для другой папки один раз разреши доступ через Android.",14);
+        receiveState=text(layout,"",16);
+        button(layout,"Папка сохранения",() -> {try{startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION),914);}catch(Exception e){message("Выбор папки недоступен");}});
+        button(layout,"Сохранять в «Загрузки / LocalLS»",() -> {if(Build.VERSION.SDK_INT<29){message("На Android 8–9 выбери папку кнопкой выше");return;}getSharedPreferences(EmbeddedServerService.PREFS,0).edit().remove(ReceiveFolder.TREE).apply();render();});
+        button(layout,"Повторить сохранение",() -> {if(EmbeddedServerService.running)startService(new Intent(this,EmbeddedServerService.class).setAction(EmbeddedServerService.RETRY_SAVE));else message("Включи сервер для обработки очереди сохранения");});
+        button(layout,"Файлы · телефон и мой сервер",() -> startActivity(new Intent(this,FilesActivity.class).putExtra("own_server",true)));
         button(layout,"Скопировать диагностику запуска",() -> {
             ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             String report=EmbeddedServerService.diagnostic;
             if(report.isEmpty()) report="LocalLS / SDK "+Build.VERSION.SDK_INT+"\nЭтап: "+EmbeddedServerService.lastStage+
                     "\nrunning="+EmbeddedServerService.running+"; starting="+EmbeddedServerService.starting+"; checkingKey="+checkingKey+
                     "; waitingForClient="+EmbeddedServerService.waitingForClient+"; serviceRequested="+(EmbeddedServerService.launchRequested!=0)+"\n"+EmbeddedServerService.status;
+            if(!AutoReceive.diagnostic.isEmpty())report+="\n"+AutoReceive.diagnostic;
             clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS startup",report));message("Диагностика скопирована без ключей и паролей");
         });
-        text(layout,"Служба показывает постоянное уведомление. Android может ограничить её работу в фоне (включая лимит dataSync до 6 часов). Автозапуск после перезагрузки выключен. Подключайся с другого устройства по Wi-Fi/VPN; сервер слушает сетевые интерфейсы телефона. Сверь fingerprint перед первым входом.",14);
+        text(layout,"Сервер и передачи работают в фоне с уведомлением, в том числе при выключенном экране. В системных настройках батареи разреши LocalLS работу без ограничений. Принудительная остановка Android завершит службу; после перезагрузки включи сервер вручную. Подключайся с другого устройства по Wi-Fi/VPN; сервер слушает сетевые интерфейсы телефона. Сверь fingerprint перед первым входом.",14);
+        button(layout,"Настройки фоновой работы",() -> {try{startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName())));}catch(Exception e){message("Открой настройки Android → Приложения → LocalLS → Батарея");}});
         button(layout,"Назад",() -> finish());
         ScrollView scroll=new ScrollView(this);scroll.addView(layout);setContentView(scroll);
         render();
@@ -123,6 +128,7 @@ public class EmbeddedServerActivity extends BaseActivity {
             EmbeddedServerService.launchRequested=0;EmbeddedServerService.failure("FOREGROUND",new java.util.concurrent.TimeoutException());
         }
         state.setText(EmbeddedServerService.status);
+        if(receiveState!=null){receiveState.setText("Сохранение → "+ReceiveFolder.label(this)+"\n"+AutoReceive.status);StatusBadge.apply(receiveState,AutoReceive.error?StatusBadge.Tone.ERROR:AutoReceive.active?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS);}
         StatusBadge.apply(state,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
             checkingKey || EmbeddedServerService.starting || EmbeddedServerService.launchRequested!=0?StatusBadge.Tone.WARNING:
             EmbeddedServerService.diagnostic.isEmpty()?StatusBadge.Tone.NEUTRAL:StatusBadge.Tone.ERROR);
@@ -135,6 +141,7 @@ public class EmbeddedServerActivity extends BaseActivity {
     private void message(String value) {if(!closed)Toast.makeText(this,value,Toast.LENGTH_LONG).show();}
     @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);if(result!=RESULT_OK || data==null)return;
+        if(request==914){try{DocumentFiles.grant(this,data);if((data.getFlags()&Intent.FLAG_GRANT_WRITE_URI_PERMISSION)==0)throw new IOException();getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,data.getData().toString()).apply();render();message("Папка сохранена. Подтверждать каждый файл не нужно.");}catch(Exception e){message("Не удалось сохранить доступ к папке");}return;}
         ArrayList<Uri> uris=new ArrayList<>();if(data.getData()!=null)uris.add(data.getData());
         if(data.getClipData()!=null)for(int i=0;i<Math.min(20,data.getClipData().getItemCount());i++)uris.add(data.getClipData().getItemAt(i).getUri());
         worker.execute(() -> {

@@ -55,8 +55,8 @@ public class EmbeddedServerScreenTest {
     @Test public void setupInstructionsAreBundledAndOpenWithoutNetwork() {
         try(var controller=Robolectric.buildActivity(PhoneSetupGuideActivity.class).create()) {
             View root=controller.get().findViewById(android.R.id.content);
-            assertTrue(containsText(root,"СНАЧАЛА — ТЕЛЕФОН 1"));
-            assertTrue(containsText(root,"ТЕПЕРЬ — ТЕЛЕФОН 2"));
+            assertTrue(containsText(root,"СНАЧАЛА ТЕЛЕФОН 1"));
+            assertTrue(containsText(root,"ТЕПЕРЬ ТЕЛЕФОН 2"));
             assertFalse(containsText(root,"Не удалось открыть встроенную инструкцию"));
         }
     }
@@ -74,7 +74,7 @@ public class EmbeddedServerScreenTest {
     @Test public void serverScreenDoesNotOpenTermuxOrStartListeningOnCreation() {
         try(var controller=Robolectric.buildActivity(EmbeddedServerActivity.class).create()) {
             EmbeddedServerActivity a=controller.get();assertNotNull(findButton(a.findViewById(android.R.id.content),"Включить сервер"));
-            assertNotNull(findButton(a.findViewById(android.R.id.content),"Файлы сервера / сохранить на телефон"));
+            assertNotNull(findButton(a.findViewById(android.R.id.content),"Файлы · телефон и мой сервер"));
             assertFalse(EmbeddedServerService.running);
         }
     }

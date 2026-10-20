@@ -22,6 +22,13 @@ import org.apache.sshd.sftp.server.SftpSubsystemProxy;
 /** SFTP only: no passwords, shell, exec, forwarding or filesystem links. Android API 26+. */
 final class EmbeddedSftpServer implements AutoCloseable {
     private SshServer server;
+    private volatile java.util.function.Consumer<String> receiver=path -> {};
+    void onReceived(java.util.function.Consumer<String> callback){receiver=callback;}
+    private void received(Path path){
+        try {String relative=path.toString();while(relative.startsWith("/"))relative=relative.substring(1);
+            TransferPaths.relative(relative);if(!relative.isEmpty() && !TransferPaths.temporary(relative))receiver.accept(relative);
+        }catch(RuntimeException ignored){/* Callback failures must not turn a completed SFTP close into data loss. */}
+    }
     private final java.util.concurrent.atomic.AtomicReference<PublicKey> allowedClient=new java.util.concurrent.atomic.AtomicReference<>();
     static PublicKey authorizedKey(String text) throws Exception {
         return SshPublicKeyParser.parse(text).key;
@@ -83,12 +90,25 @@ final class EmbeddedSftpServer implements AutoCloseable {
                     }.newFileSystem(root,Collections.emptyMap());
                 }
             });
-            ssh.setSubsystemFactories(Collections.singletonList(new SftpSubsystemFactory.Builder()
+            SftpSubsystemFactory factory=new SftpSubsystemFactory.Builder()
                     .withFileSystemAccessor(new SftpFileSystemAccessor() {
                         @Override public void createLink(SftpSubsystemProxy subsystem,Path link,Path target,boolean symbolic) throws IOException {
                             throw new java.nio.file.AccessDeniedException("Links are disabled");
                         }
-                    }).build()));
+                    }).build();
+            factory.addSftpEventListener(new org.apache.sshd.sftp.server.SftpEventListener(){
+                private final java.util.Set<org.apache.sshd.sftp.server.Handle> failed=java.util.concurrent.ConcurrentHashMap.newKeySet();
+                @Override public void written(org.apache.sshd.server.session.ServerSession session,String handle,org.apache.sshd.sftp.server.FileHandle file,long offset,byte[] data,int off,int len,Throwable error){if(error!=null)failed.add(file);}
+                @Override public void closed(org.apache.sshd.server.session.ServerSession session,String handle,org.apache.sshd.sftp.server.Handle file,Throwable error){
+                    boolean bad=failed.remove(file);
+                    if(error==null && !bad && file instanceof org.apache.sshd.sftp.server.FileHandle){
+                        java.util.Set<StandardOpenOption> options=((org.apache.sshd.sftp.server.FileHandle)file).getOpenOptions();
+                        if(options.contains(StandardOpenOption.WRITE) || options.contains(StandardOpenOption.APPEND))EmbeddedSftpServer.this.received(file.getFile());
+                    }
+                }
+                @Override public void moved(org.apache.sshd.server.session.ServerSession session,Path source,Path target,java.util.Collection<java.nio.file.CopyOption> options,Throwable error){if(error==null && Files.isRegularFile(target,LinkOption.NOFOLLOW_LINKS))EmbeddedSftpServer.this.received(target);}
+            });
+            ssh.setSubsystemFactories(Collections.singletonList(factory));
             CoreModuleProperties.AUTH_TIMEOUT.set(ssh,Duration.ofSeconds(20));
             CoreModuleProperties.IDLE_TIMEOUT.set(ssh,Duration.ofMinutes(5));
             CoreModuleProperties.MAX_AUTH_REQUESTS.set(ssh,3);

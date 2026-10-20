@@ -79,7 +79,7 @@ public class MainActivity extends BaseActivity {
 
     private final Runnable autoRefreshRunnable = new Runnable() {
         @Override public void run() {
-            if (isUiActive() && autoRefreshCheck != null && autoRefreshCheck.isChecked()) {
+            if (isUiActive() && autoRefreshCheck != null && autoRefreshCheck.isChecked() && clientEnabled()) {
                 checkServer(false);
                 handler.postDelayed(this, 15_000);
             }
@@ -95,6 +95,10 @@ public class MainActivity extends BaseActivity {
         liveSpeedPanel = new LiveSpeedPanel(findViewById(R.id.dashboardSpeedChart), findViewById(R.id.dashboardSpeedSummary));
         loadConfig();
         wireActions();
+        ((Switch)findViewById(R.id.showClientSwitch)).setOnCheckedChangeListener((v,checked)->{
+            getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putBoolean("show_client",checked).apply();renderRole();handler.removeCallbacks(autoRefreshRunnable);if(checked && autoRefreshCheck.isChecked())handler.post(autoRefreshRunnable);else if(!checked)cancelNetworkWork();
+        });
+        renderRole();
         drawerSections = new DrawerSections(this,
                 new int[]{R.id.drawerSettingsHeader, R.id.drawerWifiHeader,
                         R.id.drawerAppearanceHeader, R.id.drawerToolsHeader, R.id.drawerVpnHeader},
@@ -140,7 +144,15 @@ public class MainActivity extends BaseActivity {
         renderConnectionSummary();
     }
 
+    private boolean clientEnabled(){var p=getSharedPreferences(EmbeddedServerService.PREFS,0);return !p.getBoolean("server_role",false)||p.getBoolean("show_client",false);}
+    private void renderRole(){
+        var p=getSharedPreferences(EmbeddedServerService.PREFS,0);boolean server=p.getBoolean("server_role",false),show=p.getBoolean("show_client",false);
+        Switch toggle=findViewById(R.id.showClientSwitch);toggle.setVisibility(server?View.VISIBLE:View.GONE);
+        if(toggle.isChecked()!=show)toggle.setChecked(show);
+        findViewById(R.id.remoteConnectionCard).setVisibility(server&&!show?View.GONE:View.VISIBLE);
+    }
     private void refreshLocalServer() {
+        renderRole();
         TextView summary=findViewById(R.id.localServerSummary);
         summary.setText(EmbeddedServerService.status);
         StatusBadge.apply(summary,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
@@ -322,6 +334,11 @@ public class MainActivity extends BaseActivity {
 
         String mode = vpnModeButton.isChecked() ? ServerConfig.MODE_VPN : ServerConfig.MODE_LOCAL;
         SharedPreferences prefs = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE);
+        String oldHost=ConnectionSelector.selectedHost(this),newHost=vpnModeButton.isChecked()?vpnHost:localHost;
+        if(port==prefs.getInt(ServerConfig.KEY_PORT,ServerConfig.DEFAULT_PORT) && user.equals(prefs.getString(ServerConfig.KEY_USER,ServerConfig.DEFAULT_USER))){
+            try{if(SshKeys.moveRoute(this,oldHost,newHost,port,user))appendLog("Адрес изменён. Прежний ключ и fingerprint сервера сохранены.");}
+            catch(Exception e){Toast.makeText(this,"Не удалось сохранить доступ для нового адреса. Старое подключение сохранено.",Toast.LENGTH_LONG).show();return false;}
+        }
         prefs.edit()
                 .putString(ServerConfig.KEY_LOCAL_HOST, localHost)
                 .putString(ServerConfig.KEY_VPN_HOST, vpnHost)
@@ -539,7 +556,7 @@ public class MainActivity extends BaseActivity {
 
         // Сохраняем несекретные поля, чтобы файловый экран использовал тот же режим/адрес.
         if (!saveConfig()) return;
-        Intent intent = new Intent(this, FilesActivity.class);
+        Intent intent = new Intent(this, FilesActivity.class).putExtra("own_server",false);
         intent.putExtra(FileAttachments.PICK_ON_OPEN, pickAttachment);
         FileAttachments.put(intent, attachedFiles);
         try { startActivity(intent); }
@@ -700,7 +717,7 @@ public class MainActivity extends BaseActivity {
                 .setMessage("1. Установи Tailscale на серверное устройство, телефон и компьютер.\n\n"
                         + "2. Войди на устройствах в одну сеть Tailscale и включи их подключения.\n\n"
                         + "3. Укажи 100.x.x.x или MagicDNS-имя сервера в VPN-профиле; порт 8022 и логин остаются прежними. На ПК используй тот же адрес в SFTP-клиенте.\n\n"
-                        + "4. Дома локальный IP 192.168.1.82 остаётся доступен с обычным Tailscale без exit node. Для доступа из другой сети выбери профиль VPN / Tailscale.\n\n"
+                        + "4. Дома текущий локальный IP сервера остаётся доступен с обычным Tailscale без exit node. Для доступа из другой сети выбери профиль VPN / Tailscale.\n\n"
                         + "Если используешь exit node, включи Allow LAN access в настройках Tailscale на каждом устройстве.\n\n"
                         + "Тумблер управляет VPN этого телефона. Другие устройства подключаются в своих клиентах.")
                 .setPositiveButton("Понятно", null).show();

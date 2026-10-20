@@ -18,7 +18,7 @@ public class RoleNavigationTest {
             MainActivity a=controller.get();
             var local=a.getSharedPreferences(EmbeddedServerService.PREFS,Context.MODE_PRIVATE);
             local.edit().clear().putString("user","my-receiver").putInt("port",9000).putString("allowed_key","keep-public").commit();
-            ((EditText)a.findViewById(R.id.localHostInput)).setText("192.168.1.74");
+            ((EditText)a.findViewById(R.id.localHostInput)).setText("192.0.2.74");
             ((EditText)a.findViewById(R.id.vpnHostInput)).setText("");
             ((android.widget.RadioButton)a.findViewById(R.id.localModeButton)).setChecked(true);
             ((EditText)a.findViewById(R.id.userInput)).setText("localls");
@@ -27,7 +27,7 @@ public class RoleNavigationTest {
             Intent next=Shadows.shadowOf(a).getNextStartedActivity();
             assertEquals(SecurityActivity.class.getName(),next.getComponent().getClassName());
             var remote=a.getSharedPreferences(ServerConfig.PREFS,Context.MODE_PRIVATE);
-            assertEquals("192.168.1.74",remote.getString(ServerConfig.KEY_LOCAL_HOST,""));
+            assertEquals("192.0.2.74",remote.getString(ServerConfig.KEY_LOCAL_HOST,""));
             assertEquals("localls",remote.getString(ServerConfig.KEY_USER,""));
             assertEquals(9000,local.getInt("port",0));assertEquals("my-receiver",local.getString("user",""));
             assertEquals("keep-public",local.getString("allowed_key",""));

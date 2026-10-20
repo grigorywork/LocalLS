@@ -10,10 +10,14 @@ import java.io.*;
 /** Scoped-storage export; only newly inserted MediaStore entries may be deleted on failure. */
 final class LocalExportDestination implements LocalFileExporter.Destination {
     private final ContentResolver resolver;
-    private final String name,mime;
+    private final String name,mime,parent;
     private Uri uri;
     private final boolean downloads;
     LocalExportDestination(Context context,String name,String mime,Uri selected) {
+        this(context,name,mime,selected,"");
+    }
+    LocalExportDestination(Context context,String name,String mime,Uri selected,String parent) {
+        this.parent=TransferPaths.relative(parent);
         resolver=context.getApplicationContext().getContentResolver();this.name=name;this.mime=mime;
         uri=selected;downloads=selected==null;
     }
@@ -22,7 +26,7 @@ final class LocalExportDestination implements LocalFileExporter.Destination {
             if(Build.VERSION.SDK_INT<29)throw new UnsupportedOperationException();
             ContentValues values=new ContentValues();values.put(MediaStore.MediaColumns.DISPLAY_NAME,name);
             values.put(MediaStore.MediaColumns.MIME_TYPE,mime);
-            values.put(MediaStore.MediaColumns.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/LocalLS");
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/LocalLS"+(parent.isEmpty()?"":"/"+parent));
             values.put(MediaStore.MediaColumns.IS_PENDING,1);
             uri=resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);
             if(uri==null)throw new IOException("MediaStore insert failed");

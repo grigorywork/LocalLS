@@ -1,89 +1,138 @@
 package com.bitpoint.homeservercontrol;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.Service;
-import android.content.Context;
-import android.content.Intent;
-import android.os.Build;
-import android.os.IBinder;
+import android.app.*;
+import android.content.*;
+import android.net.Uri;
+import android.os.*;
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Keeps the app process in foreground priority while SFTP transfers are active.
- * The actual transfer remains in FilesActivity; this service only protects the
- * process from aggressive background killing on low-RAM phones.
- */
+/** The service owns the queue, streams and pinned sessions; closing an Activity never cancels work. */
 public class TransferForegroundService extends Service {
-    private static final String CHANNEL_ID = "file_transfers";
-    private static final int NOTIFICATION_ID = 2208;
-    private static final String ACTION_START = "com.bitpoint.homeservercontrol.transfer.START";
-
-    static void start(Context context) {
-        Intent intent = new Intent(context, TransferForegroundService.class).setAction(ACTION_START);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
-        } else {
-            context.startService(intent);
+    static final String UPLOAD="upload",DOWNLOAD="download",IMPORT="import",SAVE="save",CANCEL="cancel";
+    static final class State {
+        final boolean active,error;final String text,diagnostic;final long bytes,total;final int queued;
+        State(boolean a,boolean e,String t,String d,long b,long n,int q){active=a;error=e;text=t;diagnostic=d;bytes=b;total=n;queued=q;}
+    }
+    private static volatile Intent lastFailed;
+    static volatile State state=new State(false,false,"Передач пока нет","",0,0,0);
+    private final ExecutorService worker=Executors.newSingleThreadExecutor();
+    private final AtomicInteger queued=new AtomicInteger();
+    private volatile int generation,latestId;
+    private TransferPowerGuard power;
+    private long lastProgress;
+    private static final int NOTIFICATION=2208;
+    static void enqueue(Context c,String action,List<FileNodes.Node> sources,String remotePath,FileNodes.Node destination){
+        if(sources.isEmpty() || sources.size()>64)throw new IllegalArgumentException("Выбери от 1 до 64 элементов");
+        Intent i=new Intent(c,TransferForegroundService.class).setAction(action);
+        ArrayList<Bundle> nodes=new ArrayList<>();for(FileNodes.Node n:sources)nodes.add(n.bundle());i.putParcelableArrayListExtra("sources",nodes);
+        if(destination!=null)i.putExtra("destination",destination.bundle());i.putExtra("remote",remotePath);
+        SharedPreferences p=c.getSharedPreferences(ServerConfig.PREFS,0);String host=ConnectionSelector.hostForFiles(c);
+        i.putExtra("host",host).putExtra("port",p.getInt(ServerConfig.KEY_PORT,8022)).putExtra("user",p.getString(ServerConfig.KEY_USER,"localls"));
+        i.putExtra("pin",HostTrustStore.get(c,host,p.getInt(ServerConfig.KEY_PORT,8022)));
+        ArrayList<Uri> grants=new ArrayList<>();for(FileNodes.Node n:sources)if("doc".equals(n.kind))grants.add(Uri.parse(n.path));
+        if(!grants.isEmpty()){ClipData clip=ClipData.newRawUri("LocalLS files",grants.get(0));for(int n=1;n<grants.size();n++)clip.addItem(new ClipData.Item(grants.get(n)));i.setClipData(clip);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);}
+        if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);
+    }
+    static void retry(Context c){Intent previous=lastFailed;if(previous!=null){Intent i=new Intent(previous);if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);}}
+    static boolean canRetry(){return lastFailed!=null;}
+    static void stop(Context c){c.stopService(new Intent(c,TransferForegroundService.class));}
+    static void cancel(Context c){c.startService(new Intent(c,TransferForegroundService.class).setAction(CANCEL));}
+    @Override public void onCreate(){super.onCreate();power=new TransferPowerGuard(this);if(Build.VERSION.SDK_INT>=26)getSystemService(NotificationManager.class).createNotificationChannel(new NotificationChannel("file_transfers","Передача файлов",NotificationManager.IMPORTANCE_LOW));}
+    private Notification notification(String text){
+        PendingIntent open=PendingIntent.getActivity(this,60,new Intent(this,FilesActivity.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent cancel=PendingIntent.getService(this,61,new Intent(this,TransferForegroundService.class).setAction(CANCEL),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder b=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,"file_transfers"):new Notification.Builder(this);
+        return b.setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification).setContentTitle("LocalLS · передача файлов").setContentText(text).setContentIntent(open).setOngoing(true).addAction(0,"Отменить очередь",cancel).build();
+    }
+    @Override public int onStartCommand(Intent intent,int flags,int id){
+        latestId=id;
+        if(intent==null){stopSelf(id);return START_NOT_STICKY;}
+        if(CANCEL.equals(intent.getAction())){generation++;state=new State(queued.get()>0,true,"Останавливаем очередь…","",0,0,queued.get());if(queued.get()==0)stopSelf(id);return START_NOT_STICKY;}
+        try{startForeground(NOTIFICATION,notification("Подготовка файлов и папок…"));}catch(RuntimeException error){lastFailed=new Intent(intent);state=new State(false,true,"Android не разрешил запустить фоновую передачу. Открой LocalLS и повтори.",LocalExportFailure.report("FOREGROUND",error),0,0,0);stopSelf(id);return START_NOT_STICKY;}
+        int count=queued.incrementAndGet(),batch=generation;state=new State(true,false,"В очереди: "+count,"",0,0,count);
+        worker.execute(()->{
+            Object telemetry=new Object();
+            try{
+                if(batch!=generation)return;power.acquire();state=new State(true,false,"Подготовка передачи…","",0,0,queued.get());TransferSpeedStore.begin(telemetry);new Job(intent,batch,telemetry).run();
+                if(batch==generation){if(TransferSpeedStore.snapshot().peak>0)MetricHistoryStore.addSpeed(this,TransferSpeedStore.snapshot().peak);lastFailed=null;state=new State(false,false,"Готово. Файлы и папки скопированы.","",0,0,queued.get()-1);TransferLogStore.add(this,"Копирование файлов и папок","Готово");}
+            }catch(Exception | LinkageError error){
+                if(batch==generation){lastFailed=new Intent(intent);TransferLogStore.add(this,"Копирование файлов и папок","Ошибка. Можно повторить.");state=new State(false,true,"Передача не завершена. Исходники сохранены. Проверь сеть, папку и свободное место.",LocalExportFailure.report("TRANSFER",error),0,0,queued.get()-1);}
+            }finally{
+                TransferSpeedStore.end(telemetry,batch==generation?"Передача завершена":"Отменено");
+                if(queued.decrementAndGet()==0){power.release();new Handler(getMainLooper()).post(()->{if(queued.get()==0){if(batch!=generation)state=new State(false,false,"Очередь отменена. Завершённые файлы сохранены.","",0,0,0);stopSelf(latestId);}});}
+            }
+        });return START_NOT_STICKY;
+    }
+    private final class Job {
+        final Intent request;final int batch;final Object telemetry;long previousBytes,previousTime;double smoothedSpeed;int visited,completed;SftpClient.TreeSession remote;
+        Job(Intent i,int b,Object t){request=i;batch=b;telemetry=t;}
+        void check()throws IOException{if(batch!=generation || Thread.currentThread().isInterrupted())throw new InterruptedIOException();power.acquire();}
+        void visit(int depth)throws IOException{check();if(depth>48 || ++visited>10000)throw new IOException("Слишком большая папка: максимум 10000 элементов и 48 уровней");}
+        void progress(long bytes,long total){
+            long now=SystemClock.elapsedRealtime();
+            if(bytes<previousBytes){previousBytes=0;previousTime=now;}
+            if(previousTime>0 && now>previousTime){double sample=Math.max(0,bytes-previousBytes)*1000d/(now-previousTime);smoothedSpeed=smoothedSpeed==0?sample:smoothedSpeed*.7+sample*.3;TransferSpeedStore.record(telemetry,smoothedSpeed);}
+            previousBytes=bytes;previousTime=now;if(now-lastProgress<200 && bytes!=total)return;lastProgress=now;
+            String text="Скопировано файлов: "+completed+" · "+LocalFileExportService.format(bytes)+(total>0?" / "+LocalFileExportService.format(total):"");
+            state=new State(true,false,text,"",bytes,total,queued.get());getSystemService(NotificationManager.class).notify(NOTIFICATION,notification(text));
         }
+        boolean remoteProgress(long n,long total){try{check();progress(n,total);return true;}catch(IOException e){return false;}}
+        void run()throws Exception{
+            String action=request.getAction();ArrayList<Bundle> raw=request.getParcelableArrayListExtra("sources");if(raw==null)throw new IOException();
+            ArrayList<FileNodes.Node> sources=new ArrayList<>();for(Bundle b:raw)sources.add(FileNodes.Node.from(b));
+            if(UPLOAD.equals(action) || DOWNLOAD.equals(action)){
+                String host=request.getStringExtra("host"),user=request.getStringExtra("user");int port=request.getIntExtra("port",8022);
+                try(SftpClient.TreeSession session=new SftpClient.TreeSession(host,port,user,SshKeys.keyCredentials(TransferForegroundService.this,host,port,user),request.getStringExtra("pin"))){
+                    remote=session;
+                    for(FileNodes.Node node:sources){check();if(UPLOAD.equals(action))upload(node,request.getStringExtra("remote"),0);else download(node,destination(),0);}
+                }
+            }else for(FileNodes.Node node:sources){check();if(IMPORT.equals(action))importShare(node,shareDestination(),0);else if(SAVE.equals(action))save(node,destination(),0);else throw new IOException("Неизвестная операция");}
+        }
+        File shareDestination()throws IOException{
+            Bundle b=request.getBundleExtra("destination");File root=EmbeddedServerService.share(TransferForegroundService.this);root.mkdirs();
+            return b==null?root:SharedFolderAccess.within(root,new File(root,TransferPaths.relative(FileNodes.Node.from(b).path)));
+        }
+        FileNodes.Node destination(){Bundle b=request.getBundleExtra("destination");if(b!=null)return FileNodes.Node.from(b);String tree=ReceiveFolder.selected(TransferForegroundService.this);
+            return tree.isEmpty()?FileNodes.downloadsRoot():new FileNodes.Node("doc",DocumentFiles.root(Uri.parse(tree)).toString(),"Папка телефона",true,0);}
+        FileNodes.Node subfolder(FileNodes.Node parent,String name)throws Exception{
+            TransferPaths.name(name);
+            if("doc".equals(parent.kind)){Uri at=Uri.parse(parent.path);String unique=DocumentFiles.unique(TransferForegroundService.this,at,name);Uri made=DocumentFiles.create(TransferForegroundService.this,at,unique,DocumentFiles.DIRECTORY);return new FileNodes.Node("doc",made.toString(),unique,true,0);}
+            List<FileNodes.Node> found=FileNodes.children(TransferForegroundService.this,parent);Set<String> names=new HashSet<>();for(FileNodes.Node n:found)names.add(n.name);
+            String unique=name;for(int n=1;names.contains(unique);n++)unique=TransferPaths.duplicate(name,n);
+            return new FileNodes.Node("downloads",parent.path+unique+"/",unique,true,0);
+        }
+        LocalFileExporter.Destination output(FileNodes.Node parent,String name){
+            TransferPaths.name(name);
+            if("doc".equals(parent.kind))return new DocumentFiles.Destination(TransferForegroundService.this,Uri.parse(parent.path),name,true);
+            if(!"downloads".equals(parent.kind))throw new IllegalArgumentException("Выбери папку телефона");
+            return new LocalExportDestination(TransferForegroundService.this,name,"application/octet-stream",null,parent.path.endsWith("/")?parent.path.substring(0,parent.path.length()-1):parent.path);
+        }
+        void upload(FileNodes.Node source,String parent,int depth)throws Exception{
+            visit(depth);if(source.directory){String folder=remote.folder(parent,source.name);for(FileNodes.Node child:FileNodes.children(TransferForegroundService.this,source))upload(child,folder,depth+1);}
+            else{try(InputStream in=FileNodes.open(TransferForegroundService.this,source)){remote.write(parent,source.name,in,source.size,this::remoteProgress);}completed++;}
+        }
+        void download(FileNodes.Node source,FileNodes.Node parent,int depth)throws Exception{
+            visit(depth);if(source.directory){FileNodes.Node folder=subfolder(parent,source.name);for(RemoteEntry e:remote.list(source.path))download(new FileNodes.Node("remote",e.path,e.name,e.directory,e.size),folder,depth+1);}
+            else{LocalFileExporter.Destination target=output(parent,source.name);boolean done=false;
+                try{try(OutputStream out=target.open()){if(out==null)throw new IOException();remote.read(source.path,out,this::remoteProgress);check();}target.publish();done=true;completed++;}finally{if(!done)target.abort();}}
+        }
+        void importShare(FileNodes.Node source,File parent,int depth)throws Exception{
+            visit(depth);File target=FileNodes.uniqueShare(TransferForegroundService.this,parent,source.name);
+            if(source.directory){if(!target.mkdir())throw new IOException();for(FileNodes.Node n:FileNodes.children(TransferForegroundService.this,source))importShare(n,target,depth+1);}
+            else{File temp=File.createTempFile(".import-",".part",parent);boolean done=false;
+                try{try(InputStream in=FileNodes.open(TransferForegroundService.this,source);OutputStream out=new FileOutputStream(temp)){copy(in,out,source.size);}if(Build.VERSION.SDK_INT<26)throw new IOException("Android 8 required");java.nio.file.Files.move(temp.toPath(),target.toPath());done=true;completed++;}finally{if(!done)temp.delete();}}
+        }
+        void save(FileNodes.Node source,FileNodes.Node parent,int depth)throws Exception{
+            visit(depth);if(source.directory){FileNodes.Node folder=subfolder(parent,source.name);for(FileNodes.Node n:FileNodes.children(TransferForegroundService.this,source))save(n,folder,depth+1);}
+            else{LocalFileExporter.Destination target=output(parent,source.name);boolean done=false;
+                try{try(InputStream in=FileNodes.open(TransferForegroundService.this,source);OutputStream out=target.open()){if(out==null)throw new IOException();copy(in,out,source.size);}target.publish();done=true;completed++;}finally{if(!done)target.abort();}}
+        }
+        void copy(InputStream in,OutputStream out,long size)throws Exception{byte[] buffer=new byte[65536];long count=0;int n;while((n=in.read(buffer))!=-1){check();out.write(buffer,0,n);count+=n;progress(count,size);}if(size>0 && size!=count)throw new IOException("Исходный файл изменился");out.flush();}
     }
-
-    static void stop(Context context) {
-        context.stopService(new Intent(context, TransferForegroundService.class));
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        ensureChannel();
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        startForeground(NOTIFICATION_ID, buildNotification());
-        return START_NOT_STICKY;
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-
-    @Override
-    public void onTimeout(int startId, int fgsType) {
-        // Android 15+ limits dataSync foreground services to six hours per day.
-        stopSelf();
-    }
-
-    private Notification buildNotification() {
-        Intent open = new Intent(this, FilesActivity.class);
-        open.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, open, pendingFlags);
-
-        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? new Notification.Builder(this, CHANNEL_ID)
-                : new Notification.Builder(this);
-        return builder
-                .setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification)
-                .setContentTitle("LocalLS")
-                .setContentText("SFTP-передача файлов активна")
-                .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .setCategory(Notification.CATEGORY_PROGRESS)
-                .build();
-    }
-
-    private void ensureChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (manager == null) return;
-        NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                "Передача файлов",
-                NotificationManager.IMPORTANCE_LOW);
-        channel.setDescription("Показывает активную SFTP-передачу и помогает Android не останавливать её в фоне.");
-        manager.createNotificationChannel(channel);
-    }
+    @Override public IBinder onBind(Intent i){return null;}
+    @Override public void onTimeout(int id,int type){generation++;stopSelf();}
+    @Override public void onDestroy(){generation++;worker.shutdownNow();if(state.active)state=new State(false,true,"Передача остановлена Android. Завершённые файлы сохранены; повтори незавершённую передачу.","SERVICE_STOPPED",0,0,0);power.release();stopForeground(true);super.onDestroy();}
 }
