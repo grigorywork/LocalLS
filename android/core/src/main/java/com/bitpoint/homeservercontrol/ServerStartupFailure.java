@@ -8,6 +8,8 @@ final class ServerStartupFailure {
     static String report(String stage,Throwable error) {
         String code;
         switch(stage) {
+            case "TIMEOUT":code="START_TIMEOUT";break;
+            case "INPUT":code="INPUT";break;
             case "KEY":code="PUBLIC_KEY";break;
             case "IDENTITY":code="HOST_KEY";break;
             case "NETWORK":code="NETWORK";break;
@@ -26,6 +28,8 @@ final class ServerStartupFailure {
         Set<Throwable> seen=Collections.newSetFromMap(new IdentityHashMap<>());
         for(Throwable cause=error;cause!=null && seen.add(cause);cause=cause.getCause())
             if(cause instanceof java.net.BindException)return "Порт занят. Останови другой сервер или выбери другой порт.";
+        if("TIMEOUT".equals(stage))return "Запуск не завершился за 45 секунд. Скопируй диагностику запуска.";
+        if("INPUT".equals(stage))return "Проверь пользователя localls и порт 1024–65535.";
         if("KEY".equals(stage))return "Не удалось прочитать публичный ключ. Нужен RSA 3072+ или ECDSA P-256 (.pub).";
         if("IDENTITY".equals(stage))return "Не удалось открыть host key в Android Keystore. Ключ не заменён.";
         if("POWER".equals(stage))return "Android не разрешил поддержку сервера в фоне.";

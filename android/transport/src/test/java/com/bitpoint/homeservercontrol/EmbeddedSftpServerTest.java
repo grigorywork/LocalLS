@@ -171,6 +171,26 @@ public class EmbeddedSftpServerTest {
             assertArrayEquals(bytes,Files.readAllBytes(output));assertFalse(Files.exists(root.resolve("independent.bin")));
         }
     }
+    @Test public void ecdsaPublicKeyParsesAndAuthenticates() throws Exception {
+        JSch client=new JSch();
+        com.jcraft.jsch.KeyPair pair=com.jcraft.jsch.KeyPair.genKeyPair(client,com.jcraft.jsch.KeyPair.ECDSA,256);
+        ByteArrayOutputStream priv=new ByteArrayOutputStream(),pub=new ByteArrayOutputStream();
+        pair.writePrivateKey(priv);pair.writePublicKey(pub,"test");pair.dispose();
+        String text=pub.toString("UTF-8");
+        client.addIdentity("ec",priv.toByteArray(),null,null);
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(text),host,temp.newFolder().toPath());
+            Session session=client.getSession("localls","127.0.0.1",port);
+            session.setConfig("StrictHostKeyChecking","no");session.setConfig("PreferredAuthentications","publickey");
+            try {session.connect(5000);assertTrue(session.isConnected());} finally {session.disconnect();}
+        }
+    }
+    @Test public void wrappedPublicKeyIsNormalizedWithoutChangingIdentity() throws Exception {
+        String[] fields=clientPublic.trim().split("\\s+");
+        String wrapped=fields[0]+"\n"+fields[1].replaceAll("(.{64})","$1\n")+"\nLocalLS";
+        assertArrayEquals(EmbeddedSftpServer.authorizedKey(clientPublic).getEncoded(),EmbeddedSftpServer.authorizedKey(wrapped).getEncoded());
+        assertFalse(EmbeddedSftpServer.normalizeAuthorizedKey(wrapped).contains("\n"));
+    }
     @Test public void privateAndMalformedAndWeakPublicKeysAreRejected() throws Exception {
         for(String value:new String[]{new String(clientPrivate,"UTF-8"),"ssh-rsa invalid","ssh-ed25519 AAAA","",clientPublic+clientPublic}) {
             try{EmbeddedSftpServer.authorizedKey(value);fail("Invalid public key accepted");}catch(Exception expected){}

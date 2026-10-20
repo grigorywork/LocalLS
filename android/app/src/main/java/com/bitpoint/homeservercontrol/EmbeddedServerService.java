@@ -13,11 +13,15 @@ public class EmbeddedServerService extends Service {
     static volatile boolean running,starting;
     static volatile String status="Сервер выключен",fingerprint="";
     static volatile int boundPort;
+    static volatile long launchRequested;
+    static volatile String lastStage="IDLE";
     static volatile String diagnostic="";
     static void failure(String stage,Throwable error) {
+        lastStage=stage;
         diagnostic="LocalLS Android / SDK "+Build.VERSION.SDK_INT+"\n"+ServerStartupFailure.report(stage,error);
         status=ServerStartupFailure.hint(stage,error)+"\nКод: "+stage+" / "+error.getClass().getSimpleName();
     }
+    private final Handler startupWatchdog=new Handler(Looper.getMainLooper());
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private EmbeddedSftpServer server;
     private volatile boolean destroyed;
@@ -25,9 +29,12 @@ public class EmbeddedServerService extends Service {
     static File share(Context c) { return new File(c.getFilesDir(),"sftp-share"); }
     static void start(Context c) {
         Intent i=new Intent(c,EmbeddedServerService.class);
-        if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);
+        launchRequested=SystemClock.elapsedRealtime();lastStage="DISPATCH";status="Запрашиваем запуск службы…";
+        try {if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);}
+        catch(RuntimeException e) {launchRequested=0;failure("FOREGROUND",e);throw e;}
     }
     @Override public int onStartCommand(Intent intent,int flags,int id) {
+        launchRequested=0;lastStage="SERVICE_RECEIVED";
         if(intent!=null && STOP.equals(intent.getAction())) { stopSelf();return START_NOT_STICKY; }
         if(Build.VERSION.SDK_INT<26) { status="Встроенный сервер требует Android 8 или новее";stopSelf();return START_NOT_STICKY; }
         if(running || starting) return START_NOT_STICKY;
@@ -41,10 +48,13 @@ public class EmbeddedServerService extends Service {
                 .setContentText("Доступ по ключу к папке LocalLS. Нажми, чтобы открыть управление.")
                 .setContentIntent(open).setOngoing(true).addAction(0,"Остановить",stop).build());
         } catch(RuntimeException e) {failure("FOREGROUND",e);stopSelf();return START_NOT_STICKY;}
-        starting=true;diagnostic="";status="Запуск сервера…";
+        starting=true;diagnostic="";lastStage="SERVICE_STARTING";status="Запуск сервера…";
         SharedPreferences p=getSharedPreferences(PREFS,MODE_PRIVATE);
         final String publicKey=p.getString("allowed_key", ""), user=p.getString("user","localls");
         final int port=p.getInt("port",8022);
+        startupWatchdog.postDelayed(() -> {
+            if(!destroyed && starting && !running) {failure("TIMEOUT",new TimeoutException());stopSelf();}
+        },45000);
         worker.execute(() -> {
             String stage="KEY";
             try {
@@ -59,19 +69,18 @@ public class EmbeddedServerService extends Service {
                 fingerprint=EmbeddedSftpServer.fingerprint(identity);
                 stage="POWER";
                 PowerManager pm=getSystemService(PowerManager.class);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:EmbeddedSftp");wake.acquire(6*60*60*1000L);
-                running=true;
+                lastStage="RUNNING";running=true;
                 if(destroyed) { running=false;next.close();return; }
                 status="Сервер работает, порт "+boundPort+". Вход только по ключу; папка / — файлы LocalLS.";
             } catch(Exception | LinkageError e) {
-                running=false;failure(stage,e);
-                stopSelf();
-            } finally { starting=false; }
+                if(!destroyed) {running=false;failure(stage,e);stopSelf();}
+            } finally { if(!destroyed)starting=false; }
         });
         return START_NOT_STICKY;
     }
     @Override public void onTimeout(int id,int type) { status="Сервер остановлен: Android ограничил время фоновой службы. Запусти его снова.";stopSelf(); }
     @Override public void onDestroy() {
-        destroyed=true;running=false;starting=false;
+        destroyed=true;startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;
         if(status.startsWith("Сервер работает") || status.startsWith("Запуск"))status="Сервер выключен";
         worker.execute(() -> { try { if(server!=null)server.close(); } catch(Exception ignored) { }
             if(wake!=null && wake.isHeld())wake.release(); });

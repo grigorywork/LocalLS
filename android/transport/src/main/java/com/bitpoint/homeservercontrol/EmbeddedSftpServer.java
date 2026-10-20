@@ -23,16 +23,9 @@ import org.apache.sshd.sftp.server.SftpSubsystemProxy;
 final class EmbeddedSftpServer implements AutoCloseable {
     private SshServer server;
     static PublicKey authorizedKey(String text) throws Exception {
-        if(text==null || text.length()>16384) throw new IllegalArgumentException("Нужен один публичный SSH-ключ");
-        String line=text.trim();
-        if(line.contains("\n") || line.contains("\r") || !(line.startsWith("ssh-rsa ") || line.startsWith("ecdsa-sha2-nistp256 ")))
-            throw new IllegalArgumentException("Поддерживается один RSA 3072+ или ECDSA P-256 публичный ключ (.pub)");
-        AuthorizedKeyEntry entry=AuthorizedKeyEntry.parseAuthorizedKeyEntry(line);
-        PublicKey key=entry.resolvePublicKey(null,null);
-        if(key==null || ("RSA".equalsIgnoreCase(key.getAlgorithm()) && KeyUtils.getKeySize(key)<3072))
-            throw new IllegalArgumentException("RSA-ключ должен быть не менее 3072 бит");
-        return key;
+        return SshPublicKeyParser.parse(text).key;
     }
+    static String normalizeAuthorizedKey(String text) throws Exception { return SshPublicKeyParser.parse(text).normalized; }
     synchronized int start(String bind, int port, String user, PublicKey allowed, KeyPair hostKey, Path directory) throws Exception {
         if(server!=null) throw new IllegalStateException("Сервер уже работает");
         if(!ConnectionEndpoint.validUser(user) || port<0 || port>65535 || allowed==null || hostKey==null) throw new IllegalArgumentException("Неверные параметры сервера");

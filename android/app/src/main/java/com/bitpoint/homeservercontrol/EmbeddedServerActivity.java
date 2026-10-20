@@ -15,7 +15,8 @@ import java.util.concurrent.*;
 
 public class EmbeddedServerActivity extends BaseActivity {
     private EditText port,user,key;
-    private TextView state;
+    private TextView state,actionStatus;
+    private boolean checkingKey;
     private Button start;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
@@ -33,6 +34,7 @@ public class EmbeddedServerActivity extends BaseActivity {
         key=field(layout,"Публичный ключ клиента (.pub), не приватный",p.getString("allowed_key",""),false);key.setId(R.id.embeddedServerKey);
         text(layout,"На Windows можно создать ключ командой: ssh-keygen -t rsa -b 3072. Скопируй сюда содержимое файла id_rsa.pub. Поддерживается RSA 3072+ или ECDSA P-256. Пароль для входа отключён.",14);
         button(layout,"Загрузить публичный ключ из файла",() -> pick(910,"*/*",false));
+        actionStatus=text(layout,"",16);
         start=button(layout,"Включить сервер",() -> startServer());
         button(layout,"Остановить сервер",() -> stopService(new Intent(this,EmbeddedServerService.class)));
         button(layout,"Добавить файлы в папку сервера",() -> pick(911,"*/*",true));
@@ -45,7 +47,9 @@ public class EmbeddedServerActivity extends BaseActivity {
         button(layout,"Скопировать диагностику запуска",() -> {
             ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             String report=EmbeddedServerService.diagnostic;
-            if(report.isEmpty()) {message("Диагностики ошибки пока нет");return;}
+            if(report.isEmpty()) report="LocalLS / SDK "+Build.VERSION.SDK_INT+"\nЭтап: "+EmbeddedServerService.lastStage+
+                    "\nrunning="+EmbeddedServerService.running+"; starting="+EmbeddedServerService.starting+"; checkingKey="+checkingKey+
+                    "; serviceRequested="+(EmbeddedServerService.launchRequested!=0)+"\n"+EmbeddedServerService.status;
             clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS startup",report));message("Диагностика скопирована без ключей и паролей");
         });
         button(layout,"Старый режим через Termux",() -> startActivity(new Intent(this,ServerSetupActivity.class)));
@@ -64,21 +68,21 @@ public class EmbeddedServerActivity extends BaseActivity {
         catch(Exception e) {message("Не удалось открыть выбор файлов Android");}
     }
     private void startServer() {
-        if(EmbeddedServerService.running || EmbeddedServerService.starting)return;
+        if(checkingKey || EmbeddedServerService.running || EmbeddedServerService.starting || EmbeddedServerService.launchRequested!=0)return;
         final int parsed;final String name=user.getText().toString().trim(),pub=key.getText().toString().trim();
         try { parsed=Integer.parseInt(port.getText().toString());if(parsed<1024 || parsed>65535)throw new Exception(); }
-        catch(Exception e) {port.setError("Укажи порт от 1024 до 65535");return;}
-        if(!ConnectionEndpoint.validUser(name)) {user.setError("Неверное имя SSH-пользователя");return;}
-        start.setEnabled(false);
+        catch(Exception e) {port.setError("Укажи порт от 1024 до 65535");EmbeddedServerService.failure("INPUT",e);render();message(EmbeddedServerService.status);return;}
+        if(!ConnectionEndpoint.validUser(name)) {user.setError("Неверное имя SSH-пользователя");EmbeddedServerService.failure("INPUT",new IllegalArgumentException());render();message(EmbeddedServerService.status);return;}
+        checkingKey=true;EmbeddedServerService.lastStage="UI_PUBLIC_KEY";EmbeddedServerService.status="Проверка публичного ключа…";render();
         worker.execute(() -> {
-            try {EmbeddedSftpServer.authorizedKey(pub);
-                getSharedPreferences(EmbeddedServerService.PREFS,MODE_PRIVATE).edit().putString("user",name).putInt("port",parsed).putString("allowed_key",pub).apply();
-                ui.post(() -> {if(closed)return;try {
+            try {String normalized=EmbeddedSftpServer.normalizeAuthorizedKey(pub);
+                getSharedPreferences(EmbeddedServerService.PREFS,MODE_PRIVATE).edit().putString("user",name).putInt("port",parsed).putString("allowed_key",normalized).apply();
+                ui.post(() -> {if(closed)return;checkingKey=false;key.setText(normalized);try {
+                    EmbeddedServerService.start(this);
                     if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)
                         requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},912);
-                    EmbeddedServerService.start(this);
-                } catch(Exception e) {message("Android запретил запуск службы. Открой приложение и повтори.");} });
-            } catch(Exception | LinkageError e) {ui.post(() -> {if(!closed){key.setError("Нужен публичный RSA 3072+ или ECDSA P-256 ключ; приватный ключ вставлять нельзя");start.setEnabled(true);}});}
+                } catch(Exception e) {EmbeddedServerService.failure("FOREGROUND",e);render();message(EmbeddedServerService.status);} });
+            } catch(Exception | LinkageError e) {ui.post(() -> {if(!closed){checkingKey=false;EmbeddedServerService.failure("KEY",e);key.setError("Нужен публичный RSA 3072+ или ECDSA P-256 ключ");render();message(EmbeddedServerService.status);}});}
         });
     }
     private String connectionText() {
@@ -95,9 +99,13 @@ public class EmbeddedServerActivity extends BaseActivity {
     }
     private void render() {
         if(Build.VERSION.SDK_INT<26)return;
+        if(EmbeddedServerService.launchRequested!=0 && android.os.SystemClock.elapsedRealtime()-EmbeddedServerService.launchRequested>10000 && !EmbeddedServerService.starting && !EmbeddedServerService.running) {
+            EmbeddedServerService.launchRequested=0;EmbeddedServerService.failure("FOREGROUND",new java.util.concurrent.TimeoutException());
+        }
+        actionStatus.setText(EmbeddedServerService.status);
         state.setText(EmbeddedServerService.status+(EmbeddedServerService.running?"\n"+connectionText():""));
-        start.setEnabled(!EmbeddedServerService.running && !EmbeddedServerService.starting);
-        boolean editable=!EmbeddedServerService.running && !EmbeddedServerService.starting;
+        start.setEnabled(!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting);
+        boolean editable=!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting;
         key.setEnabled(editable);port.setEnabled(editable);user.setEnabled(editable);
     }
     private void message(String value) {if(!closed)Toast.makeText(this,value,Toast.LENGTH_LONG).show();}
