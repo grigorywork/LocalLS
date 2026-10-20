@@ -42,6 +42,12 @@ public class EmbeddedServerActivity extends BaseActivity {
             ClipboardManager c=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             c.setPrimaryClip(ClipData.newPlainText("LocalLS SFTP",connectionText()));message("Адреса и fingerprint скопированы");
         });
+        button(layout,"Скопировать диагностику запуска",() -> {
+            ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            String report=EmbeddedServerService.diagnostic;
+            if(report.isEmpty()) {message("Диагностики ошибки пока нет");return;}
+            clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS startup",report));message("Диагностика скопирована без ключей и паролей");
+        });
         button(layout,"Старый режим через Termux",() -> startActivity(new Intent(this,ServerSetupActivity.class)));
         text(layout,"Служба показывает постоянное уведомление. Android может ограничить её работу в фоне (включая лимит dataSync до 6 часов). Автозапуск после перезагрузки выключен. Подключайся с ПК по Wi-Fi/VPN; сервер слушает сетевые интерфейсы телефона. Сверь fingerprint перед первым входом.",14);
         button(layout,"Назад",() -> finish());

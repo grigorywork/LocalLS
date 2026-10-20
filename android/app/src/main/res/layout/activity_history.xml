@@ -9,9 +9,9 @@
 
         <com.bitpoint.homeservercontrol.ActionGridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
 
-            <Button android:id="@+id/historyBackButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/ui_diagnosticsbackbutton_text_f6dab0" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" />
+            <com.bitpoint.homeservercontrol.CenteredActionButton android:id="@+id/historyBackButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/ui_diagnosticsbackbutton_text_f6dab0" android:layout_marginStart="3dp" android:layout_marginEnd="3dp" />
 
-            <Button android:id="@+id/historyClearButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="3dp" android:layout_weight="1" android:text="@string/ui_historyclearbutton_text_98b207" android:layout_marginEnd="3dp" />
+            <com.bitpoint.homeservercontrol.CenteredActionButton android:id="@+id/historyClearButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="3dp" android:layout_weight="1" android:text="@string/ui_historyclearbutton_text_98b207" android:layout_marginEnd="3dp" />
         </com.bitpoint.homeservercontrol.ActionGridLayout>
 
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/ui_activity_history_text_a1c56f" android:textColor="?attr/hscTextPrimary" android:textSize="@dimen/text_title" android:textStyle="bold" />

@@ -79,7 +79,7 @@ public class CompactMenuInstrumentedTest {
         assertEquals("", WifiSetupController.validationError("home", "", true));
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             scenario.onActivity(activity -> {
-                activity.findViewById(R.id.advancedToggleButton).performClick();
+                activity.findViewById(R.id.settingsButton).performClick();
                 activity.findViewById(R.id.drawerWifiHeader).performClick();
                 EditText name=activity.findViewById(R.id.wifiSsidInput), password=activity.findViewById(R.id.wifiPasswordInput);
                 name.setText("home"); password.setText("short");

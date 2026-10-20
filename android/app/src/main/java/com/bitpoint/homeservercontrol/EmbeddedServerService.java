@@ -13,6 +13,11 @@ public class EmbeddedServerService extends Service {
     static volatile boolean running,starting;
     static volatile String status="Сервер выключен",fingerprint="";
     static volatile int boundPort;
+    static volatile String diagnostic="";
+    static void failure(String stage,Throwable error) {
+        diagnostic="LocalLS Android / SDK "+Build.VERSION.SDK_INT+"\n"+ServerStartupFailure.report(stage,error);
+        status=ServerStartupFailure.hint(stage,error)+"\nКод: "+stage+" / "+error.getClass().getSimpleName();
+    }
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private EmbeddedSftpServer server;
     private volatile boolean destroyed;
@@ -26,6 +31,7 @@ public class EmbeddedServerService extends Service {
         if(intent!=null && STOP.equals(intent.getAction())) { stopSelf();return START_NOT_STICKY; }
         if(Build.VERSION.SDK_INT<26) { status="Встроенный сервер требует Android 8 или новее";stopSelf();return START_NOT_STICKY; }
         if(running || starting) return START_NOT_STICKY;
+        try {
         NotificationManager manager=getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel("embedded_sftp","Файловый сервер LocalLS",NotificationManager.IMPORTANCE_LOW));
         PendingIntent open=PendingIntent.getActivity(this,81,new Intent(this,EmbeddedServerActivity.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
@@ -34,28 +40,30 @@ public class EmbeddedServerService extends Service {
                 .setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification).setContentTitle("SFTP-сервер LocalLS")
                 .setContentText("Доступ по ключу к папке LocalLS. Нажми, чтобы открыть управление.")
                 .setContentIntent(open).setOngoing(true).addAction(0,"Остановить",stop).build());
-        starting=true;status="Запуск сервера…";
+        } catch(RuntimeException e) {failure("FOREGROUND",e);stopSelf();return START_NOT_STICKY;}
+        starting=true;diagnostic="";status="Запуск сервера…";
         SharedPreferences p=getSharedPreferences(PREFS,MODE_PRIVATE);
         final String publicKey=p.getString("allowed_key", ""), user=p.getString("user","localls");
         final int port=p.getInt("port",8022);
         worker.execute(() -> {
+            String stage="KEY";
             try {
                 java.security.PublicKey allowed=EmbeddedSftpServer.authorizedKey(publicKey);
+                stage="IDENTITY";
                 KeyPair identity=EmbeddedServerIdentity.loadOrCreate(this);
                 if(destroyed)return;
+                stage="NETWORK";
                 EmbeddedSftpServer next=new EmbeddedSftpServer();
                 boundPort=next.start("0.0.0.0",port,user,allowed,identity,share(this).toPath());server=next;
                 if(destroyed) { next.close();return; }
                 fingerprint=EmbeddedSftpServer.fingerprint(identity);
+                stage="POWER";
                 PowerManager pm=getSystemService(PowerManager.class);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:EmbeddedSftp");wake.acquire(6*60*60*1000L);
                 running=true;
                 if(destroyed) { running=false;next.close();return; }
                 status="Сервер работает, порт "+boundPort+". Вход только по ключу; папка / — файлы LocalLS.";
             } catch(Exception | LinkageError e) {
-                running=false;boolean busy=false;Throwable cause=e;
-                while(cause!=null) { if(cause instanceof java.net.BindException)busy=true;cause=cause.getCause(); }
-                status=busy ? "Порт занят. Останови другой сервер или выбери другой порт в LocalLS." :
-                        "Не удалось запустить сервер. Проверь ключ, свободный порт и разрешения Android.";
+                running=false;failure(stage,e);
                 stopSelf();
             } finally { starting=false; }
         });

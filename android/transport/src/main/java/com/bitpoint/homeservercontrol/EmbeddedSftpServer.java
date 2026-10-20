@@ -37,6 +37,10 @@ final class EmbeddedSftpServer implements AutoCloseable {
         if(server!=null) throw new IllegalStateException("Сервер уже работает");
         if(!ConnectionEndpoint.validUser(user) || port<0 || port>65535 || allowed==null || hostKey==null) throw new IllegalArgumentException("Неверные параметры сервера");
         Files.createDirectories(directory); Path root=directory.toRealPath();
+        // Android has no desktop user.name/user.home. Configure SSHD before ServerBuilder's
+        // default authorized_keys authenticator is initialized (even though ours replaces it).
+        org.apache.sshd.common.util.OsUtils.setCurrentUser(user);
+        org.apache.sshd.common.util.io.PathUtils.setUserHomeFolderResolver(() -> root);
         SshServer ssh=SshServer.setUpDefaultServer();
         try {
             ssh.setHost(bind);ssh.setPort(port);

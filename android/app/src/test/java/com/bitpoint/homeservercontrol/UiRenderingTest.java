@@ -176,6 +176,25 @@ public class UiRenderingTest {
         }
     }
 
+    @Test public void serverActionTilesAreCenteredAtEveryFontSize() throws Exception {
+        Context app=RuntimeEnvironment.getApplication();ThemeCatalog.select(app,0);
+        for(float scale:new float[]{1f,1.5f,2f}) {
+            Configuration config=new Configuration(app.getResources().getConfiguration());config.fontScale=scale;
+            Context context=new ContextThemeWrapper(app.createConfigurationContext(config),ThemeCatalog.style(app));
+            View root=LayoutInflater.from(context).inflate(R.layout.activity_main,null);
+            assertEquals(View.GONE,root.findViewById(R.id.advancedToggleButton).getVisibility());
+            View panel=root.findViewById(R.id.serverManagementPanel);((ViewGroup)panel.getParent()).removeView(panel);panel.setVisibility(View.VISIBLE);
+            ScrollView scroll=new ScrollView(context);scroll.addView(panel);IconButtons.decorate(panel);
+            scroll.measure(View.MeasureSpec.makeMeasureSpec(360,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(640,View.MeasureSpec.EXACTLY));
+            scroll.layout(0,0,360,640);checkCaptions(panel,scale);
+            Bitmap bitmap=Bitmap.createBitmap(360,panel.getHeight(),Bitmap.Config.ARGB_8888);
+            Canvas canvas=new Canvas(bitmap);canvas.drawColor(ThemeCatalog.color(context,com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));panel.draw(canvas);
+            File directory=new File("build/ui-previews");directory.mkdirs();
+            try(FileOutputStream stream=new FileOutputStream(new File(directory,"server-actions-font-"+scale+".png"))) {assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,stream));}
+            bitmap.recycle();
+        }
+    }
+
     private void checkDrawerText(View view, float scale) {
         if (view.getVisibility() == View.GONE) return;
         if (view instanceof Button) {
@@ -195,10 +214,18 @@ public class UiRenderingTest {
 
     private void checkCaptions(View view, float scale) {
         if (view.getVisibility() == View.GONE) return;
-        if (view instanceof Button && ((Button) view).getCompoundDrawables()[1] != null) {
+        if (view instanceof Button && (((Button) view).getCompoundDrawables()[1] != null
+                || (view instanceof CenteredActionButton && ((CenteredActionButton)view).hasTileIcon()))) {
             Button button = (Button) view;
             android.text.Layout layout = button.getLayout();
             assertNotNull(button.getText().toString(), layout);
+            if(button instanceof CenteredActionButton) {
+                android.graphics.RectF content=((CenteredActionButton)button).contentBounds();
+                assertEquals(button.getText()+" vertical center",button.getHeight()/2f,content.centerY(),0.6f);
+                assertEquals(button.getText()+" horizontal center",button.getWidth()/2f,content.centerX(),0.6f);
+                assertTrue(button.getText()+" content top",content.top>=button.getPaddingTop()-1);
+                assertTrue(button.getText()+" content bottom",content.bottom<=button.getHeight()-button.getPaddingBottom()+1);
+            }
             assertTrue(button.getText() + " at fontScale=" + scale, layout.getLineCount() <= 2);
             assertEquals(button.getText().toString(), button.getText().length(), layout.getLineEnd(layout.getLineCount()-1));
             assertTrue(button.getText().toString(), layout.getHeight() <= button.getHeight()

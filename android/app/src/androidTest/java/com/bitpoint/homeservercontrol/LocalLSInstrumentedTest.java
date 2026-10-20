@@ -47,7 +47,7 @@ public class LocalLSInstrumentedTest {
                 assertEquals(View.GONE, activity.findViewById(R.id.drawerScrim).getVisibility());
             });
             screenshot("localls-main.png");
-            scenario.onActivity(activity -> activity.findViewById(R.id.advancedToggleButton).performClick());
+            scenario.onActivity(activity -> activity.findViewById(R.id.settingsButton).performClick());
             java.util.concurrent.atomic.AtomicBoolean opened = new java.util.concurrent.atomic.AtomicBoolean();
             long deadline = System.currentTimeMillis() + 10000;
             while (!opened.get() && System.currentTimeMillis() < deadline) {

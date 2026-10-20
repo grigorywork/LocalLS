@@ -43,9 +43,9 @@ public class RuntimeInstrumentedTest {
                 assertTrue(activity.findViewById(R.id.filesButton).isShown());
                 assertTrue(activity.findViewById(R.id.dashboardSpeedChart).isShown());
                 assertTrue(activity.findViewById(R.id.dashboardLatencyChart).isShown());
-                activity.findViewById(R.id.advancedToggleButton).performClick();
+                activity.findViewById(R.id.settingsButton).performClick();
                 assertEquals(android.view.View.VISIBLE, activity.findViewById(R.id.advancedPanel).getVisibility());
-                activity.findViewById(R.id.advancedToggleButton).performClick();
+                activity.findViewById(R.id.settingsButton).performClick();
                 assertEquals(android.view.View.GONE, activity.findViewById(R.id.advancedPanel).getVisibility());
                 ((EditText) activity.findViewById(R.id.localHostInput)).setText("192.168.1.82");
                 ((EditText) activity.findViewById(R.id.portInput)).setText("8022");

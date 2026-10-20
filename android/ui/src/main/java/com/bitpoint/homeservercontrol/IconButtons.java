@@ -45,7 +45,8 @@ final class IconButtons {
             arrow.setTint(context.getColor(R.color.button_text));
             int arrowSize = Math.round(16*density);arrow.setBounds(0,0,arrowSize,arrowSize);
         }
-        if (tile) button.setCompoundDrawables(null,icon,null,null);
+        if (tile && button instanceof CenteredActionButton) ((CenteredActionButton) button).setTileIcon(icon);
+        else if (tile) button.setCompoundDrawables(null,icon,null,null);
         else button.setCompoundDrawablesRelative(icon,null,arrow,null);
         button.setCompoundDrawablePadding(Math.round((tile?4:8)*density));
         button.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,

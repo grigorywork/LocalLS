@@ -15,7 +15,7 @@ public class ServerMenuInstrumentedTest {
             scenario.onActivity(activity -> {
                 for (int id : new int[]{R.id.checkButton, R.id.filesButton, R.id.attachFilesButton,
                         R.id.networkButton, R.id.settingsButton, R.id.historyButton,
-                        R.id.diagnosticsButton, R.id.advancedToggleButton}) {
+                        R.id.diagnosticsButton, R.id.settingsButton}) {
                     Button button = activity.findViewById(id);
                     assertNotNull(button.getCompoundDrawables()[1]);
                     assertTrue(button.getTextSize() <= 11 * activity.getResources().getDisplayMetrics().scaledDensity);
@@ -23,7 +23,7 @@ public class ServerMenuInstrumentedTest {
                 }
                 assertEquals(View.GONE, activity.findViewById(R.id.serverManagementPanel).getVisibility());
                 assertFalse(activity.findViewById(R.id.agentStartButton).isShown());
-                activity.findViewById(R.id.advancedToggleButton).performClick();
+                activity.findViewById(R.id.settingsButton).performClick();
                 activity.findViewById(R.id.serverSetupButton).performClick();
             });
             scenario.onActivity(activity -> {
