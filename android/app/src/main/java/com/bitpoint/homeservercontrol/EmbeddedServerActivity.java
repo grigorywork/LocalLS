@@ -123,6 +123,9 @@ public class EmbeddedServerActivity extends BaseActivity {
             EmbeddedServerService.launchRequested=0;EmbeddedServerService.failure("FOREGROUND",new java.util.concurrent.TimeoutException());
         }
         state.setText(EmbeddedServerService.status);
+        StatusBadge.apply(state,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
+            checkingKey || EmbeddedServerService.starting || EmbeddedServerService.launchRequested!=0?StatusBadge.Tone.WARNING:
+            EmbeddedServerService.diagnostic.isEmpty()?StatusBadge.Tone.NEUTRAL:StatusBadge.Tone.ERROR);
         address.setText(connectionText());
         start.setEnabled(!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting);
         boolean editable=!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting;

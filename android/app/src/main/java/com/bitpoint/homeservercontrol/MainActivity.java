@@ -112,6 +112,7 @@ public class MainActivity extends BaseActivity {
             if (restored != null) for (Uri uri : restored) FileAttachments.add(attachedFiles, uri);
         }
         renderAttachmentEntry();
+        StatusBadge.apply(statusText,StatusBadge.Tone.WARNING);
         if(activeHost().isEmpty()) {
             findViewById(R.id.drawerConnectionPane).setVisibility(View.VISIBLE);
             statusText.setText("НЕ НАСТРОЕНО");statusDetail.setText("Укажи адрес другого устройства в разделе «Адрес и ключ».");
@@ -142,6 +143,9 @@ public class MainActivity extends BaseActivity {
     private void refreshLocalServer() {
         TextView summary=findViewById(R.id.localServerSummary);
         summary.setText(EmbeddedServerService.status);
+        StatusBadge.apply(summary,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
+            EmbeddedServerService.starting || EmbeddedServerService.launchRequested!=0?StatusBadge.Tone.WARNING:
+            EmbeddedServerService.diagnostic.isEmpty()?StatusBadge.Tone.NEUTRAL:StatusBadge.Tone.ERROR);
     }
 
     private int configSignature() {
@@ -157,6 +161,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private void invalidateConnectionStats() {
+        StatusBadge.apply(statusText,StatusBadge.Tone.WARNING);
         statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_ab27bd0a2936);
         statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
         statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a7e8f235c5f7);
@@ -362,6 +367,7 @@ public class MainActivity extends BaseActivity {
         }
 
         checking = true;
+        StatusBadge.apply(statusText,StatusBadge.Tone.WARNING);
         checkButton.setEnabled(false);
         statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_32dfa9c36e2b);
         statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
@@ -452,6 +458,8 @@ public class MainActivity extends BaseActivity {
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         }
+        StatusBadge.apply(statusText,stats.authenticated && stats.hostKeyTrusted?StatusBadge.Tone.SUCCESS:
+            stats.hostKeyMismatch || !stats.reachable?StatusBadge.Tone.ERROR:StatusBadge.Tone.WARNING);
     }
 
     private void trustLastFingerprint() {

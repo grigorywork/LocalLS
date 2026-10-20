@@ -65,6 +65,9 @@ public class UiRenderingTest {
                 Context context = new ContextThemeWrapper(app.createConfigurationContext(config), ThemeCatalog.style(app));
                 View root = LayoutInflater.from(context).inflate(R.layout.activity_main, null);
                 IconButtons.decorate(root);
+                ((android.widget.TextView)root.findViewById(R.id.localServerSummary)).setText("Сервер работает · доступ разрешён");
+                StatusBadge.apply(root.findViewById(R.id.localServerSummary),StatusBadge.Tone.SUCCESS);
+                StatusBadge.apply(root.findViewById(R.id.statusText),StatusBadge.Tone.WARNING);
                 root.measure(View.MeasureSpec.makeMeasureSpec(360, View.MeasureSpec.EXACTLY),
                         View.MeasureSpec.makeMeasureSpec(640, View.MeasureSpec.EXACTLY));
                 root.layout(0, 0, 360, 640);

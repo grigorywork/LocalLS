@@ -24,6 +24,7 @@
         <activity android:name=".ProfileTransferActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".EmbeddedFilesActivity" android:exported="false" />
         <activity android:name=".EmbeddedServerActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <service android:name=".LocalFileExportService" android:exported="false" android:foregroundServiceType="dataSync" />
         <service android:name=".EmbeddedServerService" android:exported="false" android:foregroundServiceType="dataSync" />
         <activity android:name=".FilesActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ServerSetupActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
