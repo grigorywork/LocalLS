@@ -40,7 +40,6 @@ public class FilesActivity extends BaseActivity {
     private static final int REQ_UPLOAD = 501;
     private static final int REQ_DOWNLOAD = 502;
     private static final int REQ_DOWNLOAD_FOLDER = 503;
-    private static final String KEY_LAST_REMOTE_PATH = "last_remote_path";
     private static final int MAX_TRANSFER_ATTEMPTS = 2;
     private static final long RETRY_DELAY_MS = 1500L;
 
@@ -73,6 +72,7 @@ public class FilesActivity extends BaseActivity {
     private final java.util.LinkedHashMap<String, RemoteEntry> selectedDownloads = new java.util.LinkedHashMap<>();
     private ArrayList<RemoteEntry> pendingBatchDownload;
     private boolean selectingDownloads;
+    private final DirectoryRequestState directoryState = new DirectoryRequestState();
 
 
     @Override
@@ -107,24 +107,8 @@ public class FilesActivity extends BaseActivity {
         }
         renderDownloadSelection();
         renderAttachments();
-        if (TextUtils.isEmpty(password) && getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE)
-                .getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)) {
-            emptyText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_92883d7c1281);
-            SecretWorker.execute(() -> {
-                final String saved = SecurePrefs.loadPassword(this);
-                runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
-                    password = saved;
-                    finishConnectionOpen(savedInstanceState == null);
-                });
-            });
-        } else finishConnectionOpen(savedInstanceState == null);
-    }
-
-    private void finishConnectionOpen(boolean firstOpen) {
-        if (!SshKeys.keyMode(this) && TextUtils.isEmpty(password)) promptPassword(); else refresh();
-        if (firstOpen && getIntent().getBooleanExtra(FileAttachments.PICK_ON_OPEN, false)
-                && (SshKeys.keyMode(this) || !TextUtils.isEmpty(password))) chooseUploads();
+        refresh();
+        if (savedInstanceState == null && getIntent().getBooleanExtra(FileAttachments.PICK_ON_OPEN, false)) chooseUploads();
     }
 
     private void bindViews() {
@@ -164,13 +148,36 @@ public class FilesActivity extends BaseActivity {
         host = ConnectionSelector.hostForFiles(this);
         port = prefs.getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT);
         user = prefs.getString(ServerConfig.KEY_USER, ServerConfig.DEFAULT_USER);
-        password = SessionPassword.take();
+        password = "";
 
         fingerprint = HostTrustStore.get(this, host, port);
-        currentPath = prefs.getString(KEY_LAST_REMOTE_PATH, ServerConfig.DEFAULT_REMOTE_PATH);
+        currentPath = places().last();
+    }
+
+    private RemotePlaces places() { return new RemotePlaces(getSharedPreferences(ServerConfig.PREFS,MODE_PRIVATE),host,port,user); }
+    private void showPlaces() {
+        final String menuHost=host;
+        final RemotePlaces bookmarks=places();
+        ArrayList<String> paths=bookmarks.favorites();
+        ArrayList<String> choices=new ArrayList<>(); choices.add("Добавить текущую папку"); choices.add("Удалить из избранного"); choices.addAll(paths);
+        new AlertDialog.Builder(this).setTitle("Избранные папки этого сервера")
+                .setItems(choices.toArray(new String[0]),(d,index) -> {
+                    if(!menuHost.equals(host)) { Toast.makeText(this,"Сервер изменился. Открой избранное заново.",Toast.LENGTH_SHORT).show();return; }
+                    if(index==0) {
+                        if(!directoryState.isReady()) { Toast.makeText(this,"Сначала открой папку",Toast.LENGTH_SHORT).show();return; }
+                        try { places().add(currentPath);Toast.makeText(this,"Папка в избранном",Toast.LENGTH_SHORT).show(); }
+                        catch(IllegalArgumentException e) { Toast.makeText(this,e.getMessage(),Toast.LENGTH_SHORT).show(); }
+                    } else if(index==1) {
+                        if(paths.isEmpty()) { Toast.makeText(this,"Избранных папок пока нет",Toast.LENGTH_SHORT).show();return; }
+                        new AlertDialog.Builder(this).setTitle("Удалить закладку")
+                                .setItems(paths.toArray(new String[0]),(dialog,selected) -> bookmarks.remove(paths.get(selected))).show();
+                    } else { currentPath=paths.get(index-2);refresh(); }
+                }).show();
     }
 
     private void wireActions() {
+        findViewById(R.id.filesHomeButton).setOnClickListener(v -> { currentPath=".";refresh(); });
+        findViewById(R.id.filesFavoritesButton).setOnClickListener(v -> showPlaces());
         findViewById(R.id.filesMinimizeButton).setOnClickListener(v -> minimizeToTray());
         findViewById(R.id.filesBackButton).setOnClickListener(v -> finish());
         findViewById(R.id.filesRefreshButton).setOnClickListener(v -> refresh());
@@ -220,26 +227,11 @@ public class FilesActivity extends BaseActivity {
         });
     }
 
-    private void promptPassword() {
-        EditText input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        input.setSaveEnabled(false);
-        input.setHint("Пароль SSH");
-        new AlertDialog.Builder(this)
-                .setTitle("Пароль сервера")
-                .setMessage("Пароль нужен только для этой сессии и не будет сохранён.")
-                .setView(input)
-                .setCancelable(false)
-                .setNegativeButton("Назад", (d, w) -> finish())
-                .setPositiveButton("Подключиться", (d, w) -> {
-                    password = input.getText().toString();
-                    refresh();
-                })
-                .show();
-    }
-
     private void refresh() {
         if (closing || !validConnection()) return;
+        final long request = directoryState.begin();
+        entries.clear();
+        rebuildLabels();
         pathText.setText(currentPath);
         emptyText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7b1582cf5ffe);
         findViewById(R.id.filesRefreshButton).setEnabled(false);
@@ -248,12 +240,13 @@ public class FilesActivity extends BaseActivity {
             try {
                 String usedHost = host;
                 String usedFingerprint = fingerprint;
-                List<RemoteEntry> loaded;
+                SftpClient.DirectoryListing loaded;
                 try {
-                    loaded = SftpClient.list(this, usedHost, port, user, password, usedFingerprint, path);
+                    loaded = SftpClient.browse(usedHost, port, user, SshKeys.credentials(this, usedHost, port, user, password), usedFingerprint, path);
                 } catch (Exception primaryError) {
                     String alternate = ConnectionSelector.alternateHost(this);
-                    boolean canFallback = ConnectionSelector.autoFallback(this)
+                    boolean canFallback = !SftpClient.isDirectoryError(primaryError)
+                            && ConnectionSelector.autoFallback(this)
                             && queuedTransfers.get() == 0
                             && !TextUtils.isEmpty(alternate)
                             && !alternate.equals(usedHost);
@@ -261,7 +254,7 @@ public class FilesActivity extends BaseActivity {
 
                     String alternateFingerprint = HostTrustStore.get(this, alternate, port);
                     try {
-                        loaded = SftpClient.list(this, alternate, port, user, password, alternateFingerprint, path);
+                        loaded = SftpClient.browse(alternate, port, user, SshKeys.credentials(this, alternate, port, user, password), alternateFingerprint, path);
                         usedHost = alternate;
                         usedFingerprint = alternateFingerprint;
                     } catch (Exception alternateError) {
@@ -270,29 +263,32 @@ public class FilesActivity extends BaseActivity {
                     }
                 }
 
-                final List<RemoteEntry> finalLoaded = loaded;
+                final SftpClient.DirectoryListing finalLoaded = loaded;
                 final String finalHost = usedHost;
                 final String finalFingerprint = usedFingerprint;
-                ConnectionSelector.rememberWorkingHost(this, finalHost);
                 runOnUiThread(() -> {
-                    if (!path.equals(currentPath)) return;
+                    if (closing || !directoryState.isCurrent(request) || !path.equals(currentPath)) return;
+                    ConnectionSelector.rememberWorkingHost(this, finalHost);
                     boolean switched = !finalHost.equals(host);
                     host = finalHost;
                     fingerprint = finalFingerprint;
                     entries.clear();
-                    entries.addAll(finalLoaded);
+                    directoryState.complete(request);
+                    currentPath = finalLoaded.path;
+                    entries.addAll(finalLoaded.entries);
                     rebuildLabels();
                     pathText.setText(switched ? getString(com.bitpoint.homeservercontrol.ui.R.string.remote_path_server_format, currentPath, host) : currentPath);
                     emptyText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a01d89efb9dc);
                     findViewById(R.id.filesRefreshButton).setEnabled(true);
-                    getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE).edit()
-                            .putString(KEY_LAST_REMOTE_PATH, currentPath).apply();
+                    places().remember(currentPath);
                     if (switched) Toast.makeText(this, "SFTP переключён на резервный host: " + host, Toast.LENGTH_LONG).show();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
+                    if (closing || !directoryState.isCurrent(request)) return;
                     if (path.equals(currentPath)) {
-                        emptyText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_43af7ee03223);
+                        emptyText.setText("Не удалось открыть папку. " + safeMessage(e)
+                                + "\nНажми на путь → «Домашняя папка».");
                         findViewById(R.id.filesRefreshButton).setEnabled(true);
                     }
                     Toast.makeText(this, "SFTP: " + safeMessage(e), Toast.LENGTH_LONG).show();
@@ -382,9 +378,14 @@ public class FilesActivity extends BaseActivity {
     }
 
     private void sendAttachedFiles() {
+        if (!directoryState.isReady()) {
+            Toast.makeText(this, "Сначала открой доступную папку сервера", Toast.LENGTH_LONG).show();
+            return;
+        }
         if (attachedFiles.isEmpty() || !validConnection()) return;
         ArrayList<Uri> selected = new ArrayList<>(attachedFiles);
-        StringBuilder message = new StringBuilder("В папку: ").append(currentPath).append("\n\n");
+        final String destination = currentPath;
+        StringBuilder message = new StringBuilder("В папку: ").append(destination).append("\n\n");
         for (int i = 0; i < Math.min(8, selected.size()); i++)
             message.append("• ").append(displayName(selected.get(i))).append('\n');
         if (selected.size() > 8) message.append("и ещё ").append(selected.size() - 8).append(" файлов\n");
@@ -393,6 +394,10 @@ public class FilesActivity extends BaseActivity {
                 .setMessage(message).setNegativeButton("Отмена", null)
                 .setPositiveButton("Отправить", (dialog, which) -> {
                     if (closing || !validConnection()) return;
+                    if (!directoryState.isReady() || !destination.equals(currentPath)) {
+                        Toast.makeText(this, "Папка изменилась. Повтори отправку", Toast.LENGTH_LONG).show();
+                        return;
+                    }
                     attachedFiles.removeAll(selected);
                     renderAttachments();
                     for (Uri uri : selected) enqueueUpload(uri);
@@ -479,7 +484,9 @@ public class FilesActivity extends BaseActivity {
         input.setSelectAllOnFocus(true);
         AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Папка сервера")
                 .setMessage("Введи полный путь. Пример: /storage/emulated/0/Download")
-                .setView(input).setNegativeButton("Назад", null).setPositiveButton("Открыть", null).create();
+                .setView(input).setNegativeButton("Назад", null)
+                .setNeutralButton("Домашняя папка", (d, w) -> { currentPath = "."; refresh(); })
+                .setPositiveButton("Открыть", null).create();
         dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             if (openRemotePath(input.getText().toString())) dialog.dismiss();
             else input.setError("Нужен полный путь, начинающийся с /");
@@ -510,6 +517,10 @@ public class FilesActivity extends BaseActivity {
     protected boolean canRecreateForTheme() { return queuedTransfers.get() == 0; }
 
     private void enqueueUpload(Uri uri) {
+        if (!directoryState.isReady()) {
+            Toast.makeText(this, "Сначала открой доступную папку сервера", Toast.LENGTH_LONG).show();
+            return;
+        }
         persistUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
         final String name = displayName(uri);
         final long size = displaySize(uri);
@@ -729,6 +740,10 @@ public class FilesActivity extends BaseActivity {
     }
 
     private void promptCreateFolder() {
+        if (!directoryState.isReady()) {
+            Toast.makeText(this, "Сначала открой доступную папку сервера", Toast.LENGTH_LONG).show();
+            return;
+        }
         EditText input = new EditText(this);
         input.setSingleLine(true);
         input.setHint("Имя новой папки");
@@ -851,7 +866,7 @@ public class FilesActivity extends BaseActivity {
     }
 
     private boolean validConnection() {
-        if (TextUtils.isEmpty(host) || port <= 0 || TextUtils.isEmpty(user) || (!SshKeys.keyMode(this) && TextUtils.isEmpty(password))) {
+        if (TextUtils.isEmpty(host) || port <= 0 || TextUtils.isEmpty(user)) {
             Toast.makeText(this, "Не хватает данных подключения", Toast.LENGTH_LONG).show();
             return false;
         }
@@ -934,6 +949,7 @@ public class FilesActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         closing = true;
+        directoryState.invalidate();
         if (pendingSendDialog != null) pendingSendDialog.dismiss();
         if (liveSpeedPanel != null) liveSpeedPanel.stop();
         TransferSpeedStore.end(currentTransfer, "Отменено");

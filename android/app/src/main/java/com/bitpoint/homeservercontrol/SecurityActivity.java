@@ -21,7 +21,7 @@ public class SecurityActivity extends BaseActivity {
     private LinearLayout content;
     private TextView status, result;
     private EditText phrase, bootstrap;
-    private CheckBox keyMode, legacy;
+    private CheckBox legacy;
     private String host, user, exportedPublic = "";
     private int port, agentPort;
     private boolean busy;
@@ -36,9 +36,8 @@ public class SecurityActivity extends BaseActivity {
         int pad = (int)(14 * getResources().getDisplayMetrics().density); content.setPadding(pad, pad, pad, pad); scroll.addView(content); setContentView(scroll);
         text("Безопасность · " + user + "@" + host + ":" + port);
         text("Ключ хранится зашифрованным в Android Keystore. Приватный ключ не попадает в профиль, буфер обмена или логи.");
+        text("SSH/SFTP: только ключ. Парольный вход клиента отключён.");
         status = text("Проверяем локальный ключ…");
-        keyMode = new CheckBox(this); keyMode.setText("Вход только по SSH-ключу · без парольного fallback"); keyMode.setChecked(SshKeys.keyMode(this)); content.addView(keyMode);
-        keyMode.setOnCheckedChangeListener((b, on) -> prefs.edit().putString(SshKeys.MODE, on ? "key" : "password").apply());
         button("Создать ключ RSA 3072", () -> new AlertDialog.Builder(this).setTitle("Создать SSH-ключ?")
                 .setMessage("Текущий локальный ключ этого профиля будет заменён. Ключи сервера и его пароль не изменяются.")
                 .setNegativeButton("Отмена", null).setPositiveButton("Создать", (d,w) -> task(() -> { saveForRoutes(SshKeys.generate()); return "Ключ создан и зашифрован"; })).show());
@@ -51,7 +50,7 @@ public class SecurityActivity extends BaseActivity {
             return "Выберите место для публичного ключа";
         }));
         button("Удалить локальный ключ", () -> new AlertDialog.Builder(this).setTitle("Удалить локальный ключ?")
-                .setMessage("На сервере публичный ключ останется. Для входа потребуется другой разрешённый ключ или пароль. Режим входа сам не переключится.")
+                .setMessage("На сервере публичный ключ останется. Для входа потребуется другой разрешённый ключ. Парольный вход клиента недоступен.")
                 .setNegativeButton("Отмена", null).setPositiveButton("Удалить", (d,w) -> task(() -> { SshKeys.clear(this, host, port, user); String other = ConnectionSelector.alternateHost(this); if (!other.isEmpty()) SshKeys.clear(this, other, port, user); return "Локальный ключ удалён"; })).show());
         text("Переход с пароля: сначала проверьте сервер и подтвердите его SSH fingerprint на главном экране.");
         bootstrap = secret("Действующий пароль сервера · только для установки ключа");
@@ -84,7 +83,6 @@ public class SecurityActivity extends BaseActivity {
                     SftpClient.installPublicKey(host,port,user,SshCredentials.password(password),pin,info.getString(SshKeys.PUBLIC));
                     SftpClient.list(host,port,user,key,pin,".");
                     prefs.edit().putString(SshKeys.MODE,"key").putBoolean(ServerConfig.KEY_SAVE_PASSWORD,false).apply(); SecurePrefs.clearPassword(this);
-                    runOnUiThread(() -> keyMode.setChecked(true));
                     return "Вход по SSH-ключу проверен. Сохранённый пароль удалён; пароль сервера не отключён.";
                 })).show();
     }
@@ -96,9 +94,9 @@ public class SecurityActivity extends BaseActivity {
     private EditText secret(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); e.setSaveEnabled(false); e.setSingleLine(true); e.setMinimumHeight(Math.round(48 * getResources().getDisplayMetrics().density)); if (android.os.Build.VERSION.SDK_INT >= 26) e.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_NO); e.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary)); e.setHintTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary)); content.addView(e); return e; }
     private void button(String label,Runnable fn) { Button b = new Button(this); b.setText(label); b.setAllCaps(false); content.addView(b,new LinearLayout.LayoutParams(-1,(int)(52*getResources().getDisplayMetrics().density))); IconButtons.apply(b,com.bitpoint.homeservercontrol.ui.R.drawable.ic_action_key); b.setOnClickListener(v -> { if (!busy) fn.run(); }); }
     interface Work { String run() throws Exception; }
-    private void task(Work work) { if (busy) return; busy = true; keyMode.setEnabled(false); legacy.setEnabled(false); result.setText("Выполняется…"); worker.execute(() -> { String output;
+    private void task(Work work) { if (busy) return; busy = true; legacy.setEnabled(false); result.setText("Выполняется…"); worker.execute(() -> { String output;
         try { output = work.run(); } catch (Exception | LinkageError e) { output = "Операция не выполнена. Проверьте ключ, парольную фразу, SSH fingerprint, доступ к серверу или поддержку HTTPS агентом."; }
-        final String value = output; runOnUiThread(() -> { if (!isDestroyed() && !isFinishing()) { busy=false; keyMode.setEnabled(true); legacy.setEnabled(true); result.setText(value); refresh(); } }); }); }
+        final String value = output; runOnUiThread(() -> { if (!isDestroyed() && !isFinishing()) { busy=false; legacy.setEnabled(true); result.setText(value); refresh(); } }); }); }
     private void refresh() { worker.execute(() -> { JSONObject info = SshKeys.info(this,host,port,user); final String value = info.optString("fingerprint","Ключ этого профиля ещё не создан / не загружен"); runOnUiThread(() -> { if (!isDestroyed()) status.setText(value); }); }); }
     @Override protected void onActivityResult(int request,int code,Intent data) { super.onActivityResult(request,code,data); if (code != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri=data.getData();

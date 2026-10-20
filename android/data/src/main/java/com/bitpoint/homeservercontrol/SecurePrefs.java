@@ -20,14 +20,6 @@ final class SecurePrefs {
 
     private SecurePrefs() {}
 
-    static void savePassword(Context context, String password) throws Exception {
-        saveSecret(context, ServerConfig.KEY_PASSWORD_CIPHER, password);
-    }
-
-    static String loadPassword(Context context) {
-        return loadSecret(context, ServerConfig.KEY_PASSWORD_CIPHER);
-    }
-
     static void clearPassword(Context context) {
         clearSecret(context, ServerConfig.KEY_PASSWORD_CIPHER);
     }
@@ -81,6 +73,7 @@ final class SecurePrefs {
     }
 
     static void saveNamed(Context c, String key, String value) throws Exception { saveSecret(c, key, value); }
+    static boolean containsNamed(Context c, String key) { return prefs(c).contains(key); }
     static String loadNamed(Context c, String key) { return loadSecret(c, key); }
     static void clearNamed(Context c, String key) { clearSecret(c, key); }
 

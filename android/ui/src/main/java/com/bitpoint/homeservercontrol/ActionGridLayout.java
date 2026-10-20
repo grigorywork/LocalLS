@@ -54,6 +54,15 @@ public final class ActionGridLayout extends LinearLayout {
             rowHeights[i / columns] = Math.max(rowHeights[i / columns], child.getMeasuredHeight() + lp.topMargin + lp.bottomMargin);
             state = combineMeasuredStates(state, child.getMeasuredState());
         }
+        // Keep buttons in each row aligned after measuring their wrapped captions.
+        for (int i = 0; i < visible.size(); i++) {
+            View child = visible.get(i);
+            if (!(child instanceof Button)) continue;
+            LayoutParams lp = (LayoutParams) child.getLayoutParams();
+            child.measure(MeasureSpec.makeMeasureSpec(child.getMeasuredWidth(), MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(rowHeights[i / columns] - lp.topMargin - lp.bottomMargin,
+                            MeasureSpec.EXACTLY));
+        }
         int height = getPaddingTop() + getPaddingBottom();
         for (int row : rowHeights) height += row;
         height += Math.max(0, rowHeights.length - 1) * rowGap();

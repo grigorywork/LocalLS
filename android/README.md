@@ -1,4 +1,7 @@
-# LocalLS v0.9.5
+# LocalLS Android 0.9.6 (подготовка выпуска)
+
+Разработка после релиза: [разработку единого мастера Android 0.9.6](docs/SERVER_WIZARD_NEXT.md).
+Android: versionName 0.9.6, versionCode 15. Правила подписи и перехода на SSH-ключи: [0.9.6](docs/ANDROID_0.9.6.md).
 
 Локальный рефакторинг 8 октября 2026: [архитектура](docs/ARCHITECTURE.md),
 [аудит](docs/AUDIT_2026-10-08.md), [подпись выпуска](docs/RELEASE_SIGNING.md).

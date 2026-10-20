@@ -9,8 +9,8 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 public class SettingsActivity extends BaseActivity {
-    private EditText portInput, userInput, passwordInput, agentPortInput, agentTokenInput;
-    private CheckBox savePasswordCheck, saveAgentTokenCheck, backgroundMonitorCheck;
+    private EditText portInput, userInput, agentPortInput, agentTokenInput;
+    private CheckBox saveAgentTokenCheck, backgroundMonitorCheck;
 
     private int secretGeneration;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -22,10 +22,8 @@ public class SettingsActivity extends BaseActivity {
         setContentView(R.layout.activity_settings);
         portInput = findViewById(R.id.settingsPortInput);
         userInput = findViewById(R.id.settingsUserInput);
-        passwordInput = findViewById(R.id.settingsPasswordInput);
         agentPortInput = findViewById(R.id.settingsAgentPortInput);
         agentTokenInput = findViewById(R.id.settingsAgentTokenInput);
-        savePasswordCheck = findViewById(R.id.settingsSavePasswordCheck);
         saveAgentTokenCheck = findViewById(R.id.settingsSaveAgentTokenCheck);
         backgroundMonitorCheck = findViewById(R.id.settingsBackgroundMonitorCheck);
         load();
@@ -42,8 +40,6 @@ public class SettingsActivity extends BaseActivity {
         userInput.setText(prefs.getString(ServerConfig.KEY_USER, ServerConfig.DEFAULT_USER));
         agentPortInput.setText(String.valueOf(prefs.getInt(ServerConfig.KEY_AGENT_PORT, ServerConfig.DEFAULT_AGENT_PORT)));
 
-        boolean savePassword = prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false);
-        savePasswordCheck.setChecked(savePassword);
 
 
         boolean saveToken = prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false);
@@ -52,11 +48,9 @@ public class SettingsActivity extends BaseActivity {
         backgroundMonitorCheck.setChecked(prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false));
         final int generation = ++secretGeneration;
         SecretWorker.execute(() -> {
-            String password = savePassword ? SecurePrefs.loadPassword(this) : "";
             String token = saveToken ? SecurePrefs.loadAgentToken(this) : "";
             handler.post(() -> {
                 if (isDestroyed() || isFinishing() || generation != secretGeneration) return;
-                if (passwordInput.length() == 0 && savePasswordCheck.isChecked()) passwordInput.setText(password);
                 if (agentTokenInput.length() == 0 && saveAgentTokenCheck.isChecked()) agentTokenInput.setText(token);
             });
         });
@@ -76,19 +70,19 @@ public class SettingsActivity extends BaseActivity {
                 .putInt(ServerConfig.KEY_PORT, port)
                 .putString(ServerConfig.KEY_USER, user)
                 .putInt(ServerConfig.KEY_AGENT_PORT, agentPort)
-                .putBoolean(ServerConfig.KEY_SAVE_PASSWORD, savePasswordCheck.isChecked())
+                .putBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)
                 .putBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, saveAgentTokenCheck.isChecked())
                 .putBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, backgroundMonitorCheck.isChecked())
                 .remove(ServerConfig.KEY_MONITOR_HAS_STATE)
                 .apply();
 
-        final boolean keepPassword = savePasswordCheck.isChecked(), keepToken = saveAgentTokenCheck.isChecked();
-        final String password = passwordInput.getText().toString(), token = agentTokenInput.getText().toString();
+        final boolean keepToken = saveAgentTokenCheck.isChecked();
+        final String token = agentTokenInput.getText().toString();
         ++secretGeneration;
         SecretWorker.execute(() -> {
             boolean saved = false;
             try {
-                if (keepPassword) SecurePrefs.savePassword(this, password); else SecurePrefs.clearPassword(this);
+                SecurePrefs.clearPassword(this);
                 if (keepToken) SecurePrefs.saveAgentToken(this, token); else SecurePrefs.clearAgentToken(this);
                 saved = true;
             } catch (Exception e) { /* Never display raw Keystore errors. */ }

@@ -12,6 +12,10 @@
         <Button android:id="@+id/filesOpenFolderButton" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="@string/ui_filesopenfolderbutton_text_54724f" style="@style/Widget.HSC.SecondaryButton" android:layout_marginStart="3dp" android:textSize="@dimen/text_caption" android:layout_marginEnd="3dp" />
         <Button android:id="@+id/filesMkdirButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="3dp" android:layout_weight="1" android:text="@string/ui_filesmkdirbutton_text_3d47d2" android:textSize="@dimen/text_caption" android:layout_marginEnd="3dp" />
     </com.bitpoint.homeservercontrol.ActionGridLayout>
+    <com.bitpoint.homeservercontrol.ActionGridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+        <Button android:id="@+id/filesHomeButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/places_home" />
+        <Button android:id="@+id/filesFavoritesButton" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/places_favorites" />
+    </com.bitpoint.homeservercontrol.ActionGridLayout>
     <LinearLayout android:id="@+id/attachmentsPanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:background="@drawable/panel_bg">
         <TextView android:id="@+id/attachmentsSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_attachmentssummary_text_df706d" android:textColor="?attr/hscTextPrimary" android:textSize="@dimen/text_caption" android:minHeight="32dp" android:gravity="center_vertical" />
         <com.bitpoint.homeservercontrol.ActionGridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">

@@ -43,6 +43,13 @@ public class SshSftpInstrumentedTest {
         pin = probe.hostFingerprint;
     }
 
+    private void installFixtureKey() throws Exception {
+        org.json.JSONObject key = SshKeys.generate();
+        SftpClient.installPublicKey(host, port, user, SshCredentials.password(secret), pin,
+                key.getString(SshKeys.PUBLIC));
+        SshKeys.save(context, host, port, user, key);
+    }
+
     @After
     public void cleanup() {
         if (context != null) {
@@ -112,7 +119,7 @@ public class SshSftpInstrumentedTest {
                 byte[] chunk = new byte[1024 * 1024];
                 for (int i = 0; i < 8; i++) out.write(chunk);
             }
-            SessionPassword.put(secret);
+            installFixtureKey();
             try (ActivityScenario<FilesActivity> scenario = ActivityScenario.launch(FilesActivity.class)) {
                 scenario.onActivity(activity -> {
                     try {
@@ -191,7 +198,7 @@ public class SshSftpInstrumentedTest {
             try (OutputStream out = context.getContentResolver().openOutputStream(uri, "wt")) {
                 assertNotNull(out); out.write(data);
             }
-            SessionPassword.put(secret);
+            installFixtureKey();
             android.content.Intent launch = new android.content.Intent(context, FilesActivity.class);
             FileAttachments.put(launch, java.util.Collections.singletonList(uri));
             try (ActivityScenario<FilesActivity> scenario = ActivityScenario.launch(launch)) {
@@ -243,7 +250,7 @@ public class SshSftpInstrumentedTest {
                 ByteArrayOutputStream downloaded = new ByteArrayOutputStream();
                 SftpClient.download(host,port,user,secret,pin,folder+"/"+name,downloaded,data.length,null);
                 assertArrayEquals(data, downloaded.toByteArray());
-                SessionPassword.put(secret);
+
                 scenario.recreate();
                 scenario.onActivity(activity -> assertEquals("Sent attachments must not be replayed from original Intent",
                         android.view.View.GONE, activity.findViewById(R.id.attachmentsPanel).getVisibility()));

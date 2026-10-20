@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-09",
+  "baseCommit": "45482d1df8012059e4e44fe2af8b2340b9304f4c",
+  "branch": "codex/android-server-wizard-readiness",
+  "build": "BUILD SUCCESSFUL",
+  "toolchain": {
+    "jdk": "Temurin 17.0.20.1+1",
+    "gradle": "9.6.0",
+    "agp": "9.4.1",
+    "compileSdk": 37,
+    "buildTools": "36.0.0"
+  },
+  "tests": [
+    {
+      "name": "com.bitpoint.homeservercontrol.ServerSetupReadinessTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.bitpoint.homeservercontrol.ServerSetupSecurityIntegrationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.bitpoint.homeservercontrol.UiRenderingTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.bitpoint.homeservercontrol.SecretRedactorTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.bitpoint.homeservercontrol.HostKeyPinningTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.bitpoint.homeservercontrol.SshCredentialsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "agentHttpsTests": {
+    "passed": 4,
+    "mode": "real isolated Python HTTPS fixture"
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 15
+  },
+  "apk": {
+    "apk": "android/app/build/outputs/apk/debug/app-debug.apk",
+    "bytes": 1544195,
+    "sha256": "aa18431f3a92e40fa413b29ce2ec2e8f92d6671c65d0d387e97d06691cf5f134",
+    "package": "com.bitpoint.homeservercontrol",
+    "versionName": "0.9.5",
+    "versionCode": 14,
+    "minSdk": 24,
+    "targetSdk": 37,
+    "manifest": "valid",
+    "signature": "verified for API 24–36",
+    "zipAlignment": "valid",
+    "signatureDetails": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1",
+    "certificateSha256": "271e250e10335ecf0a19af826fbd6cc465b6bb0a2002e095be6fcfcad9bff9d1",
+    "compatibleWithPublishedSigner": false
+  },
+  "deviceTests": "not performed",
+  "publication": "not performed",
+  "realSecurityIntegrationTests": {
+    "passed": 4,
+    "sshServer": "asyncssh 2.21.1, isolated loopback",
+    "httpsServer": "existing LocalLS agent 0.3, isolated configuration",
+    "deviceTests": false
+  },
+  "agentSetupTests": {
+    "passed": 8,
+    "mode": "real isolated Python installer and HTTPS process; loopback fixtures"
+  },
+  "bundledAssets": {
+    "agent.py": "c70a807d4659b5cd535572a0269ab27e3456bf18e92f704e67e54c60dd10cdf6",
+    "setup_agent.py": "bc07bec7af94c7f9d3095129228314eb4473633bb4e1cf5630235db32d3a81d7"
+  },
+  "termuxPackageBootstrap": "not run on a real Android Termux device"
+}

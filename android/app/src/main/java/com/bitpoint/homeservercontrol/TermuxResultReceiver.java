@@ -11,13 +11,14 @@ public final class TermuxResultReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context context, Intent intent) {
         SharedPreferences prefs = context.getSharedPreferences(TermuxSetup.PREFS, Context.MODE_PRIVATE);
         String nonce = prefs.getString("pending", "");
+        long elapsed = System.currentTimeMillis() - prefs.getLong("pending_at", 0);
         if (nonce.isEmpty() || !("localls.setup." + nonce).equals(intent.getAction())
-                || System.currentTimeMillis() - prefs.getLong("pending_at", 0) > 1800000) return;
+                || elapsed < 0 || elapsed > TermuxSetup.COMMAND_TIMEOUT_MS) return;
         Bundle result = intent.getBundleExtra("result");
         // Official Termux Errno.ERRNO_SUCCESS is -1; 0 is an error, not success.
         int error = result == null ? -2 : result.getInt("err", -1);
         int exit = result == null ? -1 : result.getInt("exitCode", -1);
-        SharedPreferences.Editor edit = prefs.edit().remove("pending")
+        SharedPreferences.Editor edit = prefs.edit().remove("pending").remove("prepared_session")
                 .putInt("last_termux_error", error).putInt("last_exit_code", exit);
         if (result == null || error != -1 || exit != 0) {
             String detail = result == null ? "" : result.getString("errmsg", "");
@@ -28,6 +29,7 @@ public final class TermuxResultReceiver extends BroadcastReceiver {
             return;
         }
         String output = result.getString("stdout", "");
+        if (output == null) output = "";
         String user = "", port = "";
         if (output.length() <= 16384) for (String line : output.split("\\r?\\n")) {
             if (line.startsWith("USER=")) user = line.substring(5);
@@ -40,6 +42,7 @@ public final class TermuxResultReceiver extends BroadcastReceiver {
         int number = Integer.parseInt(port);
         if (number < 1 || number > 65535) { edit.putString("status", "Некорректный порт сервера.").apply(); return; }
         edit.putString("user", user).putInt("port", number).putString("device_role", "server")
+                .putString("prepared_session", nonce)
                 .putString("applied_termux_version", TermuxSetup.version(context))
                 .putString("status", "OpenSSH подготовлен. Проверь подключение перед экспортом.").apply();
     }

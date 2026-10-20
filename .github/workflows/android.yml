@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main, master, 'codex/**']
-    paths: ['android/**', '.github/workflows/android.yml']
+    paths: ['android/**', 'tools/check_versions.py', 'VERSION', '.github/workflows/android.yml']
   pull_request:
-    paths: ['android/**', '.github/workflows/android.yml']
+    paths: ['android/**', 'tools/check_versions.py', 'VERSION', '.github/workflows/android.yml']
 permissions:
   contents: read
 jobs:
@@ -20,6 +20,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated SSH test server
+        run: python3 -m pip install asyncssh==2.21.1
       - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
         with:
@@ -32,7 +37,19 @@ jobs:
           python3 ../tools/check_versions.py
           python3 tools/audit_project.py
           python3 tools/audit_architecture.py
+          python3 tools/test_apk_update.py
           python3 tools/test_agent_security.py
+          python3 tools/test_agent_setup.py
+          export LOCALLS_SECURITY_FIXTURE="$RUNNER_TEMP/localls-security-fixture"
+          python3 tools/security_fixture.py --output "$LOCALLS_SECURITY_FIXTURE" > "$RUNNER_TEMP/localls-fixture.log" 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid" 2>/dev/null || true; wait "$fixture_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..200}; do
+            test -f "$LOCALLS_SECURITY_FIXTURE/fixture.json" && break
+            kill -0 "$fixture_pid" || exit 1
+            sleep 0.1
+          done
+          test -f "$LOCALLS_SECURITY_FIXTURE/fixture.json"
           chmod +x gradlew
           ./gradlew --no-daemon :core:test :transport:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
       - name: Verify test APK
@@ -44,6 +61,7 @@ jobs:
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
             android/app/build/reports/
+            android/app/build/test-results/
             android/app/build/ui-previews/
             android/core/build/test-results/
             android/transport/build/test-results/

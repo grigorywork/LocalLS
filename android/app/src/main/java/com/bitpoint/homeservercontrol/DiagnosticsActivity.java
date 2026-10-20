@@ -56,8 +56,7 @@ public class DiagnosticsActivity extends BaseActivity {
         report.append("SSH-порт: ").append(port).append('\n');
         report.append("Пользователь: ").append(safe(prefs.getString(ServerConfig.KEY_USER, ServerConfig.DEFAULT_USER))).append("\n\n");
 
-        report.append("Пароль сохранён в Keystore: ")
-                .append(prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false) ? "да" : "нет").append('\n');
+        report.append("SSH/SFTP: только ключ; парольный вход клиента отключён\n");
         report.append("Токен агента сохранён в Keystore: ")
                 .append(prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false) ? "да" : "нет").append('\n');
         report.append("Low-RAM профиль: ").append(DeviceProfile.isLowRam(this) ? "да" : "нет").append('\n');

@@ -43,6 +43,26 @@ final class SftpClient {
 
     static List<RemoteEntry> list(String host, int port, String user, SshCredentials credential,
                                   String trustedFingerprint, String requestedPath) throws Exception {
+        return browse(host, port, user, credential, trustedFingerprint, requestedPath).entries;
+    }
+
+    static boolean isDirectoryError(Exception error) {
+        if (!(error instanceof com.jcraft.jsch.SftpException)) return false;
+        int code = ((com.jcraft.jsch.SftpException) error).id;
+        return code == ChannelSftp.SSH_FX_NO_SUCH_FILE || code == ChannelSftp.SSH_FX_PERMISSION_DENIED;
+    }
+
+    static final class DirectoryListing {
+        final String path;
+        final List<RemoteEntry> entries;
+        DirectoryListing(String path, List<RemoteEntry> entries) {
+            this.path = path;
+            this.entries = entries;
+        }
+    }
+
+    static DirectoryListing browse(String host, int port, String user, SshCredentials credential,
+                                   String trustedFingerprint, String requestedPath) throws Exception {
         Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
             ChannelSftp sftp = connection.sftp;
@@ -71,7 +91,7 @@ final class SftpClient {
                     return a.name.compareToIgnoreCase(b.name);
                 }
             });
-            return out;
+            return new DirectoryListing(actualPath, out);
         } finally {
             connection.close();
         }

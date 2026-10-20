@@ -54,7 +54,7 @@ public class RuntimeInstrumentedTest {
                 assertEquals("192.168.1.82", prefs.getString(ServerConfig.KEY_LOCAL_HOST, ""));
                 assertEquals(8022, prefs.getInt(ServerConfig.KEY_PORT, 0));
                 assertEquals("u0_a606", prefs.getString(ServerConfig.KEY_USER, ""));
-                assertFalse(activity.findViewById(R.id.passwordInput).isSaveEnabled());
+                assertNotNull(activity.findViewById(R.id.sshKeySetupButton));
                 assertFalse(activity.findViewById(R.id.agentTokenInput).isSaveEnabled());
                 assertFalse(activity.getIntent().hasExtra("password"));
             });
@@ -90,11 +90,11 @@ public class RuntimeInstrumentedTest {
     @Test
     public void keystoreRoundTripNeverStoresPlaintext() throws Exception {
         String value = java.util.UUID.randomUUID().toString();
-        SecurePrefs.savePassword(context, value);
+        SecurePrefs.saveNamed(context, "fixture_key", value);
         SecurePrefs.saveAgentToken(context, value);
-        assertEquals(value, SecurePrefs.loadPassword(context));
+        assertEquals(value, SecurePrefs.loadNamed(context, "fixture_key"));
         assertEquals(value, SecurePrefs.loadAgentToken(context));
-        assertFalse(prefs.getString(ServerConfig.KEY_PASSWORD_CIPHER, "").contains(value));
+        assertFalse(prefs.getString("fixture_key", "").contains(value));
         assertFalse(prefs.getString(ServerConfig.KEY_AGENT_TOKEN_CIPHER, "").contains(value));
     }
 
@@ -102,7 +102,7 @@ public class RuntimeInstrumentedTest {
     public void secondaryScreensInflateAndHistoryPersists() {
         try (ActivityScenario<SettingsActivity> scenario = ActivityScenario.launch(SettingsActivity.class)) {
             scenario.onActivity(activity -> {
-                assertFalse(activity.findViewById(R.id.settingsPasswordInput).isSaveEnabled());
+                assertNotNull(activity.findViewById(R.id.securitySettingsButton));
                 assertFalse(activity.findViewById(R.id.settingsAgentTokenInput).isSaveEnabled());
             });
         }

@@ -18,9 +18,8 @@ final class SshKeys {
     static final String REVISION = "ssh_key_revision";
     static final String PUBLIC = "publicKey", PRIVATE = "privateKey", PHRASE = "passphrase";
     private SshKeys() {}
-    static boolean keyMode(Context c) { return "key".equals(prefs(c).getString(MODE, "password")); }
+    static boolean keyMode(Context c) { return true; }
     static SshCredentials credentials(Context c, String host, int port, String user, String password) {
-        if (!keyMode(c)) return SshCredentials.password(password);
         return keyCredentials(c, host, port, user);
     }
     static SshCredentials keyCredentials(Context c, String host, int port, String user) {

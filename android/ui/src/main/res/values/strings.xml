@@ -1,5 +1,12 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
+    <string name="server_setup_steps_title">Этот телефон — сервер: шаги настройки</string>
+    <string name="server_setup_steps_loading">Проверка Termux и системного доступа…</string>
+    <string name="server_setup_security_title">Проверка безопасности этого сервера</string>
+    <string name="server_setup_security_help">После входа SSH можно проверить ключевой доступ и существующий HTTPS-агент. Ключ мастера сохраняется зашифрованным и используется повторно; другие клиенты создают свои ключи. Агент нужен для независимого управления SSH. Эта проверка читает его существующие настройки и сертификат, сохраняя токен и службу.</string>
+    <string name="server_setup_verify_key">Добавить SSH-ключ и проверить вход</string>
+    <string name="server_setup_verify_agent">Проверить существующий HTTPS-агент</string>
+    <string name="server_setup_prepare_agent">Подготовить HTTPS-агент</string>
     <string name="app_name">LocalLS</string>
     <string name="live_speed_chart_description">График скорости SFTP за последние 60 секунд в мегабайтах в секунду</string>
     <string name="ui_activity_diagnostics_text_9ba1e2" formatted="false">Диагностика</string>
@@ -237,4 +244,12 @@
     <string name="status_latency_format">"Отклик SSH: %1$d мс"</string>
     <string name="status_port_unavailable">Порт: —</string>
     <string name="security_settings_entry">Безопасность / SSH-ключ</string>
+    <string name="ssh_key_setup">Настроить вход по SSH-ключу</string>
+    <string name="connection_import">Вставить SSH/SFTP-адрес</string>
+    <string name="command_memory">Память сервера</string>
+    <string name="command_network">Маршруты сети</string>
+    <string name="command_storage">Проверить папку Termux</string>
+    <string name="profile_transfer">Перенос параметров</string>
+    <string name="places_home">Домой</string>
+    <string name="places_favorites">Избранное</string>
 </resources>

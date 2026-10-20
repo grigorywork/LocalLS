@@ -71,11 +71,8 @@ public class CoreInstrumentedTest {
     }
 
     @Test
-    public void sessionHandoffIsOneShotAndRedactionRemovesRuntimeSecrets() {
+    public void redactionRemovesRuntimeSecrets() {
         String value = java.util.UUID.randomUUID().toString();
-        SessionPassword.put(value);
-        assertEquals(value, SessionPassword.take());
-        assertNull(SessionPassword.take());
         assertFalse(SecretRedactor.redact("error " + value, value).contains(value));
     }
 }

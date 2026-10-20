@@ -9,7 +9,7 @@ import android.text.TextUtils;
  * Секреты не переносятся в открытый текст и не логируются.
  */
 final class ConfigMigrator {
-    static final int CURRENT_VERSION = 2;
+    static final int CURRENT_VERSION = 3;
 
     private ConfigMigrator() {}
 
@@ -48,6 +48,10 @@ final class ConfigMigrator {
             version = 2;
         }
 
+        // Enforce key-only clients even if an older profile restores the password flag.
+        edit.putString("ssh_auth_method", "key").putBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)
+                .remove(ServerConfig.KEY_PASSWORD_CIPHER).remove("password").remove("plain_password");
+        version = Math.max(version, CURRENT_VERSION);
         edit.putInt(ServerConfig.KEY_CONFIG_VERSION, version).apply();
     }
 

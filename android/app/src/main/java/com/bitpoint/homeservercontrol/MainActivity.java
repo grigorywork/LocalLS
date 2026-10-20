@@ -38,9 +38,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends BaseActivity {
-    private EditText localHostInput, vpnHostInput, portInput, userInput, passwordInput;
+    private EditText localHostInput, vpnHostInput, portInput, userInput;
     private EditText iperfTargetInput, agentPortInput, agentTokenInput;
-    private CheckBox savePasswordCheck, autoRefreshCheck, saveAgentTokenCheck, backgroundMonitorCheck;
+    private CheckBox autoRefreshCheck, saveAgentTokenCheck, backgroundMonitorCheck;
     private RadioGroup modeGroup;
     private RadioButton localModeButton, vpnModeButton;
 
@@ -59,6 +59,7 @@ public class MainActivity extends BaseActivity {
     private Boolean requestedVpn;
     private long vpnRequestDeadline;
     private final Runnable vpnRefresh = () -> refreshVpnStatus();
+    private Runnable savedProfileCheck;
     private Object drawerBackCallback; // Avoid resolving the API 33 interface on Android 7–12.
 
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -164,12 +165,10 @@ public class MainActivity extends BaseActivity {
         vpnHostInput = findViewById(R.id.vpnHostInput);
         portInput = findViewById(R.id.portInput);
         userInput = findViewById(R.id.userInput);
-        passwordInput = findViewById(R.id.passwordInput);
         iperfTargetInput = findViewById(R.id.iperfTargetInput);
         agentPortInput = findViewById(R.id.agentPortInput);
         agentTokenInput = findViewById(R.id.agentTokenInput);
 
-        savePasswordCheck = findViewById(R.id.savePasswordCheck);
         autoRefreshCheck = findViewById(R.id.autoRefreshCheck);
         saveAgentTokenCheck = findViewById(R.id.saveAgentTokenCheck);
         backgroundMonitorCheck = findViewById(R.id.backgroundMonitorCheck);
@@ -242,7 +241,18 @@ public class MainActivity extends BaseActivity {
                         .setPositiveButton("Переключить", (d, w) -> requestVpn(true)).show();
             } else requestVpn(checked);
         });
-        findViewById(R.id.saveButton).setOnClickListener(v -> saveConfig());
+        findViewById(R.id.sshKeySetupButton).setOnClickListener(v -> {
+            if (saveConfig()) startActivity(new Intent(this, SecurityActivity.class));
+        });
+        findViewById(R.id.saveButton).setOnClickListener(v -> {
+            if (!saveConfig()) return;
+            if (savedProfileCheck != null) handler.removeCallbacks(savedProfileCheck);
+            final int generation = uiGeneration;
+            savedProfileCheck = () -> {
+                if (isUiActive() && generation == uiGeneration) checkServer(false);
+            };
+            handler.postDelayed(savedProfileCheck, 750);
+        });
         checkButton.setOnClickListener(v -> checkServer(true));
         findViewById(R.id.copyButton).setOnClickListener(v -> copyConnection());
         findViewById(R.id.solidButton).setOnClickListener(v -> openSolidExplorer());
@@ -279,10 +289,18 @@ public class MainActivity extends BaseActivity {
         vpnHostInput.addTextChangedListener(profileWatcher);
         portInput.addTextChangedListener(profileWatcher);
         userInput.addTextChangedListener(profileWatcher);
-        passwordInput.addTextChangedListener(profileWatcher);
         trustKeyButton.setOnClickListener(v -> trustLastFingerprint());
         findViewById(R.id.forgetKeyButton).setOnClickListener(v -> forgetFingerprint());
 
+        findViewById(R.id.profileTransferButton).setOnClickListener(v -> startActivity(new Intent(this, ProfileTransferActivity.class)));
+        findViewById(R.id.importEndpointButton).setOnClickListener(v -> showEndpointImport());
+        findViewById(R.id.quickMemoryButton).setOnClickListener(v -> runQuickCommand(
+                "cat /proc/meminfo", "Память: MemAvailable — доступно, SwapFree — свободный swap; значения в кБ."));
+        findViewById(R.id.quickNetworkButton).setOnClickListener(v -> runQuickCommand(
+                "ip route 2>/dev/null || cat /proc/net/route", "Маршруты сети сервера. Android может ограничивать доступ."));
+        findViewById(R.id.quickStorageButton).setOnClickListener(v -> runQuickCommand(
+                "printf 'HOME: '; printf '%s\\n' \"$HOME\"; if test -d \"$HOME/storage/shared\"; then ls -ld \"$HOME/storage/shared\"; else printf 'Shared storage unavailable; use HOME or run termux-setup-storage in Termux.\\n'; fi",
+                "Проверка доступности общей папки Termux без изменения разрешений."));
         findViewById(R.id.quickSshdButton).setOnClickListener(v -> runQuickCommand(
                 "pgrep -a sshd 2>/dev/null || true",
                 "pgrep -a sshd — ищет процесс SSH-сервера. Если видишь PID и sshd, сервер запущен."));
@@ -290,7 +308,7 @@ public class MainActivity extends BaseActivity {
                 "ip addr show wlan0 2>/dev/null | grep 'inet ' || true",
                 "ip addr show wlan0 | grep 'inet ' — показывает IP-адрес сервера в текущей Wi-Fi сети."));
         findViewById(R.id.quickDiskButton).setOnClickListener(v -> runQuickCommand(
-                "df -h \"$HOME/storage/shared\" 2>/dev/null",
+                "df -h \"$HOME/storage/shared\" 2>/dev/null || df -h \"$HOME\"",
                 "df -h — показывает общий объём, занятое и свободное место. -h выводит размеры в ГБ/МБ."));
         findViewById(R.id.quickUptimeButton).setOnClickListener(v -> runQuickCommand(
                 "uptime",
@@ -345,10 +363,6 @@ public class MainActivity extends BaseActivity {
         if (ServerConfig.MODE_VPN.equals(mode)) vpnModeButton.setChecked(true);
         else localModeButton.setChecked(true);
 
-        passwordInput.setEnabled(!SshKeys.keyMode(this));
-        if (SshKeys.keyMode(this)) passwordInput.setText("");
-        boolean savePassword = prefs.getBoolean(ServerConfig.KEY_SAVE_PASSWORD, false);
-        savePasswordCheck.setChecked(savePassword);
 
 
         boolean saveAgentToken = prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false);
@@ -362,18 +376,36 @@ public class MainActivity extends BaseActivity {
         loadingConfig = false;
         loadedConfigSignature = configSignature();
         final int generation = ++secretGeneration;
-        final String originalPassword = passwordInput.getText().toString();
         final String originalToken = agentTokenInput.getText().toString();
         SecretWorker.execute(() -> {
-            String storedPassword = savePassword ? SecurePrefs.loadPassword(this) : "";
             String storedToken = saveAgentToken ? SecurePrefs.loadAgentToken(this) : "";
             handler.post(() -> {
                 if (isDestroyed() || isFinishing() || generation != secretGeneration) return;
-                if (savePassword && savePasswordCheck.isChecked() && originalPassword.contentEquals(passwordInput.getText()))
-                    passwordInput.setText(storedPassword);
                 if (saveAgentToken && saveAgentTokenCheck.isChecked() && originalToken.contentEquals(agentTokenInput.getText()))
                     agentTokenInput.setText(storedToken);
             });
+        });
+    }
+
+    private void showEndpointImport() {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        input.setHint("ssh://user@192.168.1.82:8022");
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Адрес подключения")
+                .setMessage("Вставь SSH/SFTP-адрес без пароля и пути. Он заполнит активную точку Local/VPN. Затем сохрани и проверь подключение.")
+                .setView(input).setNegativeButton("Отмена", null).setPositiveButton("Заполнить", null).create();
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            try {
+                ConnectionEndpoint endpoint = ConnectionEndpoint.parse(input.getText().toString(),
+                        userInput.getText().toString().trim(), parsePort());
+                (vpnModeButton.isChecked() ? vpnHostInput : localHostInput).setText(endpoint.host);
+                userInput.setText(endpoint.user);
+                portInput.setText(String.valueOf(endpoint.port));
+                dialog.dismiss();
+            } catch (IllegalArgumentException error) { input.setError(error.getMessage()); }
         });
     }
 
@@ -384,8 +416,25 @@ public class MainActivity extends BaseActivity {
         int port = parsePort();
         int agentPort = parseAgentPort();
 
-        if (TextUtils.isEmpty(localHost) || TextUtils.isEmpty(user) || port <= 0 || agentPort <= 0) {
-            Toast.makeText(this, "Проверь локальный IP, порт, пользователя и порт агента", Toast.LENGTH_SHORT).show();
+        localHostInput.setError(null);
+        vpnHostInput.setError(null);
+        userInput.setError(null);
+        portInput.setError(null);
+        agentPortInput.setError(null);
+        boolean invalid = false;
+        if ((!localHost.isEmpty() || !vpnModeButton.isChecked()) && !ConnectionEndpoint.validHost(localHost)) {
+            localHostInput.setError("Укажи IP или имя сервера без порта и пути"); invalid = true;
+        }
+        if ((!vpnHost.isEmpty() || vpnModeButton.isChecked()) && !ConnectionEndpoint.validHost(vpnHost)) {
+            vpnHostInput.setError("Укажи IP или имя сервера в VPN"); invalid = true;
+        }
+        if (!ConnectionEndpoint.validUser(user)) {
+            userInput.setError("Укажи имя пользователя SSH, например u0_a123"); invalid = true;
+        }
+        if (port <= 0) { portInput.setError("Порт SSH: от 1 до 65535"); invalid = true; }
+        if (agentPort <= 0) { agentPortInput.setError("Порт агента: от 1 до 65535"); invalid = true; }
+        if (invalid) {
+            Toast.makeText(this, "Исправь отмеченные поля подключения", Toast.LENGTH_SHORT).show();
             return false;
         }
 
@@ -399,18 +448,18 @@ public class MainActivity extends BaseActivity {
                 .putString(ServerConfig.KEY_USER, user)
                 .putString(ServerConfig.KEY_IPERF_TARGET, iperfTargetInput.getText().toString().trim())
                 .putInt(ServerConfig.KEY_AGENT_PORT, agentPort)
-                .putBoolean(ServerConfig.KEY_SAVE_PASSWORD, savePasswordCheck.isChecked())
+                .putBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)
                 .putBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, saveAgentTokenCheck.isChecked())
                 .putBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, backgroundMonitorCheck.isChecked())
                 .apply();
 
-        final boolean keepPassword = savePasswordCheck.isChecked(), keepToken = saveAgentTokenCheck.isChecked();
-        final String password = passwordInput.getText().toString(), token = agentTokenInput.getText().toString();
+        final boolean keepToken = saveAgentTokenCheck.isChecked();
+        final String token = agentTokenInput.getText().toString();
         ++secretGeneration;
         SecretWorker.execute(() -> {
             boolean saved = false;
             try {
-                if (keepPassword) SecurePrefs.savePassword(this, password); else SecurePrefs.clearPassword(this);
+                SecurePrefs.clearPassword(this);
                 if (keepToken) SecurePrefs.saveAgentToken(this, token); else SecurePrefs.clearAgentToken(this);
                 saved = true;
             } catch (Exception e) { /* Keystore errors never include secrets in UI/logs. */ }
@@ -453,10 +502,10 @@ public class MainActivity extends BaseActivity {
         if (checking) return;
         final String primaryHost = activeHost();
         final String user = userInput.getText().toString().trim();
-        final String password = passwordInput.getText().toString();
+        final String password = "";
         final int port = parsePort();
 
-        if (TextUtils.isEmpty(primaryHost) || TextUtils.isEmpty(user) || port <= 0) {
+        if (!ConnectionEndpoint.validHost(primaryHost) || !ConnectionEndpoint.validUser(user) || port <= 0) {
             if (userInitiated) Toast.makeText(this, "Проверь активный адрес, порт и пользователя", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -548,7 +597,7 @@ public class MainActivity extends BaseActivity {
         } else if (stats.reachable) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_18bf0e4021be);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
-            statusDetail.setText(stats.error);
+            statusDetail.setText("SSH-порт доступен, авторизация не выполнена.\n" + stats.error);
             appendLog(stats.error);
         } else {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a267c32f1c34);
@@ -591,7 +640,7 @@ public class MainActivity extends BaseActivity {
         final String host = activeHost();
         final int port = parsePort();
         final String user = userInput.getText().toString().trim();
-        final String password = passwordInput.getText().toString();
+        final String password = "";
         final String trusted = HostTrustStore.get(this, host, port);
 
         if (!validSshInputs(host, port, user, password)) return;
@@ -620,7 +669,7 @@ public class MainActivity extends BaseActivity {
         final String host = activeHost();
         final int port = parsePort();
         final String user = userInput.getText().toString().trim();
-        final String password = passwordInput.getText().toString();
+        final String password = "";
         final String trusted = HostTrustStore.get(this, host, port);
         if (!validSshInputs(host, port, user, password)) return;
 
@@ -654,8 +703,8 @@ public class MainActivity extends BaseActivity {
     }
 
     private boolean validSshInputs(String host, int port, String user, String password) {
-        if (TextUtils.isEmpty(host) || port <= 0 || TextUtils.isEmpty(user) || (!SshKeys.keyMode(this) && TextUtils.isEmpty(password))) {
-            Toast.makeText(this, "Проверь адрес/порт/логин/пароль", Toast.LENGTH_SHORT).show();
+        if (!ConnectionEndpoint.validHost(host) || port <= 0 || !ConnectionEndpoint.validUser(user)) {
+            Toast.makeText(this, "Проверь адрес, порт и пользователя", Toast.LENGTH_SHORT).show();
             return false;
         }
         if (TextUtils.isEmpty(HostTrustStore.get(this, host, port))) {
@@ -750,18 +799,23 @@ public class MainActivity extends BaseActivity {
         String host = activeHost();
         int port = parsePort();
         String user = userInput.getText().toString().trim();
-        String text = "Протокол: SFTP\nХост: " + host + "\nПорт: " + port + "\nПользователь: " + user;
-        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        clipboard.setPrimaryClip(ClipData.newPlainText("SFTP server", text));
-        appendLog("Данные SFTP скопированы в буфер.");
-        Toast.makeText(this, "Данные SFTP скопированы", Toast.LENGTH_SHORT).show();
+        if (!ConnectionEndpoint.validHost(host) || !ConnectionEndpoint.validUser(user) || port < 1) {
+            Toast.makeText(this,"Проверь адрес, пользователя и порт",Toast.LENGTH_SHORT).show(); return;
+        }
+        String authority = user+"@"+(host.contains(":") ? "["+host+"]" : host)+":"+port;
+        new AlertDialog.Builder(this).setTitle("Скопировать адрес")
+                .setItems(new String[]{"sftp://"+authority,"ssh://"+authority},(d,which) -> {
+                    ClipboardManager clipboard=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+                    clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS",(which==0?"sftp://":"ssh://")+authority));
+                    Toast.makeText(this,"Адрес без секретов скопирован",Toast.LENGTH_SHORT).show();
+                }).show();
     }
 
     private void openFiles(boolean pickAttachment) {
         String host = activeHost();
         int port = parsePort();
         String user = userInput.getText().toString().trim();
-        String password = passwordInput.getText().toString();
+        String password = "";
         if (!validSshInputs(host, port, user, password)) return;
 
         // Сохраняем несекретные поля, чтобы файловый экран использовал тот же режим/адрес.
@@ -769,10 +823,8 @@ public class MainActivity extends BaseActivity {
         Intent intent = new Intent(this, FilesActivity.class);
         intent.putExtra(FileAttachments.PICK_ON_OPEN, pickAttachment);
         FileAttachments.put(intent, attachedFiles);
-        SessionPassword.put(password);
         try { startActivity(intent); }
         catch (RuntimeException e) {
-            SessionPassword.take();
             attachedFiles.clear();
             renderAttachmentEntry();
             Toast.makeText(this, "Нет доступа к вложениям. Прикрепи файлы заново через выбор файлов Android.",
@@ -809,7 +861,8 @@ public class MainActivity extends BaseActivity {
         View root = findViewById(R.id.dashboardRoot);
         int width = root.getWidth() > 0 ? root.getWidth() : getResources().getDisplayMetrics().widthPixels;
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) panel.getLayoutParams();
-        params.width = width / 2;
+        params.width = DrawerLayoutPolicy.width(width, getResources().getConfiguration().fontScale,
+                getResources().getDisplayMetrics().density);
         params.gravity = Gravity.RIGHT;
         panel.setLayoutParams(params);
         panel.animate().cancel();
@@ -958,9 +1011,9 @@ public class MainActivity extends BaseActivity {
         report.append(fingerprintValue.getText()).append("\n\n");
         report.append("История памяти\n").append(DiskHistoryStore.render(this, 20)).append("\n\n");
         report.append("Журнал\n").append(logText.getText()).append("\n");
-        report.append("\nПароль SSH и токен агента намеренно не экспортируются.\n");
+        report.append("\nПриватный SSH-ключ и токен агента не экспортируются.\n");
         pendingReport = SecretRedactor.redact(report.toString(),
-                passwordInput.getText().toString(), agentTokenInput.getText().toString());
+                "", agentTokenInput.getText().toString());
 
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1018,7 +1071,7 @@ public class MainActivity extends BaseActivity {
         String time = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
         String existing = logText.getText().toString();
         String safe = SecretRedactor.redact(message,
-                passwordInput.getText().toString(), agentTokenInput.getText().toString());
+                "", agentTokenInput.getText().toString());
         String next = time + "  " + safe + "\n" + existing;
         if (next.length() > 6000) next = next.substring(0, 6000);
         logText.setText(next);
@@ -1062,6 +1115,7 @@ public class MainActivity extends BaseActivity {
         if (wifiSetup != null) wifiSetup.stop();
         cancelNetworkWork();
         handler.removeCallbacks(autoRefreshRunnable);
+        if (savedProfileCheck != null) handler.removeCallbacks(savedProfileCheck);
         handler.removeCallbacks(vpnRefresh);
         super.onPause();
     }

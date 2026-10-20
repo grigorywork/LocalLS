@@ -55,7 +55,7 @@ final class IconButtons {
         button.setIncludeFontPadding(false);
         // Reserve the same caption area for one- and two-line tiles.
         button.setMinLines(tile ? 2 : 1);
-        button.setAllCaps(false);button.setMaxLines(2);
+        button.setAllCaps(false);button.setMaxLines(Integer.MAX_VALUE);
         button.setGravity(tile?Gravity.CENTER:Gravity.CENTER_VERTICAL|Gravity.START);
         button.setPaddingRelative(Math.round((tile ? 6 : 12) * density), Math.round(4 * density),
                 Math.round((tile ? 6 : 12) * density), Math.round(4 * density));
@@ -65,7 +65,10 @@ final class IconButtons {
                 : Math.max(size, textHeight);
         height = Math.max(height, contentHeight + button.getPaddingTop() + button.getPaddingBottom());
         if (params!=null && (params.height>0 || params.height==ViewGroup.LayoutParams.WRAP_CONTENT)) {
-            params.height=height;button.setLayoutParams(params);
+            // Menu rows need natural height at half-screen width and large fonts.
+            // Tiles reserve at least two lines; narrow drawers may need more.
+            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            button.setLayoutParams(params);
         }
         button.setMinimumHeight(height);
     }

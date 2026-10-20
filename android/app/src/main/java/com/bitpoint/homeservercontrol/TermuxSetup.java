@@ -21,6 +21,7 @@ final class TermuxSetup {
     static final String PERMISSION = "com.termux.permission.RUN_COMMAND";
     static final String HOME = "/data/data/com.termux/files/home";
     static final String PREFS = "server_setup";
+    static final long COMMAND_TIMEOUT_MS = 600000;
     static final String SCRIPT = "set -eu\n" +
             "export PATH=/data/data/com.termux/files/usr/bin:$PATH\n" +
             "if ! command -v sshd >/dev/null 2>&1; then\n" +
@@ -37,6 +38,47 @@ final class TermuxSetup {
     static boolean installed(Context context) {
         try { context.getPackageManager().getPackageInfo(PACKAGE, 0); return true; }
         catch (android.content.pm.PackageManager.NameNotFoundException e) { return false; }
+    }
+
+    /** A saved URI alone is not proof that Android still grants access to Termux HOME. */
+    static boolean hasFolderAccess(Context context, Uri tree) {
+        try {
+            if (!"com.termux.documents".equals(tree.getAuthority())
+                    || !HOME.equals(DocumentsContract.getTreeDocumentId(tree))) return false;
+            boolean granted = false;
+            for (android.content.UriPermission permission : context.getContentResolver().getPersistedUriPermissions()) {
+                if (tree.equals(permission.getUri()) && permission.isReadPermission() && permission.isWritePermission()) {
+                    granted = true;
+                    break;
+                }
+            }
+            if (!granted) return false;
+            Uri root = DocumentsContract.buildDocumentUriUsingTree(tree, HOME);
+            try (Cursor cursor = context.getContentResolver().query(root,
+                    new String[]{DocumentsContract.Document.COLUMN_DOCUMENT_ID}, null, null, null)) {
+                return cursor != null && cursor.moveToFirst() && HOME.equals(cursor.getString(0));
+            }
+        } catch (RuntimeException e) { return false; }
+    }
+
+    /** Read existing files only; never creates or modifies agent configuration. */
+    static byte[] readHomeFile(Context context, Uri tree, String relativePath, int limit) throws Exception {
+        if (!hasFolderAccess(context, tree) || relativePath == null || relativePath.isEmpty()
+                || relativePath.startsWith("/") || relativePath.contains("\\") || limit < 1 || limit > 65536)
+            throw new java.io.IOException("Недоступен файл Termux");
+        for (String part : relativePath.split("/", -1))
+            if (part.isEmpty() || part.equals(".") || part.equals("..")) throw new java.io.IOException("Неверный путь");
+        Uri document = DocumentsContract.buildDocumentUriUsingTree(tree, HOME + "/" + relativePath);
+        try (InputStream in = context.getContentResolver().openInputStream(document)) {
+            if (in == null) throw new java.io.IOException();
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] block = new byte[2048]; int count;
+            while ((count = in.read(block)) != -1) {
+                if (out.size() + count > limit) throw new java.io.IOException("Файл слишком большой");
+                out.write(block, 0, count);
+            }
+            return out.toByteArray();
+        }
     }
 
     static String enableExternalApps(String properties) {
@@ -158,6 +200,7 @@ final class TermuxSetup {
         String nonce = UUID.randomUUID().toString();
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .remove("last_termux_error").remove("last_exit_code")
+                .remove("prepared_session")
                 .putString("pending", nonce).putLong("pending_at", System.currentTimeMillis())
                 .putString("status", "Подготовка OpenSSH…").apply();
         Intent result = new Intent(context, TermuxResultReceiver.class).setAction("localls.setup." + nonce);

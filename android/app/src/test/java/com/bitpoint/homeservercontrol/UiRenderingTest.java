@@ -44,6 +44,11 @@ public class UiRenderingTest {
             assertEquals(20, content.getPaddingTop());
             assertEquals(4, content.getPaddingRight());
             assertEquals(30, content.getPaddingBottom());
+            content.dispatchApplyWindowInsets(new android.view.WindowInsets.Builder()
+                    .setInsets(android.view.WindowInsets.Type.systemBars(), android.graphics.Insets.of(3, 20, 4, 30))
+                    .setInsets(android.view.WindowInsets.Type.ime(), android.graphics.Insets.of(0, 0, 0, 280))
+                    .build());
+            assertEquals("Keyboard must leave content accessible", 280, content.getPaddingBottom());
             assertNotNull("Programmatic buttons use the common icon treatment", button.getCompoundDrawables()[1]);
         } finally {
             controller.destroy();
@@ -64,9 +69,8 @@ public class UiRenderingTest {
                         View.MeasureSpec.makeMeasureSpec(640, View.MeasureSpec.EXACTLY));
                 root.layout(0, 0, 360, 640);
                 checkCaptions(root, fontScale);
-                android.widget.EditText password = root.findViewById(R.id.passwordInput);
-                assertTrue("Password input clipped", password.getLayout().getHeight() <= password.getHeight()
-                        - password.getCompoundPaddingTop() - password.getCompoundPaddingBottom());
+                assertSame("Key setup belongs in connection settings", root.findViewById(R.id.drawerConnectionPane),
+                        root.findViewById(R.id.sshKeySetupButton).getParent());
                 android.widget.TextView username = root.findViewById(R.id.userValue);
                 assertEquals("User label should stay whole", 1, username.getLayout().getLineCount());
                 ScrollView scroll = root.findViewById(R.id.dashboardScroll);
@@ -107,6 +111,88 @@ public class UiRenderingTest {
             bitmap.recycle();
         }
     }
+    @Test public void serverWizardFitsSmallScreenWithLargeText() throws Exception {
+        Context app = RuntimeEnvironment.getApplication();
+        for (float scale : new float[]{1f, 1.5f, 2f}) {
+            Configuration config = new Configuration(app.getResources().getConfiguration());
+            config.fontScale = scale;
+            Context context = new ContextThemeWrapper(app.createConfigurationContext(config), ThemeCatalog.style(app));
+            ScrollView root = (ScrollView) LayoutInflater.from(context).inflate(R.layout.activity_server_setup, null);
+            ((android.widget.TextView) root.findViewById(R.id.serverSetupSteps)).setText(
+                    "1. Termux: установлен; открой для первого запуска\n2. Папка Termux: доступ подтверждён\n"
+                    + "3. Команды Termux: разрешены Android\n4. OpenSSH: подготовлен\n5. Вход SSH: нужно проверить паролем\n"
+                    + "6. SSH-ключ: ещё не проверен\n7. HTTPS-агент: ещё не проверен / не установлен");
+            IconButtons.decorate(root);
+            root.measure(View.MeasureSpec.makeMeasureSpec(360, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(640, View.MeasureSpec.EXACTLY));
+            root.layout(0, 0, 360, 640);
+            checkCaptions(root, scale);
+            android.widget.TextView steps = root.findViewById(R.id.serverSetupSteps);
+            assertTrue("Wizard steps clipped at fontScale=" + scale, steps.getLayout().getHeight()
+                    <= steps.getHeight() - steps.getCompoundPaddingTop() - steps.getCompoundPaddingBottom());
+            View content = root.getChildAt(0);
+            Bitmap bitmap = Bitmap.createBitmap(content.getWidth(), content.getHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(ThemeCatalog.color(context, com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));
+            content.draw(canvas);
+            File directory = new File("build/ui-previews"); directory.mkdirs();
+            try (FileOutputStream stream = new FileOutputStream(new File(directory, "server-wizard-font-" + scale + ".png"))) {
+                assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream));
+            }
+            bitmap.recycle();
+        }
+    }
+    @Test public void drawerCaptionsFitWithAccessibleWidthAndLargeFont() throws Exception {
+        Context app = RuntimeEnvironment.getApplication();
+        for (float scale : new float[]{1f, 1.5f, 2f}) {
+            Configuration config = new Configuration(app.getResources().getConfiguration());
+            config.fontScale = scale;
+            Context context = new ContextThemeWrapper(app.createConfigurationContext(config), ThemeCatalog.style(app));
+            View root = LayoutInflater.from(context).inflate(R.layout.activity_main, null);
+            View panel = root.findViewById(R.id.advancedPanel);
+            panel.setVisibility(View.VISIBLE);
+            ViewGroup.LayoutParams params = panel.getLayoutParams();
+            params.width = DrawerLayoutPolicy.width(320, scale, 1f);
+            assertTrue(params.width >= 160 && params.width <= 296);
+            if (scale == 1f) assertEquals(160, params.width);
+            if (scale == 2f) assertEquals(296, params.width);
+            panel.setLayoutParams(params);
+            for (int id : new int[]{R.id.drawerConnectionPane, R.id.drawerSettingsPane,
+                    R.id.drawerToolsPane, R.id.drawerVpnPane}) root.findViewById(id).setVisibility(View.VISIBLE);
+            IconButtons.decorate(root);
+            root.measure(View.MeasureSpec.makeMeasureSpec(320, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(640, View.MeasureSpec.EXACTLY));
+            root.layout(0, 0, 320, 640);
+            checkDrawerText(panel, scale);
+            ScrollView scroll = root.findViewById(R.id.toolsContentScroll);
+            View content = scroll.getChildAt(0);
+            Bitmap bitmap = Bitmap.createBitmap(content.getWidth(), content.getHeight(), Bitmap.Config.ARGB_8888);
+            content.draw(new Canvas(bitmap));
+            File directory = new File("build/ui-previews"); directory.mkdirs();
+            try (FileOutputStream stream = new FileOutputStream(new File(directory, "drawer-font-" + scale + ".png"))) {
+                assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream));
+            }
+            bitmap.recycle();
+        }
+    }
+
+    private void checkDrawerText(View view, float scale) {
+        if (view.getVisibility() == View.GONE) return;
+        if (view instanceof Button) {
+            Button button = (Button) view;
+            android.text.Layout layout = button.getLayout();
+            assertNotNull(layout);
+            assertTrue(button.getText() + " clipped at " + scale, layout.getHeight() <= button.getHeight()
+                    - button.getCompoundPaddingTop() - button.getCompoundPaddingBottom());
+            assertEquals(button.getText().toString(), button.getText().length(), layout.getLineEnd(layout.getLineCount() - 1));
+            for (int i = 0; i < layout.getLineCount(); i++) assertEquals(button.getText().toString(), 0, layout.getEllipsisCount(i));
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) checkDrawerText(group.getChildAt(i), scale);
+        }
+    }
+
     private void checkCaptions(View view, float scale) {
         if (view.getVisibility() == View.GONE) return;
         if (view instanceof Button && ((Button) view).getCompoundDrawables()[1] != null) {

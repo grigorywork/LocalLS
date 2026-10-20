@@ -1,17 +1,13 @@
 package com.bitpoint.homeservercontrol;
 
-import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.HostKey;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 final class SshClient {
@@ -58,7 +54,7 @@ final class SshClient {
         stats.hostKeyTrusted = true;
 
         if (!credential.available()) {
-            stats.error = "SSH-ключ совпал. Загрузите ключ или введите пароль для полной диагностики.";
+            stats.error = "SSH-ключ сервера совпал. Настройте свой ключ в разделе «Безопасность».";
             return stats;
         }
 
@@ -117,8 +113,13 @@ final class SshClient {
                 return result;
             }
 
-            result.output = SecretRedactor.redact(clean(execute(session, command, timeoutMs)), credential.password, credential.passphrase);
-            result.success = true;
+            SshCommandExecutor.Result executed = SshCommandExecutor.execute(session, command, timeoutMs);
+            result.output = SecretRedactor.redact(clean(executed.output), credential.password, credential.passphrase);
+            result.exitCode = executed.exitCode;
+            result.success = executed.exitCode == 0;
+            if (!result.success) result.error = executed.exitCode < 0
+                    ? "Сервер не подтвердил завершение SSH-команды"
+                    : "Команда SSH завершилась с кодом " + executed.exitCode;
         } catch (Exception e) {
             result.error = safeMessage(e);
         } finally {
@@ -176,41 +177,7 @@ final class SshClient {
     }
 
     private static String execute(Session session, String command, int timeoutMs) throws Exception {
-        ChannelExec channel = (ChannelExec) session.openChannel("exec");
-        channel.setCommand(command);
-        channel.setInputStream(null);
-        InputStream input = channel.getInputStream();
-        channel.connect(4000);
-
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        byte[] buffer = new byte[4096];
-        long deadline = System.currentTimeMillis() + Math.max(1000, timeoutMs);
-        try {
-            while (true) {
-                while (input.available() > 0) {
-                    int n = input.read(buffer);
-                    if (n < 0) break;
-                    if (out.size() + n > 64 * 1024) throw new Exception("Ответ SSH слишком большой");
-                    out.write(buffer, 0, n);
-                }
-                if (channel.isClosed()) {
-                    while (input.available() > 0) {
-                        int n = input.read(buffer);
-                        if (n < 0) break;
-                        if (out.size() + n > 64 * 1024) throw new Exception("Ответ SSH слишком большой");
-                    out.write(buffer, 0, n);
-                    }
-                    break;
-                }
-                if (System.currentTimeMillis() > deadline) {
-                    throw new Exception("Команда превысила таймаут " + timeoutMs + " мс");
-                }
-                Thread.sleep(40);
-            }
-        } finally {
-            channel.disconnect();
-        }
-        return out.toString(StandardCharsets.UTF_8.name());
+        return SshCommandExecutor.execute(session, command, timeoutMs).output;
     }
 
     private static void parseBattery(ServerStats stats, String raw) {
