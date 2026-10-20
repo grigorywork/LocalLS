@@ -1,0 +1,21 @@
+{
+  "apk": "/workspace/LocalLS/android/app/build/outputs/apk/release/app-release.apk",
+  "bytes": 1851684,
+  "sha256": "7045879d0e649274367082189bd2e6de7a039b4039c05cbdf598dd33c4ba8414",
+  "package": "com.bitpoint.homeservercontrol",
+  "versionName": "0.11.3",
+  "versionCode": 23,
+  "minSdk": 24,
+  "targetSdk": 37,
+  "certificateSha256": [
+    "a2230c3032135def93cd5e8224ca3e26ad8e98f294b5e372a33b1e468caa221a"
+  ],
+  "compatibleWithPublishedSigner": true,
+  "updateFrom": "/workspace/shared/LocalLS-0.11.2-release.apk",
+  "updateCompatibilityVerified": true,
+  "initialRelease": false,
+  "manifest": "valid",
+  "signature": "verified for API 24–36",
+  "zipAlignment": "valid",
+  "signatureDetails": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=LocalLS Release, O=LocalLS\nSigner #1 certificate SHA-256 digest: a2230c3032135def93cd5e8224ca3e26ad8e98f294b5e372a33b1e468caa221a\nSigner #1 certificate SHA-1 digest: 18cc2cb911c2884eb0f74ac367f8fadeeb77bb84\nSigner #1 certificate MD5 digest: 02ef76ac98d2c2c3dfad19de3f64eba8\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 3072\nSigner #1 public key SHA-256 digest: 7d6bbb799e17a7b9e82931852c067fb966be197e345e866b88c414b9f620ad1c\nSigner #1 public key SHA-1 digest: cb840f40b2f92185a110740f9562962027896609\nSigner #1 public key MD5 digest: e96129b79b8d999e4ece6d110f636882"
+}
