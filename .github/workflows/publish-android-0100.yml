@@ -1,0 +1,26 @@
+name: Publish signed Android 0.10.0
+on:
+  push:
+    branches: [codex/publish-android-0100]
+    paths: ['.github/workflows/publish-android-0100.yml', 'release-artifacts/android-0.10.0/**']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify prepared release checksums
+        working-directory: release-artifacts/android-0.10.0
+        run: |
+          sha256sum -c SHA256SUMS-Android-0.10.0.txt
+          echo 'a16c267048cffa2904f836796497db54a29bd9001d73d158d12f25fb8418de20  LocalLS-0.10.0-release.apk' | sha256sum -c -
+      - name: Upload already signed APK and reports
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: release-artifacts/android-0.10.0
+        run: |
+          gh release upload android-v0.10.0 --repo grigorywork/LocalLS --clobber LocalLS-0.10.0-release.apk LocalLS-0.10.0-source.zip LocalLS-0.10.0-verification.json LocalLS-0.10.0-report.md SHA256SUMS-Android-0.10.0.txt
+          gh release edit android-v0.10.0 --repo grigorywork/LocalLS --draft=false
