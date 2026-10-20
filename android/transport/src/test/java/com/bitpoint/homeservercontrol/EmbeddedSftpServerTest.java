@@ -28,6 +28,27 @@ public class EmbeddedSftpServerTest {
     private EmbeddedSftpServer server(Path root) throws Exception {
         EmbeddedSftpServer server=new EmbeddedSftpServer();server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);return server;
     }
+    @Test public void serverStartsLockedAndOnlyLocalApprovalEnablesFirstKey() throws Exception {
+        Path root=temp.newFolder().toPath();Files.write(root.resolve("test.txt"),new byte[]{1,2,3});
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {
+            int port=server.startWaiting("127.0.0.1",0,"localls",host,root);
+            try(java.net.Socket probe=new java.net.Socket("127.0.0.1",port)) {assertTrue(probe.isConnected());}
+            for(boolean hasKey:new boolean[]{true,false}) {
+                Session denied=session(port,"localls",hasKey);
+                try{denied.connect(4000);fail("Access before local approval");}catch(JSchException expected){}finally{denied.disconnect();}
+            }
+            server.authorizeFirstClient(EmbeddedSftpServer.authorizedKey(clientPublic));
+            Session accepted=session(port,"localls",true);accepted.connect(5000);
+            try {ChannelSftp files=(ChannelSftp)accepted.openChannel("sftp");files.connect(4000);
+                ByteArrayOutputStream out=new ByteArrayOutputStream();files.get("/test.txt",out);assertArrayEquals(new byte[]{1,2,3},out.toByteArray());files.disconnect();
+            }finally{accepted.disconnect();}
+            try{server.authorizeFirstClient(host.getPublic());fail("Live replacement accepted");}catch(IllegalStateException expected){}
+            server.close();
+            int nextPort=server.startWaiting("127.0.0.1",0,"localls",host,root);
+            Session deniedAgain=session(nextPort,"localls",true);
+            try{deniedAgain.connect(4000);fail("Old authorization survived explicit locked restart");}catch(JSchException expected){}finally{deniedAgain.disconnect();}
+        }
+    }
     @Test public void transferRenameAndDeleteWithinShare() throws Exception {
         Path root=temp.newFolder().toPath();
         try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {

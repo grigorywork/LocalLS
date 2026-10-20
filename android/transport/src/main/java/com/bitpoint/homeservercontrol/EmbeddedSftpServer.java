@@ -22,13 +22,27 @@ import org.apache.sshd.sftp.server.SftpSubsystemProxy;
 /** SFTP only: no passwords, shell, exec, forwarding or filesystem links. Android API 26+. */
 final class EmbeddedSftpServer implements AutoCloseable {
     private SshServer server;
+    private final java.util.concurrent.atomic.AtomicReference<PublicKey> allowedClient=new java.util.concurrent.atomic.AtomicReference<>();
     static PublicKey authorizedKey(String text) throws Exception {
         return SshPublicKeyParser.parse(text).key;
     }
     static String normalizeAuthorizedKey(String text) throws Exception { return SshPublicKeyParser.parse(text).normalized; }
-    synchronized int start(String bind, int port, String user, PublicKey allowed, KeyPair hostKey, Path directory) throws Exception {
+    synchronized int start(String bind,int port,String user,PublicKey allowed,KeyPair hostKey,Path directory) throws Exception {
+        if(allowed==null)throw new IllegalArgumentException("Нужен разрешённый ключ");
+        return startInternal(bind,port,user,allowed,hostKey,directory);
+    }
+    /** Explicit locked startup: no password or key can authenticate until local approval. */
+    synchronized int startWaiting(String bind,int port,String user,KeyPair hostKey,Path directory) throws Exception {
+        return startInternal(bind,port,user,null,hostKey,directory);
+    }
+    synchronized void authorizeFirstClient(PublicKey key) {
+        if(server==null || key==null || !allowedClient.compareAndSet(null,key))
+            throw new IllegalStateException("Для замены ключа останови сервер");
+    }
+    private int startInternal(String bind,int port,String user,PublicKey allowed,KeyPair hostKey,Path directory) throws Exception {
         if(server!=null) throw new IllegalStateException("Сервер уже работает");
-        if(!ConnectionEndpoint.validUser(user) || port<0 || port>65535 || allowed==null || hostKey==null) throw new IllegalArgumentException("Неверные параметры сервера");
+        if(!ConnectionEndpoint.validUser(user) || port<0 || port>65535 || hostKey==null) throw new IllegalArgumentException("Неверные параметры сервера");
+        allowedClient.set(allowed);
         Files.createDirectories(directory); Path root=directory.toRealPath();
         // Android has no desktop user.name/user.home. Configure SSHD before ServerBuilder's
         // default authorized_keys authenticator is initialized (even though ours replaces it).
@@ -40,7 +54,10 @@ final class EmbeddedSftpServer implements AutoCloseable {
             ssh.setKeyPairProvider(session -> Collections.singletonList(hostKey));
             ssh.setUserAuthFactories(Collections.singletonList(UserAuthPublicKeyFactory.INSTANCE));
             ssh.setPasswordAuthenticator((name,password,session) -> false);
-            ssh.setPublickeyAuthenticator((name,key,session) -> user.equals(name) && KeyUtils.compareKeys(allowed,key));
+            ssh.setPublickeyAuthenticator((name,key,session) -> {
+                PublicKey approved=allowedClient.get();
+                return approved!=null && user.equals(name) && KeyUtils.compareKeys(approved,key);
+            });
             java.util.Set<org.apache.sshd.common.session.Session> sessions=java.util.concurrent.ConcurrentHashMap.newKeySet();
             ssh.addSessionListener(new org.apache.sshd.common.session.SessionListener() {
                 @Override public void sessionCreated(org.apache.sshd.common.session.Session session) {
@@ -81,5 +98,5 @@ final class EmbeddedSftpServer implements AutoCloseable {
         } catch(Exception e) { ssh.stop(true);throw e; }
     }
     static String fingerprint(KeyPair hostKey) { return KeyUtils.getFingerPrint(hostKey.getPublic()); }
-    @Override public synchronized void close() throws IOException { if(server!=null) { SshServer old=server;server=null;old.stop(true); } }
+    @Override public synchronized void close() throws IOException { if(server!=null) { SshServer old=server;server=null;old.stop(true);allowedClient.set(null); } }
 }

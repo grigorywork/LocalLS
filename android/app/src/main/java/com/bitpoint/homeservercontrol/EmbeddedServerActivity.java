@@ -15,9 +15,9 @@ import java.util.concurrent.*;
 
 public class EmbeddedServerActivity extends BaseActivity {
     private EditText port,user,key;
-    private TextView state;
+    private TextView state,address;
     private boolean checkingKey;
-    private Button start;
+    private Button start,importKey;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private boolean closed;
@@ -25,39 +25,43 @@ public class EmbeddedServerActivity extends BaseActivity {
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         LinearLayout layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(24,24,24,24);
-        text(layout,"Мой сервер",22);
-        text(layout,"Принимать файлы на этот телефон. Другому устройству доступна только папка LocalLS. При удалении приложения её файлы и ключ сервера удаляются.",16);
-        text(layout,"Доступ",20);
+        text(layout,"Мой сервер · телефон 1",22);
+        text(layout,"Сначала настрой этот телефон. Адрес ниже приложение определяет само. Затем подключим телефон 2.",16);
+        button(layout,"Инструкция: два телефона",() -> startActivity(new Intent(this,PhoneSetupGuideActivity.class)));
+        text(layout,"1. Настрой и включи сервер",20);
         SharedPreferences p=getSharedPreferences(EmbeddedServerService.PREFS,MODE_PRIVATE);
         user=field(layout,"Пользователь",p.getString("user","localls"),true);user.setId(R.id.embeddedServerUser);
-        port=field(layout,"Порт (1024–65535)",String.valueOf(p.getInt("port",8022)),true);port.setInputType(InputType.TYPE_CLASS_NUMBER);port.setId(R.id.embeddedServerPort);
-        key=field(layout,"Ключ подключающегося телефона (.pub)",p.getString("allowed_key",""),false);key.setId(R.id.embeddedServerKey);key.setMinLines(2);key.setMaxLines(3);key.setVerticalScrollBarEnabled(true);
-        text(layout,"На другом телефоне: «Подключение → Адрес и ключ → Ключ доступа» → создай ключ и сохрани файл .pub. Добавь этот файл здесь. Для замены ключа останови сервер.",14);
-        button(layout,"Загрузить публичный ключ из файла",() -> pick(910,"*/*",false));
+        port=field(layout,"Порт",String.valueOf(p.getInt("port",8022)),true);port.setInputType(InputType.TYPE_CLASS_NUMBER);port.setId(R.id.embeddedServerPort);
+        address=text(layout,"",16);address.setId(R.id.embeddedServerAddress);address.setTextIsSelectable(true);
         state=text(layout,"",16);
         start=button(layout,"Включить сервер",() -> startServer());
         button(layout,"Остановить сервер",() -> stopService(new Intent(this,EmbeddedServerService.class)));
-        text(layout,"Файлы",20);
-        text(layout,"Здесь появятся файлы, присланные с другого устройства. Можно также добавить свои.",14);
+        button(layout,"Скопировать данные подключения",() -> {
+            if(LocalServerAddresses.current(this).isEmpty()) {message("Подключи телефон к Wi-Fi. Адрес появится здесь автоматически.");return;}
+            ClipboardManager c=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            c.setPrimaryClip(ClipData.newPlainText("LocalLS SFTP",connectionText()));message("Данные подключения скопированы");
+        });
+        text(layout,"2. Разреши телефон 2",20);
+        text(layout,"Без добавленного телефона сервер запускается в ожидании: вход закрыт для всех. На телефоне 2 создай ключ в «Подключение → Адрес и ключ → Ключ доступа» и передай сюда файл .pub. Нажми кнопку ниже и подтверди разрешение.",14);
+        key=field(layout,"Разрешённый публичный ключ (.pub)",p.getString("allowed_key",""),false);key.setId(R.id.embeddedServerKey);key.setMinLines(2);key.setMaxLines(3);key.setVerticalScrollBarEnabled(true);
+        importKey=button(layout,"Добавить телефон 2 (.pub)",() -> pick(910,"*/*",false));
+        text(layout,"Для замены ранее добавленного ключа останови сервер. Закрытый ключ остаётся только на телефоне 2.",14);
+        text(layout,"3. Принимай файлы",20);
+        text(layout,"Другому устройству доступна только папка LocalLS. Присланные файлы появятся здесь. При удалении приложения эта папка и ключ сервера удаляются.",14);
         button(layout,"Добавить файлы в папку сервера",() -> pick(911,"*/*",true));
         button(layout,"Файлы сервера / сохранить на телефон",() -> startActivity(new Intent(this,EmbeddedFilesActivity.class)));
-        text(layout,"Адрес сервера",20);
-        button(layout,"Скопировать данные подключения",() -> {
-            if(!EmbeddedServerService.running) { message("Сначала включи сервер");return; }
-            ClipboardManager c=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-            c.setPrimaryClip(ClipData.newPlainText("LocalLS SFTP",connectionText()));message("Адреса и fingerprint скопированы");
-        });
         button(layout,"Скопировать диагностику запуска",() -> {
             ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             String report=EmbeddedServerService.diagnostic;
             if(report.isEmpty()) report="LocalLS / SDK "+Build.VERSION.SDK_INT+"\nЭтап: "+EmbeddedServerService.lastStage+
                     "\nrunning="+EmbeddedServerService.running+"; starting="+EmbeddedServerService.starting+"; checkingKey="+checkingKey+
-                    "; serviceRequested="+(EmbeddedServerService.launchRequested!=0)+"\n"+EmbeddedServerService.status;
+                    "; waitingForClient="+EmbeddedServerService.waitingForClient+"; serviceRequested="+(EmbeddedServerService.launchRequested!=0)+"\n"+EmbeddedServerService.status;
             clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS startup",report));message("Диагностика скопирована без ключей и паролей");
         });
         text(layout,"Служба показывает постоянное уведомление. Android может ограничить её работу в фоне (включая лимит dataSync до 6 часов). Автозапуск после перезагрузки выключен. Подключайся с другого устройства по Wi-Fi/VPN; сервер слушает сетевые интерфейсы телефона. Сверь fingerprint перед первым входом.",14);
         button(layout,"Назад",() -> finish());
         ScrollView scroll=new ScrollView(this);scroll.addView(layout);setContentView(scroll);
+        render();
         if(Build.VERSION.SDK_INT<26) {start.setEnabled(false);state.setText("Нужен Android 8 или новее");}
     }
     private TextView text(LinearLayout parent,String value,int size) { TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setPadding(0,10,0,10);parent.addView(t);return t; }
@@ -77,7 +81,7 @@ public class EmbeddedServerActivity extends BaseActivity {
         if(!ConnectionEndpoint.validUser(name)) {user.setError("Неверное имя SSH-пользователя");EmbeddedServerService.failure("INPUT",new IllegalArgumentException());render();message(EmbeddedServerService.status);return;}
         checkingKey=true;EmbeddedServerService.lastStage="UI_PUBLIC_KEY";EmbeddedServerService.status="Проверка публичного ключа…";render();
         worker.execute(() -> {
-            try {String normalized=EmbeddedSftpServer.normalizeAuthorizedKey(pub);
+            try {String normalized=pub.isEmpty()?"":EmbeddedSftpServer.normalizeAuthorizedKey(pub);
                 getSharedPreferences(EmbeddedServerService.PREFS,MODE_PRIVATE).edit().putString("user",name).putInt("port",parsed).putString("allowed_key",normalized).apply();
                 ui.post(() -> {if(closed)return;checkingKey=false;key.setText(normalized);try {
                     EmbeddedServerService.start(this);
@@ -88,26 +92,42 @@ public class EmbeddedServerActivity extends BaseActivity {
         });
     }
     private String connectionText() {
-        String name=getSharedPreferences(EmbeddedServerService.PREFS,MODE_PRIVATE).getString("user","localls");
-        StringBuilder s=new StringBuilder("SFTP, пользователь: "+name+", порт: "+EmbeddedServerService.boundPort+", папка: /\n");
-        try {Enumeration<NetworkInterface> interfaces=NetworkInterface.getNetworkInterfaces();
-            while(interfaces.hasMoreElements()) {NetworkInterface n=interfaces.nextElement();if(!n.isUp() || n.isLoopback())continue;
-                Enumeration<InetAddress> addresses=n.getInetAddresses();while(addresses.hasMoreElements()) {InetAddress a=addresses.nextElement();
-                    if(a instanceof Inet4Address)s.append("sftp://").append(name).append('@').append(a.getHostAddress()).append(':').append(EmbeddedServerService.boundPort).append("\n");
-                }
-            }
-        } catch(Exception ignored) { }
-        return s.append("Fingerprint: ").append(EmbeddedServerService.fingerprint).toString();
+        String name=user.getText().toString().trim();
+        int selected=8022;try {selected=Integer.parseInt(port.getText().toString().trim());}catch(Exception ignored) { }
+        int number=EmbeddedServerService.running?EmbeddedServerService.boundPort:selected;
+        StringBuilder result=new StringBuilder("Адрес этого телефона в Wi-Fi\n");
+        java.util.List<String> values=LocalServerAddresses.current(this);
+        if(values.isEmpty())result.append("Подключи телефон к Wi-Fi — адрес появится автоматически.\n");
+        else for(String ip:values)result.append("IP: ").append(ip).append("\nsftp://").append(name).append('@').append(ip).append(':').append(number).append("\n");
+        result.append("Порт: ").append(number).append(" · Пользователь: ").append(name);
+        if(EmbeddedServerService.running)result.append("\nFingerprint: ").append(EmbeddedServerService.fingerprint);
+        return result.toString();
+    }
+    private void importedKey(String normalized) {
+        if(closed)return;
+        if(EmbeddedServerService.running) {
+            if(!EmbeddedServerService.waitingForClient) {message("Для замены ключа останови сервер");return;}
+            new AlertDialog.Builder(this).setTitle("Разрешить телефон 2?")
+                .setMessage("Выбранный файл должен быть публичным ключом телефона 2. Вход получит только устройство с соответствующим закрытым ключом.")
+                .setNegativeButton("Отмена",null).setPositiveButton("Разрешить",(dialog,which) -> {
+                    try {EmbeddedServerService.authorizeFirstClient(this,normalized);key.setText(normalized);message("Сохраняем разрешение…");}
+                    catch(Exception error){message("Не удалось добавить телефон. Проверь состояние сервера.");}
+                }).show();
+        } else if(!checkingKey && !EmbeddedServerService.starting && EmbeddedServerService.launchRequested==0) {
+            key.setText(normalized);message("Ключ выбран. Нажми «Включить сервер».");
+        }
     }
     private void render() {
         if(Build.VERSION.SDK_INT<26)return;
         if(EmbeddedServerService.launchRequested!=0 && android.os.SystemClock.elapsedRealtime()-EmbeddedServerService.launchRequested>10000 && !EmbeddedServerService.starting && !EmbeddedServerService.running) {
             EmbeddedServerService.launchRequested=0;EmbeddedServerService.failure("FOREGROUND",new java.util.concurrent.TimeoutException());
         }
-        state.setText(EmbeddedServerService.status+(EmbeddedServerService.running?"\n"+connectionText():""));
+        state.setText(EmbeddedServerService.status);
+        address.setText(connectionText());
         start.setEnabled(!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting);
         boolean editable=!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting;
         key.setEnabled(editable);port.setEnabled(editable);user.setEnabled(editable);
+        importKey.setEnabled(editable || (EmbeddedServerService.running && EmbeddedServerService.waitingForClient));
     }
     private void message(String value) {if(!closed)Toast.makeText(this,value,Toast.LENGTH_LONG).show();}
     @Override protected void onActivityResult(int request,int result,Intent data) {
@@ -120,8 +140,8 @@ public class EmbeddedServerActivity extends BaseActivity {
                     ByteArrayOutputStream out=new ByteArrayOutputStream();
                     try(InputStream in=getContentResolver().openInputStream(uris.get(0))) {if(in==null)throw new IOException();byte[] b=new byte[1024];int n;
                         while((n=in.read(b))!=-1) {if(out.size()+n>16384)throw new IOException();out.write(b,0,n);}}
-                    String publicKey=out.toString("UTF-8");EmbeddedSftpServer.authorizedKey(publicKey);
-                    ui.post(() -> {if(!closed && !EmbeddedServerService.running && !EmbeddedServerService.starting)key.setText(publicKey.trim());});
+                    String publicKey=EmbeddedSftpServer.normalizeAuthorizedKey(out.toString("UTF-8"));
+                    ui.post(() -> importedKey(publicKey));
                 } else if(request==911) {
                     File share=EmbeddedServerService.share(this);if(!share.isDirectory() && !share.mkdirs())throw new IOException();
                     for(Uri uri:uris) {

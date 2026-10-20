@@ -9,8 +9,8 @@ import java.util.concurrent.*;
 
 /** Explicit, foreground-only lifetime. No auto-start after reboot or process death. */
 public class EmbeddedServerService extends Service {
-    static final String PREFS="embedded_sftp_settings", STOP="localls.embedded.STOP";
-    static volatile boolean running,starting;
+    static final String PREFS="embedded_sftp_settings", STOP="localls.embedded.STOP", AUTHORIZE="localls.embedded.AUTHORIZE_FIRST";
+    static volatile boolean running,starting,waitingForClient;
     static volatile String status="Сервер выключен",fingerprint="";
     static volatile int boundPort;
     static volatile long launchRequested;
@@ -33,7 +33,33 @@ public class EmbeddedServerService extends Service {
         try {if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);}
         catch(RuntimeException e) {launchRequested=0;failure("FOREGROUND",e);throw e;}
     }
+    static void authorizeFirstClient(Context context,String publicKey) {
+        if(!running || !waitingForClient)throw new IllegalStateException("Сначала запусти сервер в ожидании телефона");
+        context.startService(new Intent(context,EmbeddedServerService.class).setAction(AUTHORIZE).putExtra("public_key",publicKey));
+    }
+    private static String runningStatus() {
+        return waitingForClient?"Сервер готов, порт "+boundPort+". Ожидает телефон 2. Вход пока закрыт.":
+                "Сервер работает, порт "+boundPort+". Разрешён вход по добавленному ключу.";
+    }
+    private void approve(Intent intent,int id) {
+        if(destroyed || !running || !waitingForClient) {if(!running && !starting)stopSelf(id);return;}
+        final String text=intent.getStringExtra("public_key");
+        worker.execute(() -> {
+            if(destroyed || !running || !waitingForClient)return;
+            try {
+                String normalized=EmbeddedSftpServer.normalizeAuthorizedKey(text);
+                server.authorizeFirstClient(EmbeddedSftpServer.authorizedKey(normalized));
+                if(!getSharedPreferences(PREFS,MODE_PRIVATE).edit().putString("allowed_key",normalized).commit())
+                    throw new java.io.IOException("Не удалось сохранить разрешение");
+                if(destroyed)return;
+                waitingForClient=false;lastStage="RUNNING";status=runningStatus();
+            } catch(Exception | LinkageError error) {
+                if(!destroyed) {failure("KEY",error);stopSelf();}
+            }
+        });
+    }
     @Override public int onStartCommand(Intent intent,int flags,int id) {
+        if(intent!=null && AUTHORIZE.equals(intent.getAction())) {approve(intent,id);return START_NOT_STICKY;}
         launchRequested=0;lastStage="SERVICE_RECEIVED";
         if(intent!=null && STOP.equals(intent.getAction())) { stopSelf();return START_NOT_STICKY; }
         if(Build.VERSION.SDK_INT<26) { status="Встроенный сервер требует Android 8 или новее";stopSelf();return START_NOT_STICKY; }
@@ -58,20 +84,22 @@ public class EmbeddedServerService extends Service {
         worker.execute(() -> {
             String stage="KEY";
             try {
-                java.security.PublicKey allowed=EmbeddedSftpServer.authorizedKey(publicKey);
+                java.security.PublicKey allowed=publicKey.trim().isEmpty()?null:EmbeddedSftpServer.authorizedKey(publicKey);
                 stage="IDENTITY";
                 KeyPair identity=EmbeddedServerIdentity.loadOrCreate(this);
                 if(destroyed)return;
                 stage="NETWORK";
                 EmbeddedSftpServer next=new EmbeddedSftpServer();
-                boundPort=next.start("0.0.0.0",port,user,allowed,identity,share(this).toPath());server=next;
+                boundPort=allowed==null?next.startWaiting("0.0.0.0",port,user,identity,share(this).toPath()):
+                        next.start("0.0.0.0",port,user,allowed,identity,share(this).toPath());server=next;
+                waitingForClient=allowed==null;
                 if(destroyed) { next.close();return; }
                 fingerprint=EmbeddedSftpServer.fingerprint(identity);
                 stage="POWER";
                 PowerManager pm=getSystemService(PowerManager.class);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:EmbeddedSftp");wake.acquire(6*60*60*1000L);
-                lastStage="RUNNING";running=true;
+                lastStage=waitingForClient?"WAITING_CLIENT":"RUNNING";running=true;
                 if(destroyed) { running=false;next.close();return; }
-                status="Сервер работает, порт "+boundPort+". Вход только по ключу; папка / — файлы LocalLS.";
+                status=runningStatus();
             } catch(Exception | LinkageError e) {
                 if(!destroyed) {running=false;failure(stage,e);stopSelf();}
             } finally { if(!destroyed)starting=false; }
@@ -80,8 +108,8 @@ public class EmbeddedServerService extends Service {
     }
     @Override public void onTimeout(int id,int type) { status="Сервер остановлен: Android ограничил время фоновой службы. Запусти его снова.";stopSelf(); }
     @Override public void onDestroy() {
-        destroyed=true;startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;
-        if(status.startsWith("Сервер работает") || status.startsWith("Запуск"))status="Сервер выключен";
+        destroyed=true;startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;waitingForClient=false;
+        if(status.startsWith("Сервер работает") || status.startsWith("Сервер готов") || status.startsWith("Запуск"))status="Сервер выключен";
         worker.execute(() -> { try { if(server!=null)server.close(); } catch(Exception ignored) { }
             if(wake!=null && wake.isHeld())wake.release(); });
         worker.shutdown();stopForeground(true);super.onDestroy();
