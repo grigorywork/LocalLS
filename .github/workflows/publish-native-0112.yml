@@ -1,0 +1,26 @@
+name: Publish embedded SFTP Android 0.11.2
+on:
+  push:
+    branches: [codex/publish-native-0112]
+    paths: ['.github/workflows/publish-native-0112.yml', 'release-artifacts/android-0.11.2/**']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify prepared signed release
+        working-directory: release-artifacts/android-0.11.2
+        run: |
+          sha256sum -c SHA256SUMS-Android-0.11.2.txt
+          echo '95af61a90669274058d037fa1807991bf18bbde23bb48ce0b1f23ea9e66917a5  LocalLS-0.11.2-release.apk' | sha256sum -c -
+      - name: Publish preliminary server build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: release-artifacts/android-0.11.2
+        run: |
+          gh release upload android-v0.11.2 --repo grigorywork/LocalLS --clobber LocalLS-0.11.2-release.apk LocalLS-0.11.2-source.zip LocalLS-0.11.2-verification.json LocalLS-0.11.2-report.md LocalLS-0.11.2-release-notes.md SHA256SUMS-Android-0.11.2.txt
+          gh release edit android-v0.11.2 --repo grigorywork/LocalLS --draft=false --prerelease --latest=false
