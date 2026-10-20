@@ -39,15 +39,12 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends BaseActivity {
     private EditText localHostInput, vpnHostInput, portInput, userInput;
-    private EditText iperfTargetInput, agentPortInput, agentTokenInput;
-    private CheckBox autoRefreshCheck, saveAgentTokenCheck, backgroundMonitorCheck;
+    private CheckBox autoRefreshCheck;
     private RadioGroup modeGroup;
     private RadioButton localModeButton, vpnModeButton;
 
     private TextView statusText, statusDetail, ipValue, portValue, userValue,
-            latencyValue, diskValue, uptimeValue, sshdValue, batteryValue,
-            temperatureValue, chargingValue, iperfValue, fingerprintValue,
-            commandHelpText, iperfOutputText, agentOutputText, historyValue, logText;
+            latencyValue, diskValue, uptimeValue, batteryValue, fingerprintValue, logText;
     private Button checkButton, trustKeyButton;
 
     private static final int REQ_EXPORT_REPORT = 601;
@@ -59,6 +56,9 @@ public class MainActivity extends BaseActivity {
     private Boolean requestedVpn;
     private long vpnRequestDeadline;
     private final Runnable vpnRefresh = () -> refreshVpnStatus();
+    private final Runnable localServerRefresh=new Runnable() {
+        public void run() {refreshLocalServer();if(isUiActive())handler.postDelayed(this,1000);}
+    };
     private Runnable savedProfileCheck;
     private Object drawerBackCallback; // Avoid resolving the API 33 interface on Android 7–12.
 
@@ -66,10 +66,8 @@ public class MainActivity extends BaseActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private DrawerSections drawerSections;
     private WifiSetupController wifiSetup;
-    private AlertDialog pendingAgentDialog;
     private volatile int uiGeneration, secretGeneration;
-    private int quickGeneration, iperfGeneration, agentGeneration;
-    private java.util.concurrent.Future<?> checkTask, quickTask, iperfTask, agentTask;
+    private java.util.concurrent.Future<?> checkTask;
     private boolean loadingConfig;
     private int loadedConfigSignature;
     private boolean checking = false;
@@ -98,9 +96,9 @@ public class MainActivity extends BaseActivity {
         loadConfig();
         wireActions();
         drawerSections = new DrawerSections(this,
-                new int[]{R.id.drawerConnectionHeader, R.id.drawerSettingsHeader, R.id.drawerWifiHeader,
+                new int[]{R.id.drawerSettingsHeader, R.id.drawerWifiHeader,
                         R.id.drawerAppearanceHeader, R.id.drawerToolsHeader, R.id.drawerVpnHeader},
-                new int[]{R.id.drawerConnectionPane, R.id.drawerSettingsPane, R.id.drawerWifiPane,
+                new int[]{R.id.drawerSettingsPane, R.id.drawerWifiPane,
                         R.id.drawerAppearancePane, R.id.drawerToolsPane, R.id.drawerVpnPane});
         wifiSetup = new WifiSetupController(this);
         findViewById(R.id.drawerVpnHeader).setOnClickListener(v -> {
@@ -114,6 +112,10 @@ public class MainActivity extends BaseActivity {
             if (restored != null) for (Uri uri : restored) FileAttachments.add(attachedFiles, uri);
         }
         renderAttachmentEntry();
+        if(activeHost().isEmpty()) {
+            findViewById(R.id.drawerConnectionPane).setVisibility(View.VISIBLE);
+            statusText.setText("НЕ НАСТРОЕНО");statusDetail.setText("Укажи адрес другого устройства в разделе «Адрес и ключ».");
+        }
     }
 
 
@@ -125,6 +127,7 @@ public class MainActivity extends BaseActivity {
         handler.removeCallbacks(autoRefreshRunnable);
         if (autoRefreshCheck.isChecked()) handler.postDelayed(autoRefreshRunnable, 15000);
         renderDashboardLatency();
+        handler.removeCallbacks(localServerRefresh);handler.post(localServerRefresh);
         refreshVpnStatus();
         if (firstResume) {
             firstResume = false;
@@ -134,6 +137,11 @@ public class MainActivity extends BaseActivity {
             cancelNetworkWork(); invalidateConnectionStats(); loadConfig();
         }
         renderConnectionSummary();
+    }
+
+    private void refreshLocalServer() {
+        TextView summary=findViewById(R.id.localServerSummary);
+        summary.setText(EmbeddedServerService.status);
     }
 
     private int configSignature() {
@@ -156,8 +164,6 @@ public class MainActivity extends BaseActivity {
         trustKeyButton.setVisibility(View.GONE);
         fingerprintValue.setVisibility(View.GONE);
         latencyValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a); diskValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_e1faaf5992f7); uptimeValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_cbe1cb69c8a9);
-        sshdValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_ce3ecbddec73); batteryValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_8d23eea1be14); temperatureValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_196fa3c8ea8d);
-        chargingValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_22a0cf38a169); iperfValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_c80b4e6b81e1);
     }
 
     private void bindViews() {
@@ -165,13 +171,8 @@ public class MainActivity extends BaseActivity {
         vpnHostInput = findViewById(R.id.vpnHostInput);
         portInput = findViewById(R.id.portInput);
         userInput = findViewById(R.id.userInput);
-        iperfTargetInput = findViewById(R.id.iperfTargetInput);
-        agentPortInput = findViewById(R.id.agentPortInput);
-        agentTokenInput = findViewById(R.id.agentTokenInput);
 
         autoRefreshCheck = findViewById(R.id.autoRefreshCheck);
-        saveAgentTokenCheck = findViewById(R.id.saveAgentTokenCheck);
-        backgroundMonitorCheck = findViewById(R.id.backgroundMonitorCheck);
         modeGroup = findViewById(R.id.modeGroup);
         localModeButton = findViewById(R.id.localModeButton);
         vpnModeButton = findViewById(R.id.vpnModeButton);
@@ -184,16 +185,8 @@ public class MainActivity extends BaseActivity {
         latencyValue = findViewById(R.id.latencyValue);
         diskValue = findViewById(R.id.diskValue);
         uptimeValue = findViewById(R.id.uptimeValue);
-        sshdValue = findViewById(R.id.sshdValue);
         batteryValue = findViewById(R.id.batteryValue);
-        temperatureValue = findViewById(R.id.temperatureValue);
-        chargingValue = findViewById(R.id.chargingValue);
-        iperfValue = findViewById(R.id.iperfValue);
         fingerprintValue = findViewById(R.id.fingerprintValue);
-        commandHelpText = findViewById(R.id.commandHelpText);
-        iperfOutputText = findViewById(R.id.iperfOutputText);
-        agentOutputText = findViewById(R.id.agentOutputText);
-        historyValue = findViewById(R.id.historyValue);
         logText = findViewById(R.id.logText);
 
         checkButton = findViewById(R.id.checkButton);
@@ -201,190 +194,77 @@ public class MainActivity extends BaseActivity {
     }
 
     private void wireActions() {
-        findViewById(R.id.advancedToggleButton).setOnClickListener(v -> openToolsDrawer());
         findViewById(R.id.drawerScrim).setOnClickListener(v -> closeToolsDrawer());
+        findViewById(R.id.drawerConnectionHeader).setOnClickListener(v -> {
+            View pane=findViewById(R.id.drawerConnectionPane);
+            pane.setVisibility(pane.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);
+        });
         findViewById(R.id.themeChooserButton).setOnClickListener(v -> chooseTheme());
-        findViewById(R.id.serverSetupButton).setOnClickListener(v -> showServerMenu());
-        findViewById(R.id.restartServerButton).setOnClickListener(v -> {
-            if (agentTokenInput.getText().length() == 0) {
-                showServerMenu();
-                findServerView(R.id.agentCredentialsPanel).setVisibility(View.VISIBLE);
-                agentOutputText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a6920f312e45);
-            } else confirmAgentAction("restart", "Перезапустить SSH-службу? Активные SSH/SFTP-подключения прервутся.");
-        });
-        findViewById(R.id.localServerQuickButton).setOnClickListener(v -> startActivity(
-                new Intent(this, EmbeddedServerActivity.class)));
-        findViewById(R.id.currentServerSettingsButton).setOnClickListener(v -> showServerMenu());
-        findViewById(R.id.appSettingsButton).setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         findViewById(R.id.iconShapeButton).setOnClickListener(v -> chooseIconShape());
-        findViewById(R.id.serverWizardMenuButton).setOnClickListener(v -> {
-            if (serverMenuDialog != null) serverMenuDialog.dismiss();
-            startActivity(new Intent(this, EmbeddedServerActivity.class));
-        });
-        findViewById(R.id.agentCredentialsToggleButton).setOnClickListener(v -> {
-            View fields = findServerView(R.id.agentCredentialsPanel);
-            fields.setVisibility(fields.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
-        });
-        findViewById(R.id.saveAgentCredentialsButton).setOnClickListener(v -> saveConfig());
-        findViewById(R.id.drawerVpnSettingsButton).setOnClickListener(v -> startActivity(
-                new Intent(this, NetworkActivity.class).putExtra("expand_vpn", true)));
-        findViewById(R.id.drawerVpnSaveButton).setOnClickListener(v -> saveConfig());
+        findViewById(R.id.localServerQuickButton).setOnClickListener(v -> startActivity(new Intent(this,EmbeddedServerActivity.class)));
+        findViewById(R.id.appSettingsButton).setOnClickListener(v -> startActivity(new Intent(this,SettingsActivity.class)));
+        findViewById(R.id.drawerVpnSettingsButton).setOnClickListener(v -> startActivity(new Intent(this,NetworkActivity.class).putExtra("expand_vpn",true)));
         findViewById(R.id.openVpnClientButton).setOnClickListener(v -> openVpnClient());
         findViewById(R.id.vpnHelpButton).setOnClickListener(v -> showVpnHelp());
-        ((Switch) findViewById(R.id.drawerVpnSwitch)).setOnCheckedChangeListener((button, checked) -> {
-            if (updatingVpnSwitch) return;
-            if (checked && VpnController.state(this) == VpnController.State.OTHER_VPN) {
-                refreshVpnStatus();
-                new AlertDialog.Builder(this).setTitle("Другой VPN уже включён")
-                        .setMessage("Android использует один VPN одновременно. Переключиться на Tailscale?")
-                        .setNegativeButton("Отмена", null)
-                        .setPositiveButton("Переключить", (d, w) -> requestVpn(true)).show();
+        ((Switch)findViewById(R.id.drawerVpnSwitch)).setOnCheckedChangeListener((button,checked) -> {
+            if(updatingVpnSwitch)return;
+            if(checked && VpnController.state(this)==VpnController.State.OTHER_VPN) {
+                refreshVpnStatus();new AlertDialog.Builder(this).setTitle("Другой VPN уже включён")
+                    .setMessage("Переключиться на Tailscale?").setNegativeButton("Отмена",null)
+                    .setPositiveButton("Переключить",(d,w) -> requestVpn(true)).show();
             } else requestVpn(checked);
         });
         findViewById(R.id.sshKeySetupButton).setOnClickListener(v -> {
-            if (saveConfig()) startActivity(new Intent(this, SecurityActivity.class));
+            if(saveConfig())startActivity(new Intent(this,SecurityActivity.class));
         });
         findViewById(R.id.saveButton).setOnClickListener(v -> {
-            if (!saveConfig()) return;
-            if (savedProfileCheck != null) handler.removeCallbacks(savedProfileCheck);
-            final int generation = uiGeneration;
-            savedProfileCheck = () -> {
-                if (isUiActive() && generation == uiGeneration) checkServer(false);
-            };
-            handler.postDelayed(savedProfileCheck, 750);
+            if(!saveConfig())return;
+            if(savedProfileCheck!=null)handler.removeCallbacks(savedProfileCheck);
+            final int generation=uiGeneration;
+            savedProfileCheck=() -> {if(isUiActive() && generation==uiGeneration)checkServer(false);};
+            handler.postDelayed(savedProfileCheck,750);
         });
         checkButton.setOnClickListener(v -> checkServer(true));
         findViewById(R.id.copyButton).setOnClickListener(v -> copyConnection());
-        findViewById(R.id.solidButton).setOnClickListener(v -> openSolidExplorer());
         findViewById(R.id.filesButton).setOnClickListener(v -> openFiles(false));
         findViewById(R.id.attachFilesButton).setOnClickListener(v -> openFiles(attachedFiles.isEmpty()));
-        findViewById(R.id.networkButton).setOnClickListener(v -> startActivity(new Intent(this, NetworkActivity.class)));
-        findViewById(R.id.settingsButton).setOnClickListener(v -> {
-            openToolsDrawer(); drawerSections.open(R.id.drawerSettingsPane);
-        });
-        findViewById(R.id.historyButton).setOnClickListener(v -> startActivity(new Intent(this, HistoryActivity.class)));
-        findViewById(R.id.diagnosticsButton).setOnClickListener(v -> startActivity(new Intent(this, DiagnosticsActivity.class)));
+        findViewById(R.id.networkButton).setOnClickListener(v -> startActivity(new Intent(this,NetworkActivity.class)));
+        findViewById(R.id.settingsButton).setOnClickListener(v -> {openToolsDrawer();drawerSections.open(R.id.drawerSettingsPane);});
+        findViewById(R.id.historyButton).setOnClickListener(v -> startActivity(new Intent(this,HistoryActivity.class)));
+        findViewById(R.id.diagnosticsButton).setOnClickListener(v -> startActivity(new Intent(this,DiagnosticsActivity.class)));
         findViewById(R.id.exportButton).setOnClickListener(v -> exportDiagnostics());
-        findViewById(R.id.clearHistoryButton).setOnClickListener(v -> {
-            DiskHistoryStore.clear(this);
-            historyValue.setText(DiskHistoryStore.render(this, 8));
-            appendLog("История памяти очищена.");
+        modeGroup.setOnCheckedChangeListener((group,id) -> {
+            if(!loadingConfig){cancelNetworkWork();invalidateConnectionStats();}renderConnectionSummary();
         });
-
-        modeGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            if (!loadingConfig) { cancelNetworkWork(); invalidateConnectionStats(); }
-            renderConnectionSummary();
-            String mode = checkedId == R.id.vpnModeButton ? "VPN / Tailscale" : "локальный Wi-Fi";
-            appendLog("Режим подключения: " + mode + ".");
-        });
-
-        android.text.TextWatcher profileWatcher = new android.text.TextWatcher() {
-            public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
-            public void onTextChanged(CharSequence text, int start, int before, int count) {
-                if (!loadingConfig) { cancelNetworkWork(); invalidateConnectionStats(); renderConnectionSummary(); }
+        android.text.TextWatcher watcher=new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence s,int start,int count,int after) { }
+            public void onTextChanged(CharSequence s,int start,int before,int count) {
+                if(!loadingConfig){cancelNetworkWork();invalidateConnectionStats();renderConnectionSummary();}
             }
-            public void afterTextChanged(android.text.Editable text) { }
+            public void afterTextChanged(android.text.Editable value) { }
         };
-        localHostInput.addTextChangedListener(profileWatcher);
-        vpnHostInput.addTextChangedListener(profileWatcher);
-        portInput.addTextChangedListener(profileWatcher);
-        userInput.addTextChangedListener(profileWatcher);
+        localHostInput.addTextChangedListener(watcher);vpnHostInput.addTextChangedListener(watcher);
+        portInput.addTextChangedListener(watcher);userInput.addTextChangedListener(watcher);
         trustKeyButton.setOnClickListener(v -> trustLastFingerprint());
         findViewById(R.id.forgetKeyButton).setOnClickListener(v -> forgetFingerprint());
-
-        findViewById(R.id.profileTransferButton).setOnClickListener(v -> startActivity(new Intent(this, ProfileTransferActivity.class)));
+        findViewById(R.id.profileTransferButton).setOnClickListener(v -> startActivity(new Intent(this,ProfileTransferActivity.class)));
         findViewById(R.id.importEndpointButton).setOnClickListener(v -> showEndpointImport());
-        findViewById(R.id.quickMemoryButton).setOnClickListener(v -> runQuickCommand(
-                "cat /proc/meminfo", "Память: MemAvailable — доступно, SwapFree — свободный swap; значения в кБ."));
-        findViewById(R.id.quickNetworkButton).setOnClickListener(v -> runQuickCommand(
-                "ip route 2>/dev/null || cat /proc/net/route", "Маршруты сети сервера. Android может ограничивать доступ."));
-        findViewById(R.id.quickStorageButton).setOnClickListener(v -> runQuickCommand(
-                "printf 'HOME: '; printf '%s\\n' \"$HOME\"; if test -d \"$HOME/storage/shared\"; then ls -ld \"$HOME/storage/shared\"; else printf 'Shared storage unavailable; use HOME or run termux-setup-storage in Termux.\\n'; fi",
-                "Проверка доступности общей папки Termux без изменения разрешений."));
-        findViewById(R.id.quickSshdButton).setOnClickListener(v -> runQuickCommand(
-                "pgrep -a sshd 2>/dev/null || true",
-                "pgrep -a sshd — ищет процесс SSH-сервера. Если видишь PID и sshd, сервер запущен."));
-        findViewById(R.id.quickIpButton).setOnClickListener(v -> runQuickCommand(
-                "ip addr show wlan0 2>/dev/null | grep 'inet ' || true",
-                "ip addr show wlan0 | grep 'inet ' — показывает IP-адрес сервера в текущей Wi-Fi сети."));
-        findViewById(R.id.quickDiskButton).setOnClickListener(v -> runQuickCommand(
-                "df -h \"$HOME/storage/shared\" 2>/dev/null || df -h \"$HOME\"",
-                "df -h — показывает общий объём, занятое и свободное место. -h выводит размеры в ГБ/МБ."));
-        findViewById(R.id.quickUptimeButton).setOnClickListener(v -> runQuickCommand(
-                "uptime",
-                "uptime — показывает, сколько времени система работает без перезагрузки и текущую нагрузку."));
-
-        findViewById(R.id.runIperfButton).setOnClickListener(v -> runIperfTest());
-
-        findViewById(R.id.agentStatusButton).setOnClickListener(v -> runAgentAction("status", false));
-        findViewById(R.id.agentStartButton).setOnClickListener(v -> runAgentAction("start", false));
-        findViewById(R.id.agentRestartButton).setOnClickListener(v -> confirmAgentAction("restart", "Перезапустить SSH-сервер?"));
-        findViewById(R.id.agentStopButton).setOnClickListener(v -> confirmAgentAction("stop", "Остановить SSH-сервер? SFTP/WinSCP отключатся."));
-
-        backgroundMonitorCheck.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (loadingConfig) return;
-            getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE).edit()
-                    .putBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, isChecked)
-                    .remove(ServerConfig.KEY_MONITOR_HAS_STATE)
-                    .apply();
-            boolean scheduled = MonitoringScheduler.setEnabled(this, isChecked);
-            if (isChecked) {
-                requestNotificationPermissionIfNeeded();
-                appendLog(scheduled
-                        ? "Фоновый мониторинг включён: проверка примерно каждые 15 минут."
-                        : "Не удалось включить фоновый мониторинг.");
-            } else {
-                appendLog("Фоновый мониторинг выключен.");
-            }
-        });
-
-        autoRefreshCheck.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            handler.removeCallbacks(autoRefreshRunnable);
-            if (isChecked) {
-                appendLog("Автопроверка включена: 15 секунд.");
-                handler.post(autoRefreshRunnable);
-            } else {
-                appendLog("Автопроверка выключена.");
-            }
+        autoRefreshCheck.setOnCheckedChangeListener((button,checked) -> {
+            handler.removeCallbacks(autoRefreshRunnable);if(checked)handler.post(autoRefreshRunnable);
         });
     }
 
     private void loadConfig() {
-        loadingConfig = true;
-        SharedPreferences prefs = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE);
-        localHostInput.setText(prefs.getString(ServerConfig.KEY_LOCAL_HOST, ServerConfig.DEFAULT_LOCAL_HOST));
-        vpnHostInput.setText(prefs.getString(ServerConfig.KEY_VPN_HOST, ServerConfig.DEFAULT_VPN_HOST));
-        portInput.setText(String.valueOf(prefs.getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT)));
-        userInput.setText(prefs.getString(ServerConfig.KEY_USER, ServerConfig.DEFAULT_USER));
-        iperfTargetInput.setText(prefs.getString(ServerConfig.KEY_IPERF_TARGET, ""));
-        agentPortInput.setText(String.valueOf(prefs.getInt(ServerConfig.KEY_AGENT_PORT, ServerConfig.DEFAULT_AGENT_PORT)));
-
-        String mode = prefs.getString(ServerConfig.KEY_MODE, ServerConfig.MODE_LOCAL);
-        if (ServerConfig.MODE_VPN.equals(mode)) vpnModeButton.setChecked(true);
+        loadingConfig=true;
+        SharedPreferences prefs=getSharedPreferences(ServerConfig.PREFS,MODE_PRIVATE);
+        localHostInput.setText(prefs.getString(ServerConfig.KEY_LOCAL_HOST,ServerConfig.DEFAULT_LOCAL_HOST));
+        vpnHostInput.setText(prefs.getString(ServerConfig.KEY_VPN_HOST,ServerConfig.DEFAULT_VPN_HOST));
+        portInput.setText(String.valueOf(prefs.getInt(ServerConfig.KEY_PORT,ServerConfig.DEFAULT_PORT)));
+        userInput.setText(prefs.getString(ServerConfig.KEY_USER,ServerConfig.DEFAULT_USER));
+        if(ServerConfig.MODE_VPN.equals(prefs.getString(ServerConfig.KEY_MODE,ServerConfig.MODE_LOCAL)))vpnModeButton.setChecked(true);
         else localModeButton.setChecked(true);
-
-
-
-        boolean saveAgentToken = prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false);
-        saveAgentTokenCheck.setChecked(saveAgentToken);
-
-
-        boolean backgroundMonitor = prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false);
-        backgroundMonitorCheck.setChecked(backgroundMonitor);
-        historyValue.setText(DiskHistoryStore.render(this, 8));
-        if (backgroundMonitor) MonitoringScheduler.setEnabled(this, true);
-        loadingConfig = false;
-        loadedConfigSignature = configSignature();
-        final int generation = ++secretGeneration;
-        final String originalToken = agentTokenInput.getText().toString();
-        SecretWorker.execute(() -> {
-            String storedToken = saveAgentToken ? SecurePrefs.loadAgentToken(this) : "";
-            handler.post(() -> {
-                if (isDestroyed() || isFinishing() || generation != secretGeneration) return;
-                if (saveAgentToken && saveAgentTokenCheck.isChecked() && originalToken.contentEquals(agentTokenInput.getText()))
-                    agentTokenInput.setText(storedToken);
-            });
-        });
+        if(prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR,false))MonitoringScheduler.setEnabled(this,true);
+        loadingConfig=false;loadedConfigSignature=configSignature();
     }
 
     private void showEndpointImport() {
@@ -414,13 +294,11 @@ public class MainActivity extends BaseActivity {
         String vpnHost = vpnHostInput.getText().toString().trim();
         String user = userInput.getText().toString().trim();
         int port = parsePort();
-        int agentPort = parseAgentPort();
 
         localHostInput.setError(null);
         vpnHostInput.setError(null);
         userInput.setError(null);
         portInput.setError(null);
-        agentPortInput.setError(null);
         boolean invalid = false;
         if ((!localHost.isEmpty() || !vpnModeButton.isChecked()) && !ConnectionEndpoint.validHost(localHost)) {
             localHostInput.setError("Укажи IP или имя сервера без порта и пути"); invalid = true;
@@ -432,7 +310,6 @@ public class MainActivity extends BaseActivity {
             userInput.setError("Укажи имя пользователя SSH, например u0_a123"); invalid = true;
         }
         if (port <= 0) { portInput.setError("Порт SSH: от 1 до 65535"); invalid = true; }
-        if (agentPort <= 0) { agentPortInput.setError("Порт агента: от 1 до 65535"); invalid = true; }
         if (invalid) {
             Toast.makeText(this, "Исправь отмеченные поля подключения", Toast.LENGTH_SHORT).show();
             return false;
@@ -446,33 +323,11 @@ public class MainActivity extends BaseActivity {
                 .putString(ServerConfig.KEY_MODE, mode)
                 .putInt(ServerConfig.KEY_PORT, port)
                 .putString(ServerConfig.KEY_USER, user)
-                .putString(ServerConfig.KEY_IPERF_TARGET, iperfTargetInput.getText().toString().trim())
-                .putInt(ServerConfig.KEY_AGENT_PORT, agentPort)
                 .putBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)
-                .putBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, saveAgentTokenCheck.isChecked())
-                .putBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, backgroundMonitorCheck.isChecked())
                 .apply();
 
-        final boolean keepToken = saveAgentTokenCheck.isChecked();
-        final String token = agentTokenInput.getText().toString();
-        ++secretGeneration;
-        SecretWorker.execute(() -> {
-            boolean saved = false;
-            try {
-                SecurePrefs.clearPassword(this);
-                if (keepToken) SecurePrefs.saveAgentToken(this, token); else SecurePrefs.clearAgentToken(this);
-                saved = true;
-            } catch (Exception e) { /* Keystore errors never include secrets in UI/logs. */ }
-            final boolean success = saved;
-            if (!success) prefs.edit().putBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)
-                    .putBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false).apply();
-            handler.post(() -> {
-                if (!isUiActive()) return;
-                appendLog(success ? "Настройки сохранены." : "Не удалось сохранить секрет в Android Keystore.");
-                Toast.makeText(this, success ? "Сохранено" : "Не удалось сохранить секрет в Android Keystore",
-                        Toast.LENGTH_SHORT).show();
-            });
-        });
+        appendLog("Подключение сохранено.");
+        Toast.makeText(this,"Сохранено",Toast.LENGTH_SHORT).show();
         renderConnectionSummary();
         return true;
     }
@@ -483,10 +338,6 @@ public class MainActivity extends BaseActivity {
 
     private int parsePort() {
         return parsePortValue(portInput);
-    }
-
-    private int parseAgentPort() {
-        return parsePortValue(agentPortInput);
     }
 
     private int parsePortValue(EditText input) {
@@ -558,11 +409,7 @@ public class MainActivity extends BaseActivity {
         latencyValue.setText(stats.reachable ? getString(com.bitpoint.homeservercontrol.ui.R.string.status_latency_format, stats.latencyMs) : getString(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a));
         diskValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_b375486b730b, stats.disk));
         uptimeValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_3597244eb434, stats.uptime));
-        sshdValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_62e5a47d617d, stats.sshd));
         batteryValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_3ca1619dfe27, stats.battery));
-        temperatureValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_ca1c6f5dfef8, stats.temperature));
-        chargingValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_a64c88b40f51, stats.charging));
-        iperfValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_cde09eb6dd81, stats.iperf));
         fingerprintValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_8229b14b80f9, stats.hostFingerprint));
         fingerprintValue.setVisibility(stats.hostFingerprint != null && !"—".equals(stats.hostFingerprint)
                 ? View.VISIBLE : View.GONE);
@@ -571,7 +418,6 @@ public class MainActivity extends BaseActivity {
         renderDashboardLatency();
         if (stats.authenticated && stats.hostKeyTrusted && !"—".equals(stats.disk)) {
             DiskHistoryStore.add(this, stats.disk);
-            historyValue.setText(DiskHistoryStore.render(this, 8));
         }
 
         lastSeenFingerprint = stats.hostFingerprint == null ? "" : stats.hostFingerprint;
@@ -637,154 +483,6 @@ public class MainActivity extends BaseActivity {
         Toast.makeText(this, "Fingerprint удалён", Toast.LENGTH_SHORT).show();
     }
 
-    private void runQuickCommand(String command, String explanation) {
-        final String host = activeHost();
-        final int port = parsePort();
-        final String user = userInput.getText().toString().trim();
-        final String password = "";
-        final String trusted = HostTrustStore.get(this, host, port);
-
-        if (!validSshInputs(host, port, user, password)) return;
-        commandHelpText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.command_running_format, explanation));
-        final int screen = uiGeneration, request = ++quickGeneration;
-        if (quickTask != null) quickTask.cancel(true);
-        quickTask = executor.submit(() -> {
-            SshCommandResult result = SshClient.runCommand(this, host, port, user, password, trusted, command, 8000);
-            handler.post(() -> {
-                if (!isUiActive() || screen != uiGeneration || request != quickGeneration) return;
-                String text = result.success ? result.output : "Ошибка: " + result.error;
-                if (TextUtils.isEmpty(text)) text = "(команда ничего не вывела)";
-                commandHelpText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.command_result_format, explanation, text));
-                appendLog(result.success ? "Быстрая команда выполнена." : "Команда не выполнена: " + result.error);
-            });
-        });
-    }
-
-    private void runIperfTest() {
-        final String target = iperfTargetInput.getText().toString().trim();
-        if (!target.matches("[A-Za-z0-9._:-]{1,253}")) {
-            Toast.makeText(this, "Укажи корректный IP/имя ПК", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        final String host = activeHost();
-        final int port = parsePort();
-        final String user = userInput.getText().toString().trim();
-        final String password = "";
-        final String trusted = HostTrustStore.get(this, host, port);
-        if (!validSshInputs(host, port, user, password)) return;
-
-        getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE).edit()
-                .putString(ServerConfig.KEY_IPERF_TARGET, target).apply();
-        iperfOutputText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_5af958668837);
-        appendLog("iperf3: сервер → " + target + ".");
-
-        String command = "iperf3 -c '" + target + "' -P 4 -t 5 --format m";
-        final int screen = uiGeneration, request = ++iperfGeneration;
-        if (iperfTask != null) iperfTask.cancel(true);
-        iperfTask = executor.submit(() -> {
-            SshCommandResult result = SshClient.runCommand(this, host, port, user, password, trusted, command, 15_000);
-            handler.post(() -> {
-                if (!isUiActive() || screen != uiGeneration || request != iperfGeneration) return;
-                if (result.success) {
-                    iperfOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_f1ebc5d72f11, result.output));
-                    double speed = MetricHistoryStore.parseIperfMbps(result.output);
-                    if (!Double.isNaN(speed)) {
-                        MetricHistoryStore.addSpeed(this, speed);
-                        appendLog(String.format(Locale.getDefault(), "iperf3 завершён: %.1f Мбит/с.", speed));
-                    } else {
-                        appendLog("iperf3 завершён.");
-                    }
-                } else {
-                    iperfOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_02ff59b1ca7d, result.error));
-                    appendLog("iperf3 ошибка: " + result.error);
-                }
-            });
-        });
-    }
-
-    private boolean validSshInputs(String host, int port, String user, String password) {
-        if (!ConnectionEndpoint.validHost(host) || port <= 0 || !ConnectionEndpoint.validUser(user)) {
-            Toast.makeText(this, "Проверь адрес, порт и пользователя", Toast.LENGTH_SHORT).show();
-            return false;
-        }
-        if (TextUtils.isEmpty(HostTrustStore.get(this, host, port))) {
-            Toast.makeText(this, "Сначала проверь сервер и подтверди fingerprint", Toast.LENGTH_LONG).show();
-            return false;
-        }
-        return true;
-    }
-
-    private AlertDialog serverMenuDialog;
-    private View serverManagementPanel;
-
-    private View findServerView(int id) {
-        return serverManagementPanel != null ? serverManagementPanel.findViewById(id) : findViewById(id);
-    }
-
-    private void showServerMenu() {
-        if (serverMenuDialog != null && serverMenuDialog.isShowing()) return;
-        serverManagementPanel = findViewById(R.id.serverManagementPanel);
-        android.view.ViewGroup originalParent = (android.view.ViewGroup) serverManagementPanel.getParent();
-        int position = originalParent.indexOfChild(serverManagementPanel);
-        originalParent.removeView(serverManagementPanel);
-        serverManagementPanel.setVisibility(View.VISIBLE);
-        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
-        int padding = Math.round(12 * getResources().getDisplayMetrics().density);
-        scroll.setPadding(padding, padding / 3, padding, padding / 3);
-        scroll.addView(serverManagementPanel);
-        serverMenuDialog = new AlertDialog.Builder(this).setTitle("Сервер")
-                .setView(scroll).setNegativeButton("Закрыть", null).create();
-        serverMenuDialog.setOnDismissListener(dialog -> {
-            scroll.removeView(serverManagementPanel);
-            serverManagementPanel.setVisibility(View.GONE);
-            originalParent.addView(serverManagementPanel, position);
-        });
-        serverMenuDialog.show();
-    }
-
-    private void confirmAgentAction(String action, String message) {
-        pendingAgentDialog = new AlertDialog.Builder(this)
-                .setTitle("Управление SSH")
-                .setMessage(message)
-                .setNegativeButton("Отмена", null)
-                .setPositiveButton("Продолжить", (dialog, which) -> runAgentAction(action, true))
-                .show();
-    }
-
-    private void runAgentAction(String action, boolean confirmed) {
-        if (getSharedPreferences(ServerConfig.PREFS,MODE_PRIVATE).getBoolean(AgentTls.LEGACY,false) && !confirmed) {
-            confirmAgentAction(action,"Старый HTTP-агент: токен будет отправлен без TLS. Продолжить временно?"); return;
-        }
-        if (("stop".equals(action) || "restart".equals(action)) && !confirmed) return;
-        final String host = activeHost();
-        final int port = parseAgentPort();
-        final String token = agentTokenInput.getText().toString();
-        if (TextUtils.isEmpty(host) || port <= 0 || TextUtils.isEmpty(token)) {
-            Toast.makeText(this, "Для агента нужны адрес, порт и токен", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        agentOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_7bb857aaa20b, action));
-        final int screen = uiGeneration, request = ++agentGeneration;
-        if (agentTask != null) agentTask.cancel(true);
-        agentTask = executor.submit(() -> {
-            AgentResult result = AgentClient.request(this, host, port, token, action);
-            handler.post(() -> {
-                if (!isUiActive() || screen != uiGeneration || request != agentGeneration) return;
-                if (result.success) {
-                    agentOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_422c9b125018, result.body));
-                    appendLog("Агент /" + action + ": успешно.");
-                    Toast.makeText(this, "restart".equals(action) ? "SSH-служба перезапущена" : "Команда выполнена", Toast.LENGTH_SHORT).show();
-                    if (!"status".equals(action)) handler.postDelayed(() -> checkServer(false), 1200);
-                } else {
-                    agentOutputText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_f685119c53fb, result.error));
-                    appendLog("Агент /" + action + ": " + result.error);
-                }
-            });
-        });
-    }
-
     private void renderConnectionSummary() {
         String host = activeHost();
         int port = parsePort();
@@ -810,6 +508,18 @@ public class MainActivity extends BaseActivity {
                     clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS",(which==0?"sftp://":"ssh://")+authority));
                     Toast.makeText(this,"Адрес без секретов скопирован",Toast.LENGTH_SHORT).show();
                 }).show();
+    }
+
+    private boolean validSshInputs(String host, int port, String user, String password) {
+        if (!ConnectionEndpoint.validHost(host) || port <= 0 || !ConnectionEndpoint.validUser(user)) {
+            Toast.makeText(this, "Проверь адрес, порт и пользователя", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (TextUtils.isEmpty(HostTrustStore.get(this, host, port))) {
+            Toast.makeText(this, "Сначала проверь сервер и подтверди fingerprint", Toast.LENGTH_LONG).show();
+            return false;
+        }
+        return true;
     }
 
     private void openFiles(boolean pickAttachment) {
@@ -910,7 +620,6 @@ public class MainActivity extends BaseActivity {
                 .setSingleChoiceItems(IconShapeCatalog.NAMES, IconShapeCatalog.index(this), (dialog, selected) -> {
                     IconShapeCatalog.select(this, selected);
                     refreshIconStyle();
-                    if (serverManagementPanel != null) IconButtons.decorate(serverManagementPanel);
                     dialog.dismiss();
                 }).setNegativeButton("Назад", null).show();
     }
@@ -1004,17 +713,13 @@ public class MainActivity extends BaseActivity {
         report.append(latencyValue.getText()).append("\n");
         report.append(diskValue.getText()).append("\n");
         report.append(uptimeValue.getText()).append("\n");
-        report.append(sshdValue.getText()).append("\n");
         report.append(batteryValue.getText()).append("\n");
-        report.append(temperatureValue.getText()).append("\n");
-        report.append(chargingValue.getText()).append("\n");
-        report.append(iperfValue.getText()).append("\n");
         report.append(fingerprintValue.getText()).append("\n\n");
         report.append("История памяти\n").append(DiskHistoryStore.render(this, 20)).append("\n\n");
         report.append("Журнал\n").append(logText.getText()).append("\n");
         report.append("\nПриватный SSH-ключ и токен агента не экспортируются.\n");
         pendingReport = SecretRedactor.redact(report.toString(),
-                "", agentTokenInput.getText().toString());
+                "", "");
 
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1058,21 +763,11 @@ public class MainActivity extends BaseActivity {
         }
     }
 
-    private void openSolidExplorer() {
-        Intent launch = getPackageManager().getLaunchIntentForPackage("pl.solidexplorer2");
-        if (launch != null) {
-            startActivity(launch);
-            appendLog("Открыт Solid Explorer.");
-        } else {
-            Toast.makeText(this, "Solid Explorer не найден", Toast.LENGTH_LONG).show();
-        }
-    }
-
     private void appendLog(String message) {
         String time = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
         String existing = logText.getText().toString();
         String safe = SecretRedactor.redact(message,
-                "", agentTokenInput.getText().toString());
+                "", "");
         String next = time + "  " + safe + "\n" + existing;
         if (next.length() > 6000) next = next.substring(0, 6000);
         logText.setText(next);
@@ -1099,9 +794,6 @@ public class MainActivity extends BaseActivity {
     private void cancelNetworkWork() {
         ++uiGeneration;
         if (checkTask != null) checkTask.cancel(true);
-        if (quickTask != null) quickTask.cancel(true);
-        if (iperfTask != null) iperfTask.cancel(true);
-        if (agentTask != null) agentTask.cancel(true);
         checking = false;
         if (checkButton != null) checkButton.setEnabled(true);
         if (statusText != null && "● ПРОВЕРКА…".contentEquals(statusText.getText())) {
@@ -1116,6 +808,7 @@ public class MainActivity extends BaseActivity {
         if (wifiSetup != null) wifiSetup.stop();
         cancelNetworkWork();
         handler.removeCallbacks(autoRefreshRunnable);
+        handler.removeCallbacks(localServerRefresh);
         if (savedProfileCheck != null) handler.removeCallbacks(savedProfileCheck);
         handler.removeCallbacks(vpnRefresh);
         super.onPause();
@@ -1123,8 +816,6 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void onDestroy() {
-        if (serverMenuDialog != null) serverMenuDialog.dismiss();
-        if (pendingAgentDialog != null) pendingAgentDialog.dismiss();
         if (wifiSetup != null) wifiSetup.destroy();
         ++secretGeneration;
         if (Build.VERSION.SDK_INT >= 33 && drawerBackCallback != null)

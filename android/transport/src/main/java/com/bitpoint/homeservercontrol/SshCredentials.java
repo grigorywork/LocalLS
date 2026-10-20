@@ -19,7 +19,7 @@ final class SshCredentials {
     void configure(JSch jsch, Session session) throws Exception {
         session.setConfig("StrictHostKeyChecking", "yes");
         if (keyMode()) {
-            if (privateKey.isEmpty()) throw new Exception("SSH-ключ не загружен. Откройте «Безопасность».");
+            if (privateKey.isEmpty()) throw new Exception("SSH-ключ не загружен. Откройте «Подключение → Адрес и ключ → Ключ доступа».");
             byte[] raw = privateKey.getBytes(StandardCharsets.UTF_8);
             byte[] phrase = passphrase.getBytes(StandardCharsets.UTF_8);
             try { jsch.addIdentity("LocalLS", raw, null, phrase); }

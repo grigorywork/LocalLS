@@ -55,7 +55,6 @@ public class RuntimeInstrumentedTest {
                 assertEquals(8022, prefs.getInt(ServerConfig.KEY_PORT, 0));
                 assertEquals("u0_a606", prefs.getString(ServerConfig.KEY_USER, ""));
                 assertNotNull(activity.findViewById(R.id.sshKeySetupButton));
-                assertFalse(activity.findViewById(R.id.agentTokenInput).isSaveEnabled());
                 assertFalse(activity.getIntent().hasExtra("password"));
             });
             scenario.recreate();
@@ -102,8 +101,7 @@ public class RuntimeInstrumentedTest {
     public void secondaryScreensInflateAndHistoryPersists() {
         try (ActivityScenario<SettingsActivity> scenario = ActivityScenario.launch(SettingsActivity.class)) {
             scenario.onActivity(activity -> {
-                assertNotNull(activity.findViewById(R.id.securitySettingsButton));
-                assertFalse(activity.findViewById(R.id.settingsAgentTokenInput).isSaveEnabled());
+                assertNotNull(activity.findViewById(R.id.settingsBackgroundMonitorCheck));
             });
         }
         TransferLogStore.add(context, "fixture-file", "готово");

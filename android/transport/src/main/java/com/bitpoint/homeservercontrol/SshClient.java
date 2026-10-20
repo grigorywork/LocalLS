@@ -54,7 +54,7 @@ final class SshClient {
         stats.hostKeyTrusted = true;
 
         if (!credential.available()) {
-            stats.error = "SSH-ключ сервера совпал. Настройте свой ключ в разделе «Безопасность».";
+            stats.error = "SSH-ключ сервера совпал. Откройте «Подключение → Адрес и ключ → Ключ доступа».";
             return stats;
         }
 

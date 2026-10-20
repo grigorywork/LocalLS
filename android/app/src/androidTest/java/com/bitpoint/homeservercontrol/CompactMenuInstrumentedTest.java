@@ -41,8 +41,8 @@ public class CompactMenuInstrumentedTest {
                 assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerVpnPane).getVisibility());
                 activity.findViewById(R.id.drawerVpnHeader).performClick();
                 assertEquals(View.GONE, activity.findViewById(R.id.drawerVpnPane).getVisibility());
-                for (int id : new int[]{R.id.restartServerButton, R.id.checkButton, R.id.drawerVpnHeader,
-                        R.id.wifiConnectButton, R.id.agentRestartButton}) {
+                for (int id : new int[]{R.id.checkButton, R.id.drawerVpnHeader,
+                        R.id.wifiConnectButton}) {
                     Button button = activity.findViewById(id);
                     assertTrue(button.getLayoutParams().height >= Math.round(48 * activity.getResources().getDisplayMetrics().density));
                 }
@@ -63,12 +63,11 @@ public class CompactMenuInstrumentedTest {
     @Test public void iconShapePersistsAndChangesFunctionGlyphs() {
         IconShapeCatalog.select(context, 2);
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            scenario.onActivity(activity -> assertTrue(((Button)activity.findViewById(R.id.restartServerButton))
-                    .getCompoundDrawables()[1] instanceof IconBadgeDrawable));
+            scenario.onActivity(activity -> assertTrue(((CenteredActionButton)activity.findViewById(R.id.checkButton)).hasTileIcon()));
             scenario.recreate();
             scenario.onActivity(activity -> {
                 assertEquals(2, IconShapeCatalog.index(activity));
-                assertTrue(((Button)activity.findViewById(R.id.checkButton)).getCompoundDrawables()[1] instanceof IconBadgeDrawable);
+                assertTrue(((CenteredActionButton)activity.findViewById(R.id.checkButton)).hasTileIcon());
             });
         }
     }
@@ -117,34 +116,6 @@ public class CompactMenuInstrumentedTest {
                 assertTrue(result.contains(args.getString("fixtureHost")));
                 assertFalse(result.contains("192.0.2.1"));
             });
-        }
-    }
-    @Test public void restartButtonSendsConfirmedRequestToIndependentAgent() throws Exception {
-        Bundle args = InstrumentationRegistry.getArguments();
-        String host=args.getString("fixtureHost"), token=args.getString("fixtureAgentToken");
-        int port=Integer.parseInt(args.getString("fixtureAgentPort"));
-        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            scenario.onActivity(activity -> {
-                ((EditText)activity.findViewById(R.id.localHostInput)).setText(host);
-                ((EditText)activity.findViewById(R.id.agentPortInput)).setText(String.valueOf(port));
-                ((EditText)activity.findViewById(R.id.agentTokenInput)).setText(token);
-                activity.findViewById(R.id.restartServerButton).performClick();
-                try {
-                    java.lang.reflect.Field field=MainActivity.class.getDeclaredField("pendingAgentDialog");field.setAccessible(true);
-                    AlertDialog dialog=(AlertDialog)field.get(activity);
-                    assertTrue(dialog.isShowing());
-                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
-                } catch (Exception e) { throw new AssertionError("Restart confirmation unavailable"); }
-            });
-            AtomicBoolean done = new AtomicBoolean();
-            long deadline=System.currentTimeMillis()+15000;
-            while (!done.get() && System.currentTimeMillis()<deadline) {
-                scenario.onActivity(activity -> done.set(((TextView)activity.findViewById(R.id.agentOutputText))
-                        .getText().toString().contains("fixture-restart-ok")));
-                if (!done.get()) Thread.sleep(100);
-            }
-            assertTrue("Confirmed restart must reach separate HTTP agent", done.get());
-            scenario.onActivity(activity -> assertFalse(((TextView)activity.findViewById(R.id.logText)).getText().toString().contains(token)));
         }
     }
 }

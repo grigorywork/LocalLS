@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="server_setup_steps_title">Этот телефон — сервер: шаги настройки</string>
+    <string name="server_setup_steps_title">Мой сервер: шаги настройки</string>
     <string name="server_setup_steps_loading">Проверка Termux и системного доступа…</string>
     <string name="server_setup_security_title">Проверка безопасности этого сервера</string>
     <string name="server_setup_security_help">После входа SSH можно проверить ключевой доступ и существующий HTTPS-агент. Ключ мастера сохраняется зашифрованным и используется повторно; другие клиенты создают свои ключи. Агент нужен для независимого управления SSH. Эта проверка читает его существующие настройки и сертификат, сохраняя токен и службу.</string>
@@ -79,7 +79,7 @@
     <string name="ui_savepasswordcheck_text_8999b1" formatted="false">Сохранить пароль в Android Keystore</string>
     <string name="ui_savebutton_text_87ae19" formatted="false">Сохранить настройки</string>
     <string name="ui_serversetupbutton_text_917e05" formatted="false">Сервер</string>
-    <string name="ui_localserverquickbutton_text_8a7909" formatted="false">Этот телефон — сервер</string>
+    <string name="ui_localserverquickbutton_text_8a7909" formatted="false">Мой сервер</string>
     <string name="ui_currentserversettingsbutton_text_09b5d8" formatted="false">Текущий сервер</string>
     <string name="ui_appsettingsbutton_text_d73b55" formatted="false">Параметры приложения</string>
     <string name="ui_autorefreshcheck_text_ca64ba" formatted="false">Автопроверка каждые 15 секунд</string>
@@ -244,7 +244,7 @@
     <string name="status_latency_format">"Отклик SSH: %1$d мс"</string>
     <string name="status_port_unavailable">Порт: —</string>
     <string name="security_settings_entry">Безопасность / SSH-ключ</string>
-    <string name="ssh_key_setup">Настроить вход по SSH-ключу</string>
+    <string name="ssh_key_setup">Ключ доступа</string>
     <string name="connection_import">Вставить SSH/SFTP-адрес</string>
     <string name="command_memory">Память сервера</string>
     <string name="command_network">Маршруты сети</string>
@@ -252,4 +252,14 @@
     <string name="profile_transfer">Перенос параметров</string>
     <string name="places_home">Домой</string>
     <string name="places_favorites">Избранное</string>
+    <string name="role_my_server">Мой сервер</string>
+    <string name="role_my_server_hint">Принимать файлы на этот телефон</string>
+    <string name="role_connection">Подключение</string>
+    <string name="role_connection_hint">Открыть файлы другого устройства</string>
+    <string name="local_server_stopped">Приём файлов выключен</string>
+    <string name="open_my_server">Настроить сервер</string>
+    <string name="connection_configure">Адрес и ключ</string>
+    <string name="connection_log">Журнал подключения</string>
+    <string name="application_tools">Приложение</string>
+    <string name="monitor_explanation">Проверять доступность удалённого сервера в фоне. Запуск приёма файлов на этом телефоне настраивается отдельно в блоке «Мой сервер».</string>
 </resources>

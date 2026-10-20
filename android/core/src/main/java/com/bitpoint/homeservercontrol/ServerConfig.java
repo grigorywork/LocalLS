@@ -30,10 +30,10 @@ final class ServerConfig {
     static final String MODE_LOCAL = "local";
     static final String MODE_VPN = "vpn";
 
-    static final String DEFAULT_LOCAL_HOST = "192.168.1.82";
+    static final String DEFAULT_LOCAL_HOST = "";
     static final String DEFAULT_VPN_HOST = "";
     static final int DEFAULT_PORT = 8022;
-    static final String DEFAULT_USER = "u0_a606";
+    static final String DEFAULT_USER = "localls";
     static final int DEFAULT_AGENT_PORT = 8787;
 
     static final String DEFAULT_REMOTE_PATH = "/data/data/com.termux/files/home/storage/shared";

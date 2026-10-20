@@ -182,8 +182,8 @@ public class UiRenderingTest {
             Configuration config=new Configuration(app.getResources().getConfiguration());config.fontScale=scale;
             Context context=new ContextThemeWrapper(app.createConfigurationContext(config),ThemeCatalog.style(app));
             View root=LayoutInflater.from(context).inflate(R.layout.activity_main,null);
-            assertEquals(View.GONE,root.findViewById(R.id.advancedToggleButton).getVisibility());
-            View panel=root.findViewById(R.id.serverManagementPanel);((ViewGroup)panel.getParent()).removeView(panel);panel.setVisibility(View.VISIBLE);
+            assertEquals(0,context.getResources().getIdentifier("advancedToggleButton","id",context.getPackageName()));
+            View panel=root.findViewById(R.id.remoteConnectionCard);((ViewGroup)panel.getParent()).removeView(panel);panel.setVisibility(View.VISIBLE);
             ScrollView scroll=new ScrollView(context);scroll.addView(panel);IconButtons.decorate(panel);
             scroll.measure(View.MeasureSpec.makeMeasureSpec(360,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(640,View.MeasureSpec.EXACTLY));
             scroll.layout(0,0,360,640);checkCaptions(panel,scale);

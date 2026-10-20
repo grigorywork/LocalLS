@@ -15,7 +15,7 @@ import java.util.concurrent.*;
 
 public class EmbeddedServerActivity extends BaseActivity {
     private EditText port,user,key;
-    private TextView state,actionStatus;
+    private TextView state;
     private boolean checkingKey;
     private Button start;
     private final Handler ui=new Handler(Looper.getMainLooper());
@@ -25,20 +25,23 @@ public class EmbeddedServerActivity extends BaseActivity {
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         LinearLayout layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(24,24,24,24);
-        text(layout,"Этот телефон — SFTP-сервер",22);
-        text(layout,"Работает внутри LocalLS, без Termux. Доступ только к отдельной папке LocalLS, не ко всему телефону. Выбранные файлы можно скопировать в неё ниже. При удалении приложения эта папка и host key удаляются.",16);
-        state=text(layout,"",16);
+        text(layout,"Мой сервер",22);
+        text(layout,"Принимать файлы на этот телефон. Другому устройству доступна только папка LocalLS. При удалении приложения её файлы и ключ сервера удаляются.",16);
+        text(layout,"Доступ",20);
         SharedPreferences p=getSharedPreferences(EmbeddedServerService.PREFS,MODE_PRIVATE);
         user=field(layout,"Пользователь",p.getString("user","localls"),true);user.setId(R.id.embeddedServerUser);
         port=field(layout,"Порт (1024–65535)",String.valueOf(p.getInt("port",8022)),true);port.setInputType(InputType.TYPE_CLASS_NUMBER);port.setId(R.id.embeddedServerPort);
-        key=field(layout,"Публичный ключ клиента (.pub), не приватный",p.getString("allowed_key",""),false);key.setId(R.id.embeddedServerKey);
-        text(layout,"На Windows можно создать ключ командой: ssh-keygen -t rsa -b 3072. Скопируй сюда содержимое файла id_rsa.pub. Поддерживается RSA 3072+ или ECDSA P-256. Пароль для входа отключён.",14);
+        key=field(layout,"Ключ подключающегося телефона (.pub)",p.getString("allowed_key",""),false);key.setId(R.id.embeddedServerKey);key.setMinLines(2);key.setMaxLines(3);key.setVerticalScrollBarEnabled(true);
+        text(layout,"На другом телефоне: «Подключение → Адрес и ключ → Ключ доступа» → создай ключ и сохрани файл .pub. Добавь этот файл здесь. Для замены ключа останови сервер.",14);
         button(layout,"Загрузить публичный ключ из файла",() -> pick(910,"*/*",false));
-        actionStatus=text(layout,"",16);
+        state=text(layout,"",16);
         start=button(layout,"Включить сервер",() -> startServer());
         button(layout,"Остановить сервер",() -> stopService(new Intent(this,EmbeddedServerService.class)));
+        text(layout,"Файлы",20);
+        text(layout,"Здесь появятся файлы, присланные с другого устройства. Можно также добавить свои.",14);
         button(layout,"Добавить файлы в папку сервера",() -> pick(911,"*/*",true));
         button(layout,"Файлы сервера / сохранить на телефон",() -> startActivity(new Intent(this,EmbeddedFilesActivity.class)));
+        text(layout,"Адрес сервера",20);
         button(layout,"Скопировать данные подключения",() -> {
             if(!EmbeddedServerService.running) { message("Сначала включи сервер");return; }
             ClipboardManager c=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
@@ -52,8 +55,7 @@ public class EmbeddedServerActivity extends BaseActivity {
                     "; serviceRequested="+(EmbeddedServerService.launchRequested!=0)+"\n"+EmbeddedServerService.status;
             clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS startup",report));message("Диагностика скопирована без ключей и паролей");
         });
-        button(layout,"Старый режим через Termux",() -> startActivity(new Intent(this,ServerSetupActivity.class)));
-        text(layout,"Служба показывает постоянное уведомление. Android может ограничить её работу в фоне (включая лимит dataSync до 6 часов). Автозапуск после перезагрузки выключен. Подключайся с ПК по Wi-Fi/VPN; сервер слушает сетевые интерфейсы телефона. Сверь fingerprint перед первым входом.",14);
+        text(layout,"Служба показывает постоянное уведомление. Android может ограничить её работу в фоне (включая лимит dataSync до 6 часов). Автозапуск после перезагрузки выключен. Подключайся с другого устройства по Wi-Fi/VPN; сервер слушает сетевые интерфейсы телефона. Сверь fingerprint перед первым входом.",14);
         button(layout,"Назад",() -> finish());
         ScrollView scroll=new ScrollView(this);scroll.addView(layout);setContentView(scroll);
         if(Build.VERSION.SDK_INT<26) {start.setEnabled(false);state.setText("Нужен Android 8 или новее");}
@@ -102,7 +104,6 @@ public class EmbeddedServerActivity extends BaseActivity {
         if(EmbeddedServerService.launchRequested!=0 && android.os.SystemClock.elapsedRealtime()-EmbeddedServerService.launchRequested>10000 && !EmbeddedServerService.starting && !EmbeddedServerService.running) {
             EmbeddedServerService.launchRequested=0;EmbeddedServerService.failure("FOREGROUND",new java.util.concurrent.TimeoutException());
         }
-        actionStatus.setText(EmbeddedServerService.status);
         state.setText(EmbeddedServerService.status+(EmbeddedServerService.running?"\n"+connectionText():""));
         start.setEnabled(!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting);
         boolean editable=!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting;
