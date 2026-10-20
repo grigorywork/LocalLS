@@ -1,0 +1,5 @@
+<resources>
+    <item type="id" name="embeddedServerUser" />
+    <item type="id" name="embeddedServerPort" />
+    <item type="id" name="embeddedServerKey" />
+</resources>

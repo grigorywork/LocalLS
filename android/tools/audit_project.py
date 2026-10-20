@@ -60,12 +60,15 @@ except Exception as e:
 java_files=[p for module in MODULES for p in (ROOT/module/'src/main/java').rglob('*.java')]
 java_text='\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in java_files)
 xml_ids=set(re.findall(r'@\+id/([A-Za-z0-9_]+)', xml_text))
+for resource in xml_files:
+    for item in ET.parse(resource).getroot().findall("item[@type='id']"):
+        xml_ids.add(item.get('name'))
 java_ids=set(re.findall(r'(?<!android\.)\bR\.id\.([A-Za-z0-9_]+)', java_text))
 for rid in sorted(java_ids - xml_ids):
     errors.append(f'Java references missing R.id.{rid}')
 
 layout_names={p.stem for module in MODULES for p in (ROOT/module/'src/main/res/layout').glob('*.xml')}
-java_layouts=set(re.findall(r'R\.layout\.([A-Za-z0-9_]+)', java_text))
+java_layouts=set(re.findall(r'(?<!android\.)\bR\.layout\.([A-Za-z0-9_]+)', java_text))
 for layout in sorted(java_layouts - layout_names):
     errors.append(f'Java references missing layout: {layout}.xml')
 

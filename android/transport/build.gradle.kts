@@ -15,4 +15,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":data"))
     implementation("com.github.mwiede:jsch:2.28.7")
+    implementation("org.apache.sshd:sshd-core:2.20.0")
+    implementation("org.apache.sshd:sshd-sftp:2.20.0")
+    runtimeOnly("org.slf4j:slf4j-nop:2.0.17")
 }

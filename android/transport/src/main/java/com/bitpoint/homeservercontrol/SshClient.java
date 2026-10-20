@@ -84,8 +84,19 @@ final class SshClient {
             stats.iperf = iperf.isEmpty() ? "—" : iperf;
 
         } catch (Exception e) {
-            stats.error = "SSH доступен, но вход не выполнен: "
-                    + safeMessage(e);
+            if (stats.authenticated && session != null && session.isConnected()) {
+                com.jcraft.jsch.ChannelSftp files = null;
+                try {
+                    files = (com.jcraft.jsch.ChannelSftp) session.openChannel("sftp");
+                    files.connect(4000); files.pwd();
+                    stats.sftpOnly = true; stats.sshd = "SFTP без командной оболочки";
+                    stats.error = "";
+                } catch (Exception fileError) {
+                    stats.error = "SSH-вход выполнен, но команды и SFTP недоступны";
+                } finally { if (files != null) files.disconnect(); }
+            } else {
+                stats.error = "SSH доступен, но вход не выполнен: " + safeMessage(e);
+            }
         } finally {
             if (session != null && session.isConnected()) session.disconnect();
         }

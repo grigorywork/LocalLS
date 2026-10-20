@@ -213,13 +213,13 @@ public class MainActivity extends BaseActivity {
             } else confirmAgentAction("restart", "Перезапустить SSH-службу? Активные SSH/SFTP-подключения прервутся.");
         });
         findViewById(R.id.localServerQuickButton).setOnClickListener(v -> startActivity(
-                new Intent(this, ServerSetupActivity.class).putExtra("auto_prepare", true)));
+                new Intent(this, EmbeddedServerActivity.class)));
         findViewById(R.id.currentServerSettingsButton).setOnClickListener(v -> showServerMenu());
         findViewById(R.id.appSettingsButton).setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         findViewById(R.id.iconShapeButton).setOnClickListener(v -> chooseIconShape());
         findViewById(R.id.serverWizardMenuButton).setOnClickListener(v -> {
             if (serverMenuDialog != null) serverMenuDialog.dismiss();
-            startActivity(new Intent(this, ServerSetupActivity.class));
+            startActivity(new Intent(this, EmbeddedServerActivity.class));
         });
         findViewById(R.id.agentCredentialsToggleButton).setOnClickListener(v -> {
             View fields = findServerView(R.id.agentCredentialsPanel);
@@ -592,7 +592,8 @@ public class MainActivity extends BaseActivity {
         } else if (stats.authenticated && stats.hostKeyTrusted) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7141047c824d);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess));
-            statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_0870869f22e7);
+            if (stats.sftpOnly) statusDetail.setText("SFTP работает. Командная оболочка отключена; системные метрики недоступны.");
+            else statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_0870869f22e7);
             appendLog("Сервер онлайн. SSH-вход успешен.");
         } else if (stats.reachable) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_18bf0e4021be);

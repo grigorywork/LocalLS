@@ -78,6 +78,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    packaging {
+        resources.merges.addAll(listOf("META-INF/DEPENDENCIES", "META-INF/LICENSE", "META-INF/NOTICE"))
+    }
+
     signingConfigs {
         if (hasReleaseSigning) {
             create("ownerRelease") {

@@ -21,6 +21,9 @@
     </queries>
     <application android:allowBackup="false" android:enableOnBackInvokedCallback="true" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:supportsRtl="true" android:theme="@style/Theme.HomeServerControl" android:usesCleartextTraffic="true" android:roundIcon="@mipmap/ic_launcher">
         <activity android:name=".ProfileTransferActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".EmbeddedFilesActivity" android:exported="false" />
+        <activity android:name=".EmbeddedServerActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <service android:name=".EmbeddedServerService" android:exported="false" android:foregroundServiceType="dataSync" />
         <activity android:name=".FilesActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ServerSetupActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <receiver android:name=".TermuxResultReceiver" android:exported="false" />

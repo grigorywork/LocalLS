@@ -1,0 +1,73 @@
+package com.bitpoint.homeservercontrol;
+
+import android.app.*;
+import android.content.*;
+import android.os.*;
+import java.io.File;
+import java.security.KeyPair;
+import java.util.concurrent.*;
+
+/** Explicit, foreground-only lifetime. No auto-start after reboot or process death. */
+public class EmbeddedServerService extends Service {
+    static final String PREFS="embedded_sftp_settings", STOP="localls.embedded.STOP";
+    static volatile boolean running,starting;
+    static volatile String status="Сервер выключен",fingerprint="";
+    static volatile int boundPort;
+    private final ExecutorService worker=Executors.newSingleThreadExecutor();
+    private EmbeddedSftpServer server;
+    private volatile boolean destroyed;
+    private PowerManager.WakeLock wake;
+    static File share(Context c) { return new File(c.getFilesDir(),"sftp-share"); }
+    static void start(Context c) {
+        Intent i=new Intent(c,EmbeddedServerService.class);
+        if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);
+    }
+    @Override public int onStartCommand(Intent intent,int flags,int id) {
+        if(intent!=null && STOP.equals(intent.getAction())) { stopSelf();return START_NOT_STICKY; }
+        if(Build.VERSION.SDK_INT<26) { status="Встроенный сервер требует Android 8 или новее";stopSelf();return START_NOT_STICKY; }
+        if(running || starting) return START_NOT_STICKY;
+        NotificationManager manager=getSystemService(NotificationManager.class);
+        manager.createNotificationChannel(new NotificationChannel("embedded_sftp","Файловый сервер LocalLS",NotificationManager.IMPORTANCE_LOW));
+        PendingIntent open=PendingIntent.getActivity(this,81,new Intent(this,EmbeddedServerActivity.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent stop=PendingIntent.getService(this,82,new Intent(this,EmbeddedServerService.class).setAction(STOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        startForeground(2210,new Notification.Builder(this,"embedded_sftp")
+                .setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification).setContentTitle("SFTP-сервер LocalLS")
+                .setContentText("Доступ по ключу к папке LocalLS. Нажми, чтобы открыть управление.")
+                .setContentIntent(open).setOngoing(true).addAction(0,"Остановить",stop).build());
+        starting=true;status="Запуск сервера…";
+        SharedPreferences p=getSharedPreferences(PREFS,MODE_PRIVATE);
+        final String publicKey=p.getString("allowed_key", ""), user=p.getString("user","localls");
+        final int port=p.getInt("port",8022);
+        worker.execute(() -> {
+            try {
+                java.security.PublicKey allowed=EmbeddedSftpServer.authorizedKey(publicKey);
+                KeyPair identity=EmbeddedServerIdentity.loadOrCreate(this);
+                if(destroyed)return;
+                EmbeddedSftpServer next=new EmbeddedSftpServer();
+                boundPort=next.start("0.0.0.0",port,user,allowed,identity,share(this).toPath());server=next;
+                if(destroyed) { next.close();return; }
+                fingerprint=EmbeddedSftpServer.fingerprint(identity);
+                PowerManager pm=getSystemService(PowerManager.class);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:EmbeddedSftp");wake.acquire(6*60*60*1000L);
+                running=true;
+                if(destroyed) { running=false;next.close();return; }
+                status="Сервер работает, порт "+boundPort+". Вход только по ключу; папка / — файлы LocalLS.";
+            } catch(Exception | LinkageError e) {
+                running=false;boolean busy=false;Throwable cause=e;
+                while(cause!=null) { if(cause instanceof java.net.BindException)busy=true;cause=cause.getCause(); }
+                status=busy ? "Порт занят. Останови другой сервер или выбери другой порт в LocalLS." :
+                        "Не удалось запустить сервер. Проверь ключ, свободный порт и разрешения Android.";
+                stopSelf();
+            } finally { starting=false; }
+        });
+        return START_NOT_STICKY;
+    }
+    @Override public void onTimeout(int id,int type) { status="Сервер остановлен: Android ограничил время фоновой службы. Запусти его снова.";stopSelf(); }
+    @Override public void onDestroy() {
+        destroyed=true;running=false;starting=false;
+        if(status.startsWith("Сервер работает") || status.startsWith("Запуск"))status="Сервер выключен";
+        worker.execute(() -> { try { if(server!=null)server.close(); } catch(Exception ignored) { }
+            if(wake!=null && wake.isHeld())wake.release(); });
+        worker.shutdown();stopForeground(true);super.onDestroy();
+    }
+    @Override public IBinder onBind(Intent i) { return null; }
+}

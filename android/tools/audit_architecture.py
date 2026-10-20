@@ -1,3 +1,4 @@
+import xml.etree.ElementTree as ET
 """Enforce source dependency direction in the Gradle modules without Android tooling."""
 from pathlib import Path
 import re, sys
@@ -21,6 +22,9 @@ for module,p in sources:
 for module,p in sources:
     xml_text = "\n".join(x.read_text(encoding="utf-8") for x in (ROOT/module/"src/main/res").rglob("*.xml"))
     ids = set(re.findall(r"@\+id/(\w+)", xml_text))
+    for resource in (ROOT/module/"src/main/res").rglob("*.xml"):
+        for item in ET.parse(resource).getroot().findall("item[@type='id']"):
+            ids.add(item.get("name"))
     layouts = {x.stem for x in (ROOT/module/"src/main/res/layout").glob("*.xml")}
     text = p.read_text(encoding="utf-8")
     for kind,name in re.findall(r"(?<![\w.])R\.(id|layout)\.(\w+)", text):

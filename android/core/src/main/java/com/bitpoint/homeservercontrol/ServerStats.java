@@ -3,6 +3,7 @@ package com.bitpoint.homeservercontrol;
 final class ServerStats {
     boolean reachable;
     boolean authenticated;
+    boolean sftpOnly;
     boolean hostKeyTrusted;
     boolean hostKeyNeedsTrust;
     boolean hostKeyMismatch;
