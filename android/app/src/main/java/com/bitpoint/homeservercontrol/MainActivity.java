@@ -153,6 +153,7 @@ public class MainActivity extends BaseActivity {
     }
     private void refreshLocalServer() {
         renderRole();
+        ((WifiAddressView)findViewById(R.id.currentWifiAddress)).refresh();
         TextView summary=findViewById(R.id.localServerSummary);
         summary.setText(EmbeddedServerService.status);
         StatusBadge.apply(summary,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):

@@ -16,6 +16,7 @@ import java.util.concurrent.*;
 public class EmbeddedServerActivity extends BaseActivity {
     private EditText port,user,key;
     private TextView state,address,receiveState;
+    private WifiAddressView wifiAddress;
     private boolean checkingKey;
     private Button start,importKey;
     private final Handler ui=new Handler(Looper.getMainLooper());
@@ -29,6 +30,7 @@ public class EmbeddedServerActivity extends BaseActivity {
         text(layout,"Сначала настрой этот телефон. Адрес ниже приложение определяет само. Затем подключим телефон 2.",16);
         button(layout,"Инструкция: два телефона",() -> startActivity(new Intent(this,PhoneSetupGuideActivity.class)));
         text(layout,"1. Настрой и включи сервер",20);
+        wifiAddress=new WifiAddressView(this);wifiAddress.setId(R.id.embeddedWifiAddress);layout.addView(wifiAddress);
         SharedPreferences p=getSharedPreferences(EmbeddedServerService.PREFS,MODE_PRIVATE);
         user=field(layout,"Пользователь",p.getString("user","localls"),true);user.setId(R.id.embeddedServerUser);
         port=field(layout,"Порт",String.valueOf(p.getInt("port",8022)),true);port.setInputType(InputType.TYPE_CLASS_NUMBER);port.setId(R.id.embeddedServerPort);
@@ -39,7 +41,7 @@ public class EmbeddedServerActivity extends BaseActivity {
         button(layout,"Скопировать данные подключения",() -> {
             if(LocalServerAddresses.current(this).isEmpty()) {message("Подключи телефон к Wi-Fi. Адрес появится здесь автоматически.");return;}
             ClipboardManager c=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-            c.setPrimaryClip(ClipData.newPlainText("LocalLS SFTP",connectionText()));message("Данные подключения скопированы");
+            c.setPrimaryClip(ClipData.newPlainText("LocalLS SFTP",connectionText(true)));message("Данные подключения скопированы");
         });
         text(layout,"2. Разреши телефон 2",20);
         text(layout,"Без добавленного телефона сервер запускается в ожидании: вход закрыт для всех. На телефоне 2 создай ключ в «Подключение → Адрес и ключ → Ключ доступа» и передай сюда файл .pub. Нажми кнопку ниже и подтверди разрешение.",14);
@@ -96,14 +98,16 @@ public class EmbeddedServerActivity extends BaseActivity {
             } catch(Exception | LinkageError e) {ui.post(() -> {if(!closed){checkingKey=false;EmbeddedServerService.failure("KEY",e);key.setError("Нужен публичный RSA 3072+ или ECDSA P-256 ключ");render();message(EmbeddedServerService.status);}});}
         });
     }
-    private String connectionText() {
+    private String connectionText(boolean includeAddress) {
         String name=user.getText().toString().trim();
         int selected=8022;try {selected=Integer.parseInt(port.getText().toString().trim());}catch(Exception ignored) { }
         int number=EmbeddedServerService.running?EmbeddedServerService.boundPort:selected;
-        StringBuilder result=new StringBuilder("Адрес этого телефона в Wi-Fi\n");
-        java.util.List<String> values=LocalServerAddresses.current(this);
-        if(values.isEmpty())result.append("Подключи телефон к Wi-Fi — адрес появится автоматически.\n");
-        else for(String ip:values)result.append("IP: ").append(ip).append("\nsftp://").append(name).append('@').append(ip).append(':').append(number).append("\n");
+        StringBuilder result=new StringBuilder();
+        if(includeAddress){
+            java.util.List<String> values=LocalServerAddresses.current(this);
+            if(values.isEmpty())result.append("Подключи телефон к Wi-Fi — адрес появится автоматически.\n");
+            else for(String ip:values)result.append("IP: ").append(ip).append("\nsftp://").append(name).append('@').append(ip).append(':').append(number).append("\n");
+        }
         result.append("Порт: ").append(number).append(" · Пользователь: ").append(name);
         if(EmbeddedServerService.running)result.append("\nFingerprint: ").append(EmbeddedServerService.fingerprint);
         return result.toString();
@@ -132,7 +136,8 @@ public class EmbeddedServerActivity extends BaseActivity {
         StatusBadge.apply(state,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
             checkingKey || EmbeddedServerService.starting || EmbeddedServerService.launchRequested!=0?StatusBadge.Tone.WARNING:
             EmbeddedServerService.diagnostic.isEmpty()?StatusBadge.Tone.NEUTRAL:StatusBadge.Tone.ERROR);
-        address.setText(connectionText());
+        address.setText(connectionText(false));
+        wifiAddress.refresh();
         start.setEnabled(!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting);
         boolean editable=!checkingKey && EmbeddedServerService.launchRequested==0 && !EmbeddedServerService.running && !EmbeddedServerService.starting;
         key.setEnabled(editable);port.setEnabled(editable);user.setEnabled(editable);

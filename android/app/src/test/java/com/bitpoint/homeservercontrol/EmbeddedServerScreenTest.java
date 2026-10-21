@@ -30,7 +30,8 @@ public class EmbeddedServerScreenTest {
         try(var controller=Robolectric.buildActivity(EmbeddedServerActivity.class).create()) {
             EmbeddedServerActivity a=controller.get();
             String info=((android.widget.TextView)a.findViewById(R.id.embeddedServerAddress)).getText().toString();
-            assertTrue(info.contains("192.0.2.10"));assertTrue(info.contains("8022"));assertTrue(info.contains("localls"));
+            assertEquals("192.0.2.10",((android.widget.TextView)a.findViewById(R.id.currentWifiIpValue)).getText().toString());
+            assertTrue(info.contains("8022"));assertTrue(info.contains("localls"));
             assertFalse(EmbeddedServerService.running);
             findButton(a.findViewById(android.R.id.content),"Скопировать данные подключения").performClick();
             var clipboard=(android.content.ClipboardManager)a.getSystemService(Context.CLIPBOARD_SERVICE);

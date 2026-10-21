@@ -147,6 +147,22 @@ public class EmbeddedSftpServerTest {
             } finally {s.disconnect();}
         }
     }
+    @Test public void changedServerAtNewAddressIsRejectedBeforeClientAuthentication()throws Exception{
+        KeyPairGenerator generator=KeyPairGenerator.getInstance("RSA");generator.initialize(3072);KeyPair changedHost=generator.generateKeyPair();
+        java.util.concurrent.atomic.AtomicInteger authenticationAttempts=new java.util.concurrent.atomic.AtomicInteger();
+        org.apache.sshd.server.SshServer replacement=org.apache.sshd.server.SshServer.setUpDefaultServer();
+        replacement.setHost("127.0.0.1");replacement.setPort(0);
+        replacement.setKeyPairProvider(session->java.util.Collections.singletonList(changedHost));
+        replacement.setUserAuthFactories(java.util.Collections.singletonList(org.apache.sshd.server.auth.pubkey.UserAuthPublicKeyFactory.INSTANCE));
+        replacement.setPublickeyAuthenticator((user,key,session)->{authenticationAttempts.incrementAndGet();return true;});
+        try{
+            replacement.start();
+            SshCredentials key=SshCredentials.key(new String(clientPrivate,"UTF-8"),"");
+            try(SftpClient.TreeSession ignored=new SftpClient.TreeSession("127.0.0.1",replacement.getPort(),"localls",key,EmbeddedSftpServer.fingerprint(host))){fail("Changed server key accepted");}
+            catch(JSchException expected){assertTrue(expected.getMessage(),expected.getMessage().contains("HostKey"));}
+            assertEquals("Client public key must not be offered before checking the server identity",0,authenticationAttempts.get());
+        }finally{replacement.close();}
+    }
     @Test public void passwordAndWrongUsernameAndUnknownKeyCannotAuthenticate() throws Exception {
         try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {
             int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,temp.newFolder().toPath());

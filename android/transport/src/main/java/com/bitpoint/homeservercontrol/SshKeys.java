@@ -75,13 +75,15 @@ final class SshKeys {
         if(pin.isEmpty() || (!otherPin.isEmpty() && !pin.equals(otherPin)))return false;
         String raw=SecurePrefs.loadNamed(c,storageId(c,from,port,user));
         if(raw==null || raw.isEmpty())return false;
-        JSONObject source=new JSONObject(raw);inspect(source.getString(PRIVATE),source.optString(PHRASE));
+        JSONObject source=new JSONObject(raw);JSONObject sourceInfo=inspect(source.getString(PRIVATE),source.optString(PHRASE));
         String targetRaw=SecurePrefs.loadNamed(c,storageId(c,to,port,user));
         if(targetRaw!=null && !targetRaw.isEmpty()){
             JSONObject target=new JSONObject(targetRaw);
-            if(!inspect(source.getString(PRIVATE),source.optString(PHRASE)).getString(PUBLIC).equals(inspect(target.getString(PRIVATE),target.optString(PHRASE)).getString(PUBLIC)))return false;
+            if(!sourceInfo.getString(PUBLIC).equals(inspect(target.getString(PRIVATE),target.optString(PHRASE)).getString(PUBLIC)))return false;
         }
-        String logical="server_"+keyId(pin,0,user);
+        // Distinct client keys for the same host/user must never share a writable slot.
+        // Existing aliases remain readable; only the moved routes adopt this slot.
+        String logical="server_"+keyId(pin+"\n"+sourceInfo.getString("fingerprint"),0,user);
         SecurePrefs.saveNamed(c,logical,raw);
         if(!prefs(c).edit().putString("route_"+keyId(from,port,user),logical).putString("route_"+keyId(to,port,user),logical).commit())throw new java.io.IOException("Не удалось сохранить маршрут");
         HostTrustStore.trust(c,to,port,pin);return true;

@@ -31,7 +31,7 @@ final class LocalServerAddresses {
                 Enumeration<InetAddress> values=network.getInetAddresses();while(values.hasMoreElements())add(addresses,values.nextElement());
             }
         } catch(Exception ignored) { }
-        return new ArrayList<>(addresses);
+        List<String> result=new ArrayList<>(addresses);Collections.sort(result);return result;
     }
     private static void add(Set<String> result,InetAddress value) {
         if(value instanceof Inet4Address && !value.isLoopbackAddress() && !value.isLinkLocalAddress()

@@ -1,0 +1,12 @@
+<resources>
+    <string name="current_wifi_ip">Текущий IP Wi-Fi</string>
+    <string name="current_wifi_ip_hint">Адрес этого телефона. Для подключения используй IP телефона-сервера.</string>
+    <string name="current_wifi_ip_missing">Нет адреса Wi-Fi. Подключись к сети или включи точку доступа.</string>
+    <string name="copy_current_wifi_ip">Скопировать IP</string>
+    <string name="choose_current_wifi_ip">Выбери IP этого телефона</string>
+    <string name="current_wifi_ip_changed">Адрес изменился. Проверь новый IP и нажми ещё раз.</string>
+    <string name="current_wifi_ip_copied">IP скопирован</string>
+    <item type="id" name="currentWifiIpValue" />
+    <item type="id" name="copyCurrentWifiIp" />
+    <item type="id" name="embeddedWifiAddress" />
+</resources>
