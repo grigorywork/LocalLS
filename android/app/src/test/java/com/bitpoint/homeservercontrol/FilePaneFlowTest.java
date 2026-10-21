@@ -72,6 +72,18 @@ public class FilePaneFlowTest {
         try(var c=screen()){assertEquals("downloads",current(c.get()).kind);c.get().onSaveInstanceState(state);}
         try(var c=Robolectric.buildActivity(FilesActivity.class,new Intent(app,FilesActivity.class).putExtra("own_server",true)).create(state)){assertEquals("downloads",current(c.get()).kind);}
     }
+    @Test public void folderPickerKeepsDestinationAcrossRecreationWithoutProfileChange()throws Exception{
+        Bundle saved=new Bundle();
+        try(var c=screen()){
+            ReflectionHelpers.callInstanceMethod(c.get(),"pickTree",ReflectionHelpers.ClassParameter.from(int.class,504));c.get().onSaveInstanceState(saved);
+        }
+        try(var c=Robolectric.buildActivity(FilesActivity.class,new Intent(app,FilesActivity.class).putExtra("own_server",true)).create(saved)){
+            c.get().onActivityResult(504,Activity.RESULT_OK,new Intent().setData(phoneTree).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));
+            Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());
+            ArrayList<Bundle> sources=job.getParcelableArrayListExtra("sources");assertEquals(1,sources.size());assertEquals(DocumentFiles.root(phoneTree).toString(),sources.get(0).getString("path"));
+            assertEquals("share",job.getBundleExtra("destination").getString("kind"));assertEquals(autoTree.toString(),ReceiveFolder.selected(app));
+        }
+    }
     private EditText input(View view){if(view instanceof EditText)return (EditText)view;if(view instanceof ViewGroup){ViewGroup g=(ViewGroup)view;for(int i=0;i<g.getChildCount();i++){EditText result=input(g.getChildAt(i));if(result!=null)return result;}}return null;}
     @Test public void phoneMenuCreatesFolderOnlyInSelectedDestination()throws Exception{
         try(var c=screen()){

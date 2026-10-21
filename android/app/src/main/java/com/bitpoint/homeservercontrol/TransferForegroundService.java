@@ -41,13 +41,14 @@ public class TransferForegroundService extends Service {
     private long lastProgress;
     private static final int NOTIFICATION=2208;
     static void enqueue(Context c,String action,List<FileNodes.Node> sources,String remotePath,FileNodes.Node destination){
+        enqueue(c,action,sources,remotePath,destination,FileConnection.current(c));
+    }
+    static void enqueue(Context c,String action,List<FileNodes.Node> sources,String remotePath,FileNodes.Node destination,FileConnection endpoint){
         if(sources.isEmpty() || sources.size()>64)throw new IllegalArgumentException("Выбери от 1 до 64 элементов");
         Intent i=new Intent(c,TransferForegroundService.class).setAction(action).putExtra(REQUEST_ID,UUID.randomUUID().toString());
         ArrayList<Bundle> nodes=new ArrayList<>();for(FileNodes.Node n:sources)nodes.add(n.bundle());i.putParcelableArrayListExtra("sources",nodes);
         if(destination!=null)i.putExtra("destination",destination.bundle());i.putExtra("remote",remotePath);
-        SharedPreferences p=c.getSharedPreferences(ServerConfig.PREFS,0);String host=ConnectionSelector.hostForFiles(c);
-        i.putExtra("host",host).putExtra("port",p.getInt(ServerConfig.KEY_PORT,8022)).putExtra("user",p.getString(ServerConfig.KEY_USER,"localls"));
-        i.putExtra("pin",HostTrustStore.get(c,host,p.getInt(ServerConfig.KEY_PORT,8022)));
+        i.putExtras(endpoint.bundle());
         ArrayList<Uri> grants=new ArrayList<>();for(FileNodes.Node n:sources)if("doc".equals(n.kind))grants.add(Uri.parse(n.path));
         if(!grants.isEmpty()){ClipData clip=ClipData.newRawUri("LocalLS files",grants.get(0));for(int n=1;n<grants.size();n++)clip.addItem(new ClipData.Item(grants.get(n)));i.setClipData(clip);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);}
         if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);
