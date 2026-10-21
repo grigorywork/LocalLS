@@ -228,7 +228,7 @@ final class SftpClient {
             SftpATTRS parent=c.sftp.lstat(path);if(parent.isLink() || !parent.isDir())throw new java.io.IOException("Папка недоступна");
             List<RemoteEntry> out=new ArrayList<>();
             @SuppressWarnings("unchecked") Vector<ChannelSftp.LsEntry> raw=c.sftp.ls(path);
-            for(ChannelSftp.LsEntry e:raw){String name=e.getFilename();if(name.equals(".")||name.equals(".."))continue;
+            for(ChannelSftp.LsEntry e:raw){String name=e.getFilename();if(name.equals(".")||name.equals("..")||TransferPaths.temporary(name))continue;
                 TransferPaths.name(name);SftpATTRS a=e.getAttrs();if(a==null || a.isLink() || (!a.isDir() && !a.isReg()))continue;
                 if(out.size()>=10000)throw new java.io.IOException("Слишком много файлов");
                 out.add(new RemoteEntry(name,join(path,name),a.isDir(),a.getSize(),a.getMTime()));}
@@ -242,14 +242,19 @@ final class SftpClient {
         }
         String folder(String parent,String name)throws Exception{String path=unique(parent,name);c.sftp.mkdir(path);return path;}
         void read(String path,OutputStream out,ProgressCallback progress)throws Exception{
+            if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Передача отменена");
             SftpATTRS a=c.sftp.lstat(path);if(a.isLink() || !a.isReg())throw new java.io.IOException("Недопустимый файл");
-            final long[] copied={0};c.sftp.get(path,out,monitor((n,total)->{copied[0]=n;return progress==null || progress.onProgress(n,total);},a.getSize()));
-            if(Thread.currentThread().isInterrupted() || copied[0]!=a.getSize())throw new java.io.InterruptedIOException();out.flush();
+            final long[] copied={0};final boolean[] keepGoing={true};
+            c.sftp.get(path,out,monitor((n,total)->{copied[0]=n;keepGoing[0]=keepGoing[0] && (progress==null || progress.onProgress(n,total));return keepGoing[0];},a.getSize()));
+            if(!keepGoing[0] || Thread.currentThread().isInterrupted() || copied[0]!=a.getSize())throw new java.io.InterruptedIOException("Передача не завершена");
+            SftpATTRS after=c.sftp.lstat(path);
+            if(after.isLink() || !after.isReg() || after.getSize()!=a.getSize() || after.getMTime()!=a.getMTime())throw new java.io.IOException("Файл на сервере изменился во время скачивания. Повтори передачу.");
+            out.flush();
         }
         String write(String parent,String name,InputStream input,long size,ProgressCallback progress)throws Exception{
             String target=unique(parent,name),temp=join(parent,".localls-upload-"+java.util.UUID.randomUUID()+".part");
             boolean moved=false;final long[] copied={0};final boolean[] keepGoing={true};
-            try{c.sftp.put(input,temp,monitor((n,total)->{copied[0]=n;keepGoing[0]=progress==null || progress.onProgress(n,total);return keepGoing[0];},size),ChannelSftp.OVERWRITE);
+            try{c.sftp.put(input,temp,monitor((n,total)->{copied[0]=n;keepGoing[0]=keepGoing[0] && (progress==null || progress.onProgress(n,total));return keepGoing[0];},size),ChannelSftp.OVERWRITE);
                 if(!keepGoing[0] || Thread.currentThread().isInterrupted() || (size>0 && copied[0]!=size))throw new java.io.InterruptedIOException();
                 c.sftp.rename(temp,target);moved=true;return target;
             }finally{if(!moved)try{c.sftp.rm(temp);}catch(Exception ignored){}}

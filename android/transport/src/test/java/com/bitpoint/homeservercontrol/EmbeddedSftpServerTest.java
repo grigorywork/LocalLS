@@ -67,6 +67,72 @@ public class EmbeddedSftpServerTest {
             }
         }
     }
+    @Test public void folderSnapshotExcludesInFlightUploadsButKeepsOrdinaryHiddenFiles()throws Exception{
+        Path root=temp.newFolder().toPath();
+        Files.write(root.resolve(".localls-upload-pending.part"),new byte[]{1});
+        Files.write(root.resolve(".notes"),new byte[]{2});
+        Files.write(root.resolve("complete.bin"),new byte[]{3});
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",SshCredentials.key(new String(clientPrivate,"UTF-8"),""),EmbeddedSftpServer.fingerprint(host))){
+                java.util.List<String> names=new java.util.ArrayList<>();for(RemoteEntry entry:tree.list("/"))names.add(entry.name);
+                assertTrue(names.contains(".notes"));assertTrue(names.contains("complete.bin"));
+                assertFalse("A partial concurrent upload must not be copied as a complete file",names.contains(".localls-upload-pending.part"));
+                assertArrayEquals(new byte[]{1},Files.readAllBytes(root.resolve(".localls-upload-pending.part")));
+            }
+        }
+    }
+    @Test public void downloadCancellationOnFinalBlockMustNotReportSuccess()throws Exception{
+        Path root=temp.newFolder().toPath();Files.write(root.resolve("small.bin"),new byte[]{1,2,3});
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",SshCredentials.key(new String(clientPrivate,"UTF-8"),""),EmbeddedSftpServer.fingerprint(host))){
+                try{tree.read("/small.bin",new ByteArrayOutputStream(),(done,total)->false);fail("Cancellation on final block was reported as success");}catch(InterruptedIOException expected){}
+            }
+        }
+    }
+    @Test public void changedRemoteSourceIsNotReportedAsVerifiedCopy()throws Exception{
+        Path root=temp.newFolder().toPath(),source=root.resolve("changing.bin");Files.write(source,new byte[]{1,2,3});
+        long originalTime=Files.getLastModifiedTime(source).toMillis();
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",SshCredentials.key(new String(clientPrivate,"UTF-8"),""),EmbeddedSftpServer.fingerprint(host))){
+                OutputStream target=new ByteArrayOutputStream(){
+                    @Override public synchronized void write(byte[] bytes,int offset,int length){super.write(bytes,offset,length);try{Files.setLastModifiedTime(source,java.nio.file.attribute.FileTime.fromMillis(originalTime+10000));}catch(IOException e){throw new java.io.UncheckedIOException(e);}}
+                };
+                try{tree.read("/changing.bin",target,(done,total)->true);fail("Changed source was reported as a complete stable copy");}catch(IOException expected){}
+            }
+        }
+    }
+    @Test public void uploadCancellationCannotBeReversedByMonitorEnd()throws Exception{
+        Path root=temp.newFolder().toPath();
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",SshCredentials.key(new String(clientPrivate,"UTF-8"),""),EmbeddedSftpServer.fingerprint(host))){
+                java.util.concurrent.atomic.AtomicInteger calls=new java.util.concurrent.atomic.AtomicInteger();
+                try{tree.write("/","cancel.bin",new ByteArrayInputStream(new byte[]{1,2,3}),3,(done,total)->calls.incrementAndGet()>1);fail("Monitor end reversed cancellation");}catch(InterruptedIOException expected){}
+                assertFalse(Files.exists(root.resolve("cancel.bin")));assertEquals(0,tree.list("/").size());
+            }
+        }
+    }
+    @Test public void stoppedServerDoesNotPublishPartialUploadAndRetryUsesSameIdentity()throws Exception{
+        Path root=temp.newFolder().toPath();byte[] bytes=new byte[2*1024*1024+17];new java.util.Random(93).nextBytes(bytes);
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            String pin=EmbeddedSftpServer.fingerprint(host);SshCredentials key=SshCredentials.key(new String(clientPrivate,"UTF-8"),"");
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",key,pin)){
+                boolean[] stopped={false};
+                try{tree.write("/","retry.bin",new ByteArrayInputStream(bytes),bytes.length,(done,total)->{if(!stopped[0]){stopped[0]=true;try{server.close();}catch(IOException e){throw new java.io.UncheckedIOException(e);}}return true;});fail("Disconnected upload reported success");}catch(com.jcraft.jsch.SftpException expected){}
+                assertTrue(stopped[0]);assertFalse(Files.exists(root.resolve("retry.bin")));
+            }
+            int nextPort=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            try(SftpClient.TreeSession retry=new SftpClient.TreeSession("127.0.0.1",nextPort,"localls",key,pin)){
+                assertEquals("/retry.bin",retry.write("/","retry.bin",new ByteArrayInputStream(bytes),bytes.length,(done,total)->true));
+                assertArrayEquals(bytes,Files.readAllBytes(root.resolve("retry.bin")));
+                assertEquals(1,retry.list("/").size());
+            }
+        }
+    }
     @Test public void transferRenameAndDeleteWithinShare() throws Exception {
         Path root=temp.newFolder().toPath();
         try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {
