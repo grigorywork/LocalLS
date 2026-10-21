@@ -292,6 +292,26 @@ public class EmbeddedSftpServerTest {
             assertArrayEquals(bytes,Files.readAllBytes(output));assertFalse(Files.exists(root.resolve("independent.bin")));
         }
     }
+    @Test public void independentClientOnDifferentSourceIpTransfersBothWays()throws Exception{
+        Path work=temp.newFolder().toPath(),root=Files.createDirectory(work.resolve("server"));
+        Path identity=work.resolve("id_rsa"),known=work.resolve("known_hosts"),input=work.resolve("input.bin"),output=work.resolve("output.bin"),batch=work.resolve("batch.txt"),log=work.resolve("sftp.log");
+        Files.write(identity,clientPrivate);Files.setPosixFilePermissions(identity,java.util.EnumSet.of(java.nio.file.attribute.PosixFilePermission.OWNER_READ,java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
+        byte[] bytes=new byte[5*1024*1024+31];new java.util.Random(2026).nextBytes(bytes);Files.write(input,bytes);
+        String serverIp="127.0.0.2",clientIp="127.0.0.5";assertNotEquals(serverIp,clientIp);
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start(serverIp,0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            JSch jsch=new JSch();jsch.addIdentity("test",clientPrivate,null,null);jsch.setHostKeyRepository(new PinnedHostKeyRepository(jsch,EmbeddedSftpServer.fingerprint(host)));
+            Session captured=jsch.getSession("localls",serverIp,port);captured.setConfig("StrictHostKeyChecking","yes");captured.setConfig("PreferredAuthentications","publickey");
+            try{captured.connect(5000);Files.write(known,("["+serverIp+"]:"+port+" "+captured.getHostKey().getType()+" "+captured.getHostKey().getKey()+"\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));}finally{captured.disconnect();}
+            Files.write(batch,("put "+input+" /network.bin\nget /network.bin "+output+"\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            Process process=new ProcessBuilder("sftp","-b",batch.toString(),"-P",String.valueOf(port),"-i",identity.toString(),
+                    "-o","BindAddress="+clientIp,"-o","BatchMode=yes","-o","StrictHostKeyChecking=yes","-o","UserKnownHostsFile="+known,
+                    "-o","IdentitiesOnly=yes","-o","IdentityAgent=none","localls@"+serverIp).redirectErrorStream(true).redirectOutput(log.toFile()).start();
+            if(!process.waitFor(25,java.util.concurrent.TimeUnit.SECONDS)){process.destroyForcibly();fail("Independent client timed out");}
+            assertEquals(new String(Files.readAllBytes(log),java.nio.charset.StandardCharsets.UTF_8),0,process.exitValue());
+            assertArrayEquals(bytes,Files.readAllBytes(output));assertArrayEquals(bytes,Files.readAllBytes(root.resolve("network.bin")));
+        }
+    }
     @Test public void ecdsaPublicKeyParsesAndAuthenticates() throws Exception {
         JSch client=new JSch();
         com.jcraft.jsch.KeyPair pair=com.jcraft.jsch.KeyPair.genKeyPair(client,com.jcraft.jsch.KeyPair.ECDSA,256);

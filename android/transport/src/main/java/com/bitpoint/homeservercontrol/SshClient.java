@@ -27,7 +27,8 @@ final class SshClient {
             stats.reachable = true;
             stats.latencyMs = Math.max(1, (System.nanoTime() - start) / 1_000_000L);
         } catch (Exception e) {
-            stats.error = "Порт " + port + " недоступен: " + safeMessage(e);
+            stats.error = "Порт " + port + " недоступен: " + safeMessage(e)
+                    + "\nПроверь запуск сервера, его текущий IP и доступ между устройствами в Wi-Fi/VPN.";
             return stats;
         }
 
@@ -48,7 +49,7 @@ final class SshClient {
 
         if (!trustedFingerprint.equals(stats.hostFingerprint)) {
             stats.hostKeyMismatch = true;
-            stats.error = "ВНИМАНИЕ: fingerprint сервера изменился. Пароль не отправлен; команды заблокированы.";
+            stats.error = "Fingerprint сервера изменился. Авторизация и передача файлов заблокированы. Сверь устройство с телефоном-сервером.";
             return stats;
         }
         stats.hostKeyTrusted = true;

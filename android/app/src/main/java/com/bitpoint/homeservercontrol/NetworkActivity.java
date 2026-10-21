@@ -82,23 +82,36 @@ public class NetworkActivity extends BaseActivity {
     private void save() {
         String local = localHostInput.getText().toString().trim();
         String vpn = vpnHostInput.getText().toString().trim();
-        if (TextUtils.isEmpty(local)) {
-            Toast.makeText(this, "Локальный адрес не должен быть пустым", Toast.LENGTH_SHORT).show();
-            return;
-        }
         String mode = vpnModeButton.isChecked() ? ServerConfig.MODE_VPN : ServerConfig.MODE_LOCAL;
-        if (ServerConfig.MODE_VPN.equals(mode) && TextUtils.isEmpty(vpn)) {
-            Toast.makeText(this, "Для VPN-режима укажи Tailscale IP или имя", Toast.LENGTH_SHORT).show();
+        localHostInput.setError(null);vpnHostInput.setError(null);
+        boolean invalid=false;
+        if ((!local.isEmpty() || ServerConfig.MODE_LOCAL.equals(mode)) && !ConnectionEndpoint.validHost(local)) {
+            localHostInput.setError("Укажи IP или имя телефона-сервера без порта и пути");invalid=true;
+        }
+        if ((!vpn.isEmpty() || ServerConfig.MODE_VPN.equals(mode)) && !ConnectionEndpoint.validHost(vpn)) {
+            vpnHostInput.setError("Укажи IP или имя сервера в VPN");invalid=true;
+        }
+        if (invalid) {
+            Toast.makeText(this, "Исправь отмеченные адреса", Toast.LENGTH_SHORT).show();
             return;
         }
-        getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE).edit()
+        SharedPreferences prefs=getSharedPreferences(ServerConfig.PREFS,MODE_PRIVATE);
+        int port=prefs.getInt(ServerConfig.KEY_PORT,ServerConfig.DEFAULT_PORT);
+        String user=prefs.getString(ServerConfig.KEY_USER,ServerConfig.DEFAULT_USER);
+        if (port<1 || port>65535 || !ConnectionEndpoint.validUser(user)) {
+            Toast.makeText(this,"Проверь порт и пользователя в настройках подключения",Toast.LENGTH_LONG).show();return;
+        }
+        boolean moved;
+        try {moved=SshKeys.moveRoute(this,ConnectionSelector.selectedHost(this),ServerConfig.MODE_VPN.equals(mode)?vpn:local,port,user);}
+        catch(Exception e){Toast.makeText(this,"Не удалось сохранить доступ для нового адреса. Старое подключение сохранено.",Toast.LENGTH_LONG).show();return;}
+        prefs.edit()
                 .putString(ServerConfig.KEY_LOCAL_HOST, local)
                 .putString(ServerConfig.KEY_VPN_HOST, vpn)
                 .putString(ServerConfig.KEY_MODE, mode)
                 .putString(ServerConfig.KEY_IPERF_TARGET, iperfTargetInput.getText().toString().trim())
                 .putBoolean(ServerConfig.KEY_AUTO_FALLBACK, autoFallbackCheck.isChecked())
                 .apply();
-        Toast.makeText(this, "Сетевые настройки сохранены", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, moved?"Адрес сохранён. Прежний ключ и fingerprint сохранены.":"Сетевые настройки сохранены", Toast.LENGTH_SHORT).show();
     }
 
     private void testConnection() {
@@ -141,13 +154,13 @@ public class NetworkActivity extends BaseActivity {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(host, port), 3500);
             long ms = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
-            return new ProbeResult(true, "SSH-порт доступен • " + ms + " мс");
+            return new ProbeResult(true, "Порт доступен • " + ms + " мс. Вход по ключу проверь кнопкой «Проверить SSH» на главном экране.");
         } catch (Exception e) {
             String name = e.getClass().getSimpleName();
             if ("ConnectException".equals(name)) {
-                return new ProbeResult(false, "соединение отклонено: проверь sshd и порт 8022");
+                return new ProbeResult(false, "соединение отклонено: включи сервер на другом телефоне и проверь его IP и порт " + port);
             } else if ("SocketTimeoutException".equals(name)) {
-                return new ProbeResult(false, "таймаут: проверь Wi‑Fi/VPN и адрес");
+                return new ProbeResult(false, "нет ответа: проверь IP сервера и обмен между устройствами в Wi-Fi/VPN. Гостевая сеть может блокировать соединение.");
             } else if ("UnknownHostException".equals(name)) {
                 return new ProbeResult(false, "адрес не найден");
             }
