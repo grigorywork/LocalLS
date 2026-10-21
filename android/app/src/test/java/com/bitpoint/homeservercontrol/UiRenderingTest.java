@@ -106,7 +106,15 @@ public class UiRenderingTest {
             root.layout(0, 0, 360, 640);
             assertTrue("Server list disappeared at fontScale=" + scale+" height="+((View)root.findViewById(R.id.remoteFileList).getParent()).getHeight(), ((View)root.findViewById(R.id.remoteFileList).getParent()).getHeight() >= 80);
             assertTrue("Phone list disappeared at fontScale="+scale,((View)root.findViewById(R.id.phoneFileList).getParent()).getHeight()>=80);
-            checkCaptions(root, scale);
+            checkDrawerText(root, scale);
+            checkFileControls(root, scale);
+            Button send=org.robolectric.util.ReflectionHelpers.getField(screen.get(),"send");
+            Button receive=org.robolectric.util.ReflectionHelpers.getField(screen.get(),"receive");
+            int[] at=new int[2];receive.getLocationOnScreen(at);
+            assertTrue("Copy controls must remain on screen",at[1]>=0 && at[1]+receive.getHeight()<=640);
+            android.widget.TextView status=root.findViewById(R.id.transferStatusText);
+            assertTrue("Transfer status is readable",status.getTextSize()>=16*scale-.1f);
+
             Bitmap bitmap = Bitmap.createBitmap(360, 640, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bitmap);
             canvas.drawColor(ThemeCatalog.color(context, com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));
@@ -201,6 +209,11 @@ public class UiRenderingTest {
             try(FileOutputStream stream=new FileOutputStream(new File(directory,"server-actions-font-"+scale+".png"))) {assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,stream));}
             bitmap.recycle();
         }
+    }
+
+    private void checkFileControls(View view,float scale) {
+        if(view instanceof Button){Button b=(Button)view;assertTrue(b.getText()+" too small",b.getTextSize()>=16*scale-.1f);assertTrue(b.getText()+" touch target",b.getHeight()>=48);assertFalse("Unlabelled symbol",java.util.Arrays.asList("↑","↻","⌂","⋮","↓").contains(b.getText().toString()));}
+        if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++)checkFileControls(group.getChildAt(i),scale);}
     }
 
     private void checkDrawerText(View view, float scale) {

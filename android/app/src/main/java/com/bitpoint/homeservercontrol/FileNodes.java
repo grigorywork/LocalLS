@@ -11,9 +11,12 @@ import java.util.*;
 /** A file reference, never a byte array. Local roots are scoped, granted documents or app Downloads. */
 final class FileNodes {
     static final String PHONE_TREE="phone_folder_tree";
-    static final class Node {
+    static final class Node implements FileListQuery.Entry {
         final String kind,path,name;final boolean directory;final long size;
         Node(String k,String p,String n,boolean d,long s){kind=k;path=p;name=n;directory=d;size=s;}
+        @Override public String displayName(){return name;}
+        @Override public long bytes(){return size;}
+        @Override public boolean folder(){return directory;}
         Bundle bundle(){Bundle b=new Bundle();b.putString("kind",kind);b.putString("path",path);b.putString("name",name);b.putBoolean("directory",directory);b.putLong("size",size);return b;}
         static Node from(Bundle b){String kind=b.getString("kind"),path=b.getString("path");return new Node(kind,path,"downloads".equals(kind)&&"".equals(path)?"Загрузки / LocalLS":TransferPaths.name(b.getString("name")),b.getBoolean("directory"),b.getLong("size"));}
     }
