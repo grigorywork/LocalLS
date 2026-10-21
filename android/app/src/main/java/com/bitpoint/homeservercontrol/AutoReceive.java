@@ -9,6 +9,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Durable list of completed uploads. One failed item must not block independent files. */
 final class AutoReceive implements AutoCloseable {
+    // Receivers can overlap while an old provider is still closing after a server restart.
+    private static final Object DRAIN_LOCK=new Object();
     static volatile String status="Автосохранение готово";
     static volatile boolean error,active;
     static volatile String diagnostic="";
@@ -42,12 +44,14 @@ final class AutoReceive implements AutoCloseable {
     }
 
     private void runPending(){
+        synchronized(DRAIN_LOCK){
         try{
             while(!closed && requested.getAndSet(false))drain();
         }catch(Exception e){if(!closed)failure("Не удалось прочитать очередь сохранения. Перезапусти сервер. Оригиналы находятся в LocalLS.",e);}
         finally{
             active=false;scheduled.set(false);
             if(!closed && requested.get())retry();
+        }
         }
     }
 
@@ -57,7 +61,7 @@ final class AutoReceive implements AutoCloseable {
 
     private void drain(){
         long after=0;int saved=0,missing=0,failed=0;
-        String firstFailure="";
+        String firstFailure="",lastSavedFolder="";
         error=false;diagnostic="";
         while(!closed){
             Queue.Item item=queue.nextAfter(after);
@@ -69,15 +73,16 @@ final class AutoReceive implements AutoCloseable {
                 if(!source.exists()){
                     queue.discard(item);missing++;continue;
                 }
-                active=true;status="Автосохранение → "+ReceiveFolder.label(context);
-                LocalFileExporter.copy(root,item.path,ReceiveFolder.destination(context,item.path),(done,total)->{
+                String destination=ReceiveFolder.selected(context),place=ReceiveFolder.label(destination);
+                active=true;status="Автосохранение → "+place;
+                LocalFileExporter.copy(root,item.path,ReceiveFolder.destination(context,item.path,destination),(done,total)->{
                     if(closed)throw new CancellationException();
                     long now=android.os.SystemClock.elapsedRealtime();
                     if(now-lastProgress>250 || done==total){
                         lastProgress=now;status="Автосохранение · "+LocalFileExportService.format(done)+" / "+LocalFileExportService.format(total);
                     }
                 });
-                queue.done(item);saved++;
+                queue.done(item);saved++;lastSavedFolder=place;
             }catch(Exception e){
                 if(closed)return;
                 failed++;
@@ -91,7 +96,7 @@ final class AutoReceive implements AutoCloseable {
             status="Сохранено: "+saved+". Ожидают повтора: "+failed+". Проверь папку и свободное место, затем нажми «Повторить сохранение».";
         }else{
             error=false;diagnostic="";
-            status=saved>0?"Сохранено автоматически → "+ReceiveFolder.label(context):"Автосохранение готово";
+            status=saved>0?"Сохранено автоматически: "+saved+". Последнее место → "+lastSavedFolder:"Автосохранение готово";
         }
         if(missing>0)status+=" Пропущены удалённые исходники: "+missing+".";
         active=false;

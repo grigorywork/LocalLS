@@ -41,7 +41,8 @@ final class FileNodes {
             String base=Environment.DIRECTORY_DOWNLOADS+"/LocalLS/"+folder.path;
             Set<String> directories=new HashSet<>();
             try(Cursor x=c.getContentResolver().query(MediaStore.Downloads.EXTERNAL_CONTENT_URI,new String[]{MediaStore.MediaColumns._ID,MediaStore.MediaColumns.DISPLAY_NAME,MediaStore.MediaColumns.RELATIVE_PATH,MediaStore.MediaColumns.SIZE},MediaStore.MediaColumns.IS_PENDING+"=0",null,null)){
-                if(x!=null)while(x.moveToNext()){
+                if(x==null)throw new IOException("Загрузки недоступны. Обнови список или выбери другую папку");
+                while(x.moveToNext()){
                     String parent=x.getString(2);if(parent==null || !parent.startsWith(base))continue;
                     String tail=parent.substring(base.length());
                     if(!tail.isEmpty()){String name=TransferPaths.name(tail.split("/")[0]);if(directories.add(name))out.add(new Node("downloads",folder.path+name+"/",name,true,0));}

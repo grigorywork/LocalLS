@@ -32,6 +32,9 @@ final class DocumentFiles {
         ArrayList<Entry> out=new ArrayList<>();
         try(Cursor x=query(c,q,new String[]{DocumentsContract.Document.COLUMN_DOCUMENT_ID,OpenableColumns.DISPLAY_NAME,DocumentsContract.Document.COLUMN_MIME_TYPE,OpenableColumns.SIZE})) {
             if(x==null)throw new IOException("Папка недоступна");
+            android.os.Bundle extras=x.getExtras();
+            if(extras!=null && extras.getBoolean(DocumentsContract.EXTRA_LOADING,false))throw new IOException("Папка ещё загружается. Обнови список позже");
+            if(extras!=null && extras.get(DocumentsContract.EXTRA_ERROR)!=null)throw new IOException("Не удалось получить полный список папки");
             while(x.moveToNext()) {if(out.size()>=10000)throw new IOException("В папке больше 10000 элементов");
                 out.add(new Entry(DocumentsContract.buildDocumentUriUsingTree(folder,x.getString(0)),x.getString(1),x.getString(2),x.isNull(3)?0:x.getLong(3)));}
         }

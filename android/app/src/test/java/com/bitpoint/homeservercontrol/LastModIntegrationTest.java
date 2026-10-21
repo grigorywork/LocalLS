@@ -20,6 +20,13 @@ import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class) @Config(sdk=30)
 public class LastModIntegrationTest {
+    public static class OrderedCloseDocuments extends TransferRecoveryTest.Documents {
+        final java.util.concurrent.atomic.AtomicInteger opens=new java.util.concurrent.atomic.AtomicInteger();
+        final CountDownLatch secondOpen=new CountDownLatch(1);
+        @Override public ParcelFileDescriptor openDocument(String id,String mode,CancellationSignal signal)throws FileNotFoundException{
+            if(mode.contains("w") && opens.incrementAndGet()==2)secondOpen.countDown();return super.openDocument(id,mode,signal);
+        }
+    }
     static final String AUTHORITY="mod.documents";
     public static class Documents extends DocumentsProvider {
         File root;CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);boolean hold,deny;String deniedName;
@@ -162,6 +169,32 @@ public class LastModIntegrationTest {
         try(var c=Robolectric.buildActivity(MainActivity.class).create()){
             MainActivity a=c.get();assertEquals(View.GONE,a.findViewById(R.id.remoteConnectionCard).getVisibility());assertEquals(View.VISIBLE,a.findViewById(R.id.localServerCard).getVisibility());
             ((android.widget.Switch)a.findViewById(R.id.showClientSwitch)).setChecked(true);assertEquals(View.VISIBLE,a.findViewById(R.id.remoteConnectionCard).getVisibility());
+        }
+    }
+    @Test public void changingAutoSaveFolderWhileClosingReportsActualDestination()throws Exception{
+        TransferRecoveryTest.Documents closing=new TransferRecoveryTest.Documents();closing.root=provider.root;closing.holdClose=true;ProviderInfo info=new ProviderInfo();info.authority=AUTHORITY;info.applicationInfo=app.getApplicationInfo();info.exported=true;info.grantUriPermissions=true;info.readPermission=android.Manifest.permission.MANAGE_DOCUMENTS;info.writePermission=android.Manifest.permission.MANAGE_DOCUMENTS;closing.attachInfo(app,info);ShadowContentResolver.registerProviderInternal(AUTHORITY,closing);app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,tree.toString()).commit();
+        String name="where-auto-"+System.nanoTime()+".bin";File source=new File(EmbeddedServerService.share(app),name);source.getParentFile().mkdirs();Files.write(source.toPath(),new byte[]{3,7});AutoReceive receive=new AutoReceive(app);
+        try{
+            ExecutorService worker=org.robolectric.util.ReflectionHelpers.getField(receive,"worker");worker.submit(()->{}).get(5,TimeUnit.SECONDS);receive.received(name);assertTrue(closing.closeEntered.await(5,TimeUnit.SECONDS));app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().remove(ReceiveFolder.TREE).commit();closing.closeRelease.countDown();worker.submit(()->{}).get(5,TimeUnit.SECONDS);
+            assertFalse(AutoReceive.diagnostic,AutoReceive.error);assertTrue("Receipt incorrectly follows new settings: "+AutoReceive.status,AutoReceive.status.contains("Выбранная папка телефона"));assertFalse(AutoReceive.status.contains("Загрузки"));assertArrayEquals(new byte[]{3,7},Files.readAllBytes(new File(provider.root,name).toPath()));
+        }finally{closing.closeRelease.countDown();receive.close();ExecutorService worker=org.robolectric.util.ReflectionHelpers.getField(receive,"worker");assertTrue(worker.awaitTermination(5,TimeUnit.SECONDS));}
+    }
+    @Test public void loadingAutoSaveDestinationKeepsPendingSourceUntilRetry()throws Exception{
+        FilePaneFlowTest.LoadingDocuments loading=new FilePaneFlowTest.LoadingDocuments();loading.root=provider.root;loading.loading=true;ProviderInfo info=new ProviderInfo();info.authority=AUTHORITY;info.applicationInfo=app.getApplicationInfo();info.exported=true;info.grantUriPermissions=true;info.readPermission=android.Manifest.permission.MANAGE_DOCUMENTS;info.writePermission=android.Manifest.permission.MANAGE_DOCUMENTS;loading.attachInfo(app,info);ShadowContentResolver.registerProviderInternal(AUTHORITY,loading);app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,tree.toString()).commit();
+        String name="loading-auto-"+System.nanoTime()+".bin";File source=new File(EmbeddedServerService.share(app),name);source.getParentFile().mkdirs();Files.write(source.toPath(),new byte[]{4,8});AutoReceive receive=new AutoReceive(app);try{
+            receive.received(name);ExecutorService worker=org.robolectric.util.ReflectionHelpers.getField(receive,"worker");worker.submit(()->{}).get(5,TimeUnit.SECONDS);assertTrue("Loading directory did not keep auto-save pending",AutoReceive.error);assertEquals(0,provider.root.listFiles().length);try(AutoReceive.Queue q=new AutoReceive.Queue(app)){assertEquals(name,q.next().path);}
+            loading.loading=false;receive.retry();worker.submit(()->{}).get(5,TimeUnit.SECONDS);assertFalse(AutoReceive.diagnostic,AutoReceive.error);assertArrayEquals(new byte[]{4,8},Files.readAllBytes(new File(provider.root,name).toPath()));assertArrayEquals(new byte[]{4,8},Files.readAllBytes(source.toPath()));
+        }finally{receive.close();ExecutorService worker=org.robolectric.util.ReflectionHelpers.getField(receive,"worker");assertTrue(worker.awaitTermination(5,TimeUnit.SECONDS));}
+    }
+    @Test public void replacementReceiverWaitsForClosingCopyBeforeProcessingSameQueue()throws Exception{
+        OrderedCloseDocuments closing=new OrderedCloseDocuments();closing.root=provider.root;closing.holdClose=true;ProviderInfo info=new ProviderInfo();info.authority=AUTHORITY;info.applicationInfo=app.getApplicationInfo();info.exported=true;info.grantUriPermissions=true;info.readPermission=android.Manifest.permission.MANAGE_DOCUMENTS;info.writePermission=android.Manifest.permission.MANAGE_DOCUMENTS;closing.attachInfo(app,info);ShadowContentResolver.registerProviderInternal(AUTHORITY,closing);
+        app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,tree.toString()).commit();String name="restart-auto-"+System.nanoTime()+".bin";File original=new File(EmbeddedServerService.share(app),name);original.getParentFile().mkdirs();byte[] bytes={2,5,11};Files.write(original.toPath(),bytes);
+        AutoReceive first=new AutoReceive(app),second=null;try{
+            first.received(name);assertTrue(closing.closeEntered.await(5,TimeUnit.SECONDS));first.close();closing.holdClose=false;second=new AutoReceive(app);
+            assertFalse("Replacement started the same durable item while old copy was still closing",closing.secondOpen.await(400,TimeUnit.MILLISECONDS));closing.closeRelease.countDown();assertTrue(closing.secondOpen.await(5,TimeUnit.SECONDS));
+            await(()->{try(AutoReceive.Queue q=new AutoReceive.Queue(app)){return q.next()==null && !AutoReceive.active;}});assertArrayEquals(bytes,Files.readAllBytes(new File(provider.root,name).toPath()));assertEquals(1,provider.root.listFiles().length);assertArrayEquals(bytes,Files.readAllBytes(original.toPath()));
+        }finally{
+            closing.closeRelease.countDown();first.close();if(second!=null)second.close();ExecutorService old=org.robolectric.util.ReflectionHelpers.getField(first,"worker");assertTrue(old.awaitTermination(5,TimeUnit.SECONDS));if(second!=null){ExecutorService next=org.robolectric.util.ReflectionHelpers.getField(second,"worker");assertTrue(next.awaitTermination(5,TimeUnit.SECONDS));}
         }
     }
     @Test public void stoppingAutoSaveDuringProviderCloseKeepsOriginalAndPendingRetry()throws Exception{

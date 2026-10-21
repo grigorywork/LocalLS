@@ -92,7 +92,7 @@ public class FilesActivity extends BaseActivity {
     }
     private void refreshPhone(){
         int generation=++phoneGeneration;phoneReady=false;phoneSelected.clear();phoneList.clearChoices();phoneList.setEnabled(false);buttons();FileNodes.Node folder=phone;phonePath.setText("Телефон · "+("downloads".equals(folder.kind)?"Загрузки / LocalLS/"+folder.path:folder.name));
-        browse.execute(()->{try{List<FileNodes.Node> result=FileNodes.children(this,folder);ui.post(()->{if(!closed && generation==phoneGeneration && phone==folder){phoneReady=true;phoneList.setEnabled(true);phoneEntries.clear();phoneEntries.addAll(result);renderList(true);}});}catch(Exception e){ui.post(()->{if(!closed && generation==phoneGeneration && phone==folder){phoneEntries.clear();renderList(true);message("Папка телефона недоступна. Выбери её заново кнопкой «Место».");}});}});
+        browse.execute(()->{try{List<FileNodes.Node> result=FileNodes.children(this,folder);ui.post(()->{if(!closed && generation==phoneGeneration && phone==folder){phoneReady=true;phoneList.setEnabled(true);phoneEntries.clear();phoneEntries.addAll(result);renderList(true);}});}catch(Exception e){ui.post(()->{if(!closed && generation==phoneGeneration && phone==folder){phoneEntries.clear();renderList(true);message("Папка телефона недоступна. Обнови список или выбери её заново кнопкой «Место».");}});}});
     }
     private void refreshServer(){
         if(restarting)return;
@@ -171,7 +171,7 @@ public class FilesActivity extends BaseActivity {
         else throw new IOException();
     });}).show();}
     private interface Operation{void run()throws Exception;}
-    private void operation(Operation action){browse.execute(()->{try{action.run();ui.post(()->{if(!closed){refreshPhone();refreshServer();}});}catch(Exception e){ui.post(()->{if(!closed)message("Операция не выполнена. Проверь доступ, имя и наличие файлов в папке.");});}});}
+    private void operation(Operation action){browse.execute(()->{try{action.run();ui.post(()->{if(!closed){refreshPhone();refreshServer();}});}catch(Exception e){ui.post(()->{if(!closed)message("Операция не выполнена. Дождись загрузки папки и проверь доступ, имя и наличие файлов.");});}});}
     private void renderTransfer(){TransferForegroundService.State value=TransferForegroundService.state;status.setText(value.text+(own?"\n"+AutoReceive.status:""));StatusBadge.apply(status,value.error || (own&&AutoReceive.error)?StatusBadge.Tone.ERROR:value.active || (own&&AutoReceive.active)?StatusBadge.Tone.WARNING:value.text.startsWith("Готово")?StatusBadge.Tone.SUCCESS:StatusBadge.Tone.NEUTRAL);
         progress.setVisibility(value.active?View.VISIBLE:View.GONE);progress.setIndeterminate(value.total<=0);progress.setProgress(value.total<=0?0:(int)Math.min(10000,value.bytes*10000d/value.total));
         if(wasActive && !value.active){refreshPhone();refreshServer();}wasActive=value.active;}

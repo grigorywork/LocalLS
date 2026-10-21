@@ -132,7 +132,7 @@ public class EmbeddedServerActivity extends BaseActivity {
             EmbeddedServerService.launchRequested=0;EmbeddedServerService.failure("FOREGROUND",new java.util.concurrent.TimeoutException());
         }
         state.setText(EmbeddedServerService.status);
-        if(receiveState!=null){receiveState.setText("Сохранение → "+ReceiveFolder.label(this)+"\n"+AutoReceive.status);StatusBadge.apply(receiveState,AutoReceive.error?StatusBadge.Tone.ERROR:AutoReceive.active?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS);}
+        if(receiveState!=null){receiveState.setText("Новые файлы → "+ReceiveFolder.label(this)+"\n"+AutoReceive.status);StatusBadge.apply(receiveState,AutoReceive.error?StatusBadge.Tone.ERROR:AutoReceive.active?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS);}
         StatusBadge.apply(state,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
             checkingKey || EmbeddedServerService.starting || EmbeddedServerService.launchRequested!=0?StatusBadge.Tone.WARNING:
             EmbeddedServerService.diagnostic.isEmpty()?StatusBadge.Tone.NEUTRAL:StatusBadge.Tone.ERROR);
