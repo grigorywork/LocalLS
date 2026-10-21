@@ -60,7 +60,7 @@ public class EmbeddedFilesActivity extends BaseActivity {
             current=SharedFolderAccess.within(root,current);if(!current.isDirectory())current=root;
             title.setText("Принятые файлы: /"+root.toURI().relativize(current.toURI()).getPath());
             File[] found=current.listFiles();ArrayList<File> entries=new ArrayList<>();
-            if(found!=null)for(File f:found) {try {SharedFolderAccess.within(root,f);if(!f.getName().startsWith(".import-"))entries.add(f);}catch(IOException ignored){}}
+            if(found!=null)for(File f:found) {try {SharedFolderAccess.within(root,f);if(!TransferPaths.temporary(f.getName()))entries.add(f);}catch(IOException ignored){}}
             entries.sort((a,b)->{if(a.isDirectory()!=b.isDirectory())return a.isDirectory()?-1:1;return a.getName().compareToIgnoreCase(b.getName());});
             ArrayList<String> labels=new ArrayList<>();for(File f:entries)labels.add((f.isDirectory()?"▸ ":"")+f.getName()+(f.isFile()?"\n"+LocalFileExportService.format(f.length()):""));
             list.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_list_item_1,labels));

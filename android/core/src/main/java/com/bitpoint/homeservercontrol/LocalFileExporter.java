@@ -19,6 +19,7 @@ final class LocalFileExporter {
         String stage="SOURCE";boolean opened=false;
         try {
             checkInterrupted();
+            if(TransferPaths.temporary(relative))throw new IOException("Upload has not finished");
             File source=SharedFolderAccess.within(root,new File(root,relative));
             if(!source.isFile())throw new FileNotFoundException();
             long expected=source.length(),modified=source.lastModified(),copied=0;

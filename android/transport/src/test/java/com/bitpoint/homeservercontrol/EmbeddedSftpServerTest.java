@@ -133,6 +133,36 @@ public class EmbeddedSftpServerTest {
             }
         }
     }
+    @Test public void interruptedDownloadIsNotSuccessAndCanRestartWithSameIdentity()throws Exception {
+        Path root=temp.newFolder().toPath();byte[] bytes=new byte[2*1024*1024+17];new java.util.Random(115).nextBytes(bytes);Files.write(root.resolve("download.bin"),bytes);
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);String pin=EmbeddedSftpServer.fingerprint(host);SshCredentials key=SshCredentials.key(new String(clientPrivate,"UTF-8"),"");
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",key,pin)){
+                boolean[] stopped={false};ByteArrayOutputStream partial=new ByteArrayOutputStream();
+                try{tree.read("/download.bin",partial,(done,total)->{if(done>0 && !stopped[0]){stopped[0]=true;try{server.close();}catch(IOException e){throw new UncheckedIOException(e);}}return true;});fail("Interrupted download reported success");}catch(com.jcraft.jsch.SftpException | IOException expected){}
+                assertTrue(stopped[0]);assertTrue(partial.size()<bytes.length);assertArrayEquals(bytes,Files.readAllBytes(root.resolve("download.bin")));
+            }
+            int next=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);try(SftpClient.TreeSession retry=new SftpClient.TreeSession("127.0.0.1",next,"localls",key,pin)){
+                ByteArrayOutputStream result=new ByteArrayOutputStream();retry.read("/download.bin",result,(done,total)->true);assertArrayEquals(bytes,result.toByteArray());
+            }
+        }
+    }
+    @Test public void failingUploadSourceRemovesPartialAndRetryPublishesOnlyCompleteFile()throws Exception {
+        Path root=temp.newFolder().toPath();byte[] bytes=new byte[512*1024];new java.util.Random(117).nextBytes(bytes);java.util.concurrent.BlockingQueue<String> received=new java.util.concurrent.LinkedBlockingQueue<>();
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            server.onReceived(received::add);int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            String pin=EmbeddedSftpServer.fingerprint(host);SshCredentials key=SshCredentials.key(new String(clientPrivate,"UTF-8"),"");
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",key,pin)){
+                InputStream broken=new FilterInputStream(new ByteArrayInputStream(bytes)){int consumed;@Override public int read(byte[] b,int offset,int length)throws IOException{if(consumed>=65536)throw new IOException("Source disappeared");int n=super.read(b,offset,Math.min(length,65536-consumed));if(n>0)consumed+=n;return n;}};
+                try{tree.write("/","source.bin",broken,bytes.length,(done,total)->true);fail("Broken source was published");}catch(com.jcraft.jsch.SftpException | IOException expected){}
+            }
+            // The service closes a failed session. Retry opens a new one with the same pinned identity.
+            try(SftpClient.TreeSession retry=new SftpClient.TreeSession("127.0.0.1",port,"localls",key,pin)){
+                assertEquals(0,retry.list("/").size());try(var files=Files.list(root)){assertEquals("Partial source left a temporary file",0,files.count());}assertNull(received.poll(100,java.util.concurrent.TimeUnit.MILLISECONDS));
+                retry.write("/","source.bin",new ByteArrayInputStream(bytes),bytes.length,(done,total)->true);assertEquals("source.bin",received.poll(5,java.util.concurrent.TimeUnit.SECONDS));assertArrayEquals(bytes,Files.readAllBytes(root.resolve("source.bin")));
+            }
+        }
+    }
     @Test public void transferRenameAndDeleteWithinShare() throws Exception {
         Path root=temp.newFolder().toPath();
         try(EmbeddedSftpServer server=new EmbeddedSftpServer()) {

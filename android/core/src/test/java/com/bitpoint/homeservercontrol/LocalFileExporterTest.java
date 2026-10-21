@@ -96,5 +96,10 @@ public class LocalFileExporterTest {
         finally{Thread.interrupted();}
         assertFalse(target.opened);assertFalse(target.published);assertTrue(new File(root,"empty").exists());
     }
+    @Test public void temporaryUploadCannotBeExportedEvenWithItsExactPath()throws Exception {
+        File root=temp.newFolder();String name=".localls-upload-active.part";File source=new File(root,name);Files.write(source.toPath(),new byte[]{1,2,3});Target target=new Target(new File(temp.newFolder(),"copy"));
+        try{LocalFileExporter.copy(root,name,target,(done,total)->{});fail("Incomplete server upload was exported");}catch(LocalFileExporter.Failure expected){assertEquals("SOURCE",expected.stage);}
+        assertFalse(target.opened);assertFalse(target.published);assertArrayEquals(new byte[]{1,2,3},Files.readAllBytes(source.toPath()));
+    }
 
 }
