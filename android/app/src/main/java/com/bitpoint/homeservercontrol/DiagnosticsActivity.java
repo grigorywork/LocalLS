@@ -40,7 +40,7 @@ public class DiagnosticsActivity extends BaseActivity {
         String last = prefs.getString(ServerConfig.KEY_LAST_WORKING_HOST, "");
 
         StringBuilder report = new StringBuilder();
-        report.append("HOME SERVER CONTROL — ДИАГНОСТИКА\n\n");
+        report.append("LocalLS — ДИАГНОСТИКА\n\n");
         report.append("Версия приложения: ").append(appVersion()).append('\n');
         report.append("Android: ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
         report.append("Устройство: ").append(DeviceProfile.summary(this)).append('\n');
@@ -84,7 +84,7 @@ public class DiagnosticsActivity extends BaseActivity {
 
     private void copy() {
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        clipboard.setPrimaryClip(ClipData.newPlainText("Home Server diagnostics", diagnosticsText.getText()));
+        clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS diagnostics", diagnosticsText.getText()));
         Toast.makeText(this, "Диагностика скопирована без паролей и токенов", Toast.LENGTH_SHORT).show();
     }
 

@@ -21,11 +21,14 @@ public class EmbeddedServerService extends Service {
         diagnostic="LocalLS Android / SDK "+Build.VERSION.SDK_INT+"\n"+ServerStartupFailure.report(stage,error);
         status=ServerStartupFailure.hint(stage,error)+"\nКод: "+stage+" / "+error.getClass().getSimpleName();
     }
+    private static final Semaphore LISTENER_SLOT=new Semaphore(1,true);
+    private final Object lifecycle=new Object();
+    private boolean ownsListener;
     private final Handler startupWatchdog=new Handler(Looper.getMainLooper());
-    private final Runnable renewPower=new Runnable(){public void run(){if(!destroyed && wake!=null){wake.acquire(15*60*1000L);startupWatchdog.postDelayed(this,10*60*1000L);}}};
+    private final Runnable renewPower=new Runnable(){public void run(){synchronized(lifecycle){if(!destroyed && wake!=null){wake.acquire(15*60*1000L);startupWatchdog.postDelayed(this,10*60*1000L);}}}};
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private EmbeddedSftpServer server;
-    private AutoReceive autoReceive;
+    private volatile AutoReceive autoReceive;
     static final String RETRY_SAVE="localls.embedded.RETRY_SAVE";
     private volatile boolean destroyed;
     private PowerManager.WakeLock wake;
@@ -54,10 +57,9 @@ public class EmbeddedServerService extends Service {
                 server.authorizeFirstClient(EmbeddedSftpServer.authorizedKey(normalized));
                 if(!getSharedPreferences(PREFS,MODE_PRIVATE).edit().putString("allowed_key",normalized).commit())
                     throw new java.io.IOException("Не удалось сохранить разрешение");
-                if(destroyed)return;
-                waitingForClient=false;lastStage="RUNNING";status=runningStatus();
+                synchronized(lifecycle){if(destroyed)return;waitingForClient=false;lastStage="RUNNING";status=runningStatus();}
             } catch(Exception | LinkageError error) {
-                if(!destroyed) {failure("KEY",error);stopSelf();}
+                synchronized(lifecycle){if(!destroyed){failure("KEY",error);stopSelf();}}
             }
         });
     }
@@ -87,37 +89,51 @@ public class EmbeddedServerService extends Service {
             if(!destroyed && starting && !running) {failure("TIMEOUT",new TimeoutException());stopSelf();}
         },45000);
         worker.execute(() -> {
-            String stage="KEY";
+            String stage="KEY";boolean keep=false;
             try {
                 java.security.PublicKey allowed=publicKey.trim().isEmpty()?null:EmbeddedSftpServer.authorizedKey(publicKey);
                 stage="IDENTITY";
                 KeyPair identity=EmbeddedServerIdentity.loadOrCreate(this);
                 if(destroyed)return;
                 stage="NETWORK";
-                EmbeddedSftpServer next=new EmbeddedSftpServer();autoReceive=new AutoReceive(this);next.onReceived(autoReceive::received);
-                boundPort=allowed==null?next.startWaiting("0.0.0.0",port,user,identity,share(this).toPath()):
-                        next.start("0.0.0.0",port,user,allowed,identity,share(this).toPath());server=next;
-                waitingForClient=allowed==null;
-                if(destroyed) { next.close();return; }
-                fingerprint=EmbeddedSftpServer.fingerprint(identity);
-                stage="POWER";
-                PowerManager pm=getSystemService(PowerManager.class);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:EmbeddedSftp");wake.setReferenceCounted(false);wake.acquire(15*60*1000L);startupWatchdog.post(renewPower);
-                lastStage=waitingForClient?"WAITING_CLIENT":"RUNNING";running=true;
-                if(destroyed) { running=false;next.close();return; }
-                status=runningStatus();
+                // A preceding service may still be closing its listener after onDestroy returned.
+                if(!LISTENER_SLOT.tryAcquire(30,TimeUnit.SECONDS))throw new TimeoutException("Previous server is still stopping");
+                ownsListener=true;if(destroyed)return;
+                EmbeddedSftpServer next=new EmbeddedSftpServer();server=next;autoReceive=new AutoReceive(this);
+                if(destroyed)return;
+                next.onReceived(autoReceive::received);
+                int openedPort=allowed==null?next.startWaiting("0.0.0.0",port,user,identity,share(this).toPath()):
+                        next.start("0.0.0.0",port,user,allowed,identity,share(this).toPath());
+                synchronized(lifecycle){
+                    if(destroyed)return;
+                    stage="POWER";
+                    PowerManager pm=getSystemService(PowerManager.class);wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:EmbeddedSftp");wake.setReferenceCounted(false);wake.acquire(15*60*1000L);startupWatchdog.post(renewPower);
+                    boundPort=openedPort;waitingForClient=allowed==null;fingerprint=EmbeddedSftpServer.fingerprint(identity);
+                    lastStage=waitingForClient?"WAITING_CLIENT":"RUNNING";running=true;status=runningStatus();keep=true;
+                }
             } catch(Exception | LinkageError e) {
-                if(!destroyed) {running=false;failure(stage,e);stopSelf();}
-            } finally { if(!destroyed)starting=false; }
+                synchronized(lifecycle){if(!destroyed){running=false;failure(stage,e);stopSelf();}}
+            } finally {
+                synchronized(lifecycle){if(!destroyed)starting=false;}
+                if(!keep || destroyed)closeResources();
+            }
         });
         return START_NOT_STICKY;
     }
     @Override public void onTimeout(int id,int type) { status="Сервер остановлен: Android ограничил время фоновой службы. Запусти его снова.";stopSelf(); }
+    private void closeResources(){
+        try{if(server!=null)server.close();}catch(Exception ignored){}finally{server=null;}
+        try{if(autoReceive!=null)autoReceive.close();}catch(RuntimeException ignored){}finally{autoReceive=null;}
+        synchronized(lifecycle){startupWatchdog.removeCallbacks(renewPower);try{if(wake!=null && wake.isHeld())wake.release();}catch(RuntimeException ignored){}finally{wake=null;}}
+        if(ownsListener){ownsListener=false;LISTENER_SLOT.release();}
+    }
     @Override public void onDestroy() {
-        destroyed=true;if(autoReceive!=null)autoReceive.close();startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;waitingForClient=false;
-        if(status.startsWith("Сервер работает") || status.startsWith("Сервер готов") || status.startsWith("Запуск"))status="Сервер выключен";
-        worker.execute(() -> { try { if(server!=null)server.close(); } catch(Exception ignored) { }
-            if(wake!=null && wake.isHeld())wake.release(); });
-        worker.shutdown();stopForeground(true);super.onDestroy();
+        synchronized(lifecycle){
+            destroyed=true;if(autoReceive!=null)autoReceive.close();startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;waitingForClient=false;
+            if(status.startsWith("Сервер работает") || status.startsWith("Сервер готов") || status.startsWith("Запуск"))status="Сервер выключен";
+        }
+        // The worker also sees resources whose constructors finished after destruction began.
+        worker.execute(this::closeResources);worker.shutdown();stopForeground(true);super.onDestroy();
     }
     @Override public IBinder onBind(Intent i) { return null; }
 }

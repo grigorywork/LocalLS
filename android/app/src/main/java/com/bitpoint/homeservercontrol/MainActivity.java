@@ -91,6 +91,7 @@ public class MainActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ConfigMigrator.migrate(this);
+        if(savedInstanceState!=null)pendingReport=savedInstanceState.getString("pending_report","");
         setContentView(R.layout.activity_main);
         bindViews();
         liveSpeedPanel = new LiveSpeedPanel(findViewById(R.id.dashboardSpeedChart), findViewById(R.id.dashboardSpeedSummary));
@@ -593,6 +594,7 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void onSaveInstanceState(Bundle state) {
+        state.putString("pending_report",pendingReport);
         state.putParcelableArrayList(FileAttachments.EXTRA, new ArrayList<>(attachedFiles));
         super.onSaveInstanceState(state);
     }
@@ -731,7 +733,9 @@ public class MainActivity extends BaseActivity {
 
     private void exportDiagnostics() {
         StringBuilder report = new StringBuilder();
-        report.append("LocalLS v0.9\n");
+        String version;
+        try{version=getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(Exception e){version="—";}
+        report.append("LocalLS ").append(version).append('\n');
         report.append("Создано: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())).append("\n\n");
         report.append("Подключение\n");
         report.append("Режим: ").append(vpnModeButton.isChecked() ? "VPN/Tailscale" : "Local").append("\n");
@@ -767,6 +771,7 @@ public class MainActivity extends BaseActivity {
         final Uri destination = data.getData();
         final String report = pendingReport;
         pendingReport = "";
+        if(report.isEmpty()){Toast.makeText(this,"Отчёт не подготовлен. Повтори экспорт диагностики.",Toast.LENGTH_LONG).show();return;}
         executor.execute(() -> {
             boolean saved = false;
             try (OutputStream out = getContentResolver().openOutputStream(destination, "w")) {

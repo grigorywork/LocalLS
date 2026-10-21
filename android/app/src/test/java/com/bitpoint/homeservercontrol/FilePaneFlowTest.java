@@ -121,4 +121,21 @@ public class FilePaneFlowTest {
             rename(a,"renamed.txt");await(()->downloads.updates==1);assertEquals("renamed.txt",downloads.names.get(1L));assertEquals("second.txt",downloads.names.get(2L));
         }
     }
+    @Test public void nonEmptyPhoneFolderIsNotDeletedAndEmptyFolderCanBeRemoved()throws Exception{
+        File child=new File(provider.root,"Phone/Inside/keep.bin");Files.write(child.toPath(),new byte[]{7});
+        try(var c=screen()){
+            FilesActivity a=c.get();choose(a);await(()->(boolean)ReflectionHelpers.getField(a,"phoneReady"));FileNodes.Node node=new FileNodes.Node("doc",DocumentsContract.buildDocumentUriUsingTree(phoneTree,"root/Phone/Inside").toString(),"Inside",true,0);
+            ReflectionHelpers.callInstanceMethod(a,"remove",ReflectionHelpers.ClassParameter.from(FileNodes.Node.class,node),ReflectionHelpers.ClassParameter.from(boolean.class,true));AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+            await(()->org.robolectric.shadows.ShadowToast.getTextOfLatestToast()!=null && org.robolectric.shadows.ShadowToast.getTextOfLatestToast().contains("Операция не выполнена"));assertTrue(child.isFile());assertTrue(child.delete());
+            ReflectionHelpers.callInstanceMethod(a,"remove",ReflectionHelpers.ClassParameter.from(FileNodes.Node.class,node),ReflectionHelpers.ClassParameter.from(boolean.class,true));dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();await(()->!child.getParentFile().exists());assertTrue(new File(provider.root,"Phone/file.bin").isFile());
+        }
+    }
+    @Test public void selectAllQueuesCurrentPhoneItemsForCurrentOwnServerFolder()throws Exception{
+        try(var c=screen()){
+            FilesActivity a=c.get();choose(a);await(()->(boolean)ReflectionHelpers.getField(a,"phoneReady") && (boolean)ReflectionHelpers.getField(a,"remoteReady"));
+            ReflectionHelpers.callInstanceMethod(a,"phoneMenu");AlertDialog menu=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();menu.getListView().performItemClick(null,1,1);
+            ReflectionHelpers.callInstanceMethod(a,"sendSelection");Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());assertEquals(2,job.getParcelableArrayListExtra("sources").size());assertEquals("share",job.getBundleExtra("destination").getString("kind"));assertEquals("",job.getBundleExtra("destination").getString("path"));
+        }
+    }
+
 }

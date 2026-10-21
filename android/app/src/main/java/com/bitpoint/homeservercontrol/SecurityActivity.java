@@ -30,6 +30,7 @@ public class SecurityActivity extends BaseActivity {
         prefs = SshKeys.prefs(this); host = ConnectionSelector.selectedHost(this);
         port = prefs.getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT);
         user = prefs.getString(ServerConfig.KEY_USER, ServerConfig.DEFAULT_USER);
+        if(state!=null && host.equals(state.getString("public_export_host")) && port==state.getInt("public_export_port") && user.equals(state.getString("public_export_user")))exportedPublic=state.getString("public_export","");
         ScrollView scroll = new ScrollView(this); content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL);
         int pad = (int)(14 * getResources().getDisplayMetrics().density); content.setPadding(pad, pad, pad, pad); scroll.addView(content); setContentView(scroll);
         text("Ключ доступа");
@@ -40,7 +41,7 @@ public class SecurityActivity extends BaseActivity {
         status = text("Проверяем локальный ключ…");
         button("Создать ключ RSA 3072", () -> new AlertDialog.Builder(this).setTitle("Создать SSH-ключ?")
                 .setMessage("Текущий локальный ключ этого профиля будет заменён. После замены нужно заново передать публичный файл на сервер.")
-                .setNegativeButton("Отмена", null).setPositiveButton("Создать", (d,w) -> task(() -> { saveForRoutes(SshKeys.generate()); return "Ключ создан и зашифрован"; })).show());
+                .setNegativeButton("Отмена", null).setPositiveButton("Создать", (d,w) -> task(() -> { saveKey(SshKeys.generate()); return "Ключ создан и зашифрован"; })).show());
         button("Экспортировать публичный ключ .pub", () -> task(() -> {
             JSONObject info = SshKeys.info(this, host, port, user); exportedPublic = info.optString(SshKeys.PUBLIC);
             if (exportedPublic.isEmpty()) throw new Exception("KEY_MISSING");
@@ -55,14 +56,13 @@ public class SecurityActivity extends BaseActivity {
         button("Импортировать приватный ключ", () -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, IMPORT); });
         button("Удалить локальный ключ", () -> new AlertDialog.Builder(this).setTitle("Удалить локальный ключ?")
                 .setMessage("На сервере публичный ключ останется. Для входа потребуется другой разрешённый ключ. Парольный вход клиента недоступен.")
-                .setNegativeButton("Отмена", null).setPositiveButton("Удалить", (d,w) -> task(() -> { SshKeys.clear(this, host, port, user); String other = ConnectionSelector.alternateHost(this); if (!other.isEmpty()) SshKeys.clear(this, other, port, user); return "Локальный ключ удалён"; })).show());
+                .setNegativeButton("Отмена", null).setPositiveButton("Удалить", (d,w) -> task(() -> { SshKeys.clear(this, host, port, user); return "Локальный ключ удалён"; })).show());
         content=basic;
         more.setOnClickListener(v -> advanced.setVisibility(advanced.getVisibility()==android.view.View.VISIBLE?android.view.View.GONE:android.view.View.VISIBLE));
         result = text(""); button("Назад", this::finish); refresh();
     }
-    private void saveForRoutes(JSONObject key) throws Exception {
-        SshKeys.save(this,host,port,user,key); String other = ConnectionSelector.alternateHost(this);
-        if (!other.isEmpty() && !other.equals(host)) SshKeys.save(this,other,port,user,key);
+    private void saveKey(JSONObject key) throws Exception {
+        SshKeys.save(this,host,port,user,key);
     }
     private TextView text(String value) { TextView t = new TextView(this); t.setText(value); t.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary)); t.setTextSize(14); t.setPadding(0,10,0,10); content.addView(t); return t; }
     private EditText secret(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); e.setSaveEnabled(false); e.setSingleLine(true); e.setMinimumHeight(Math.round(48 * getResources().getDisplayMetrics().density)); if (android.os.Build.VERSION.SDK_INT >= 26) e.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_NO); e.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary)); e.setHintTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary)); content.addView(e); return e; }
@@ -77,8 +77,11 @@ public class SecurityActivity extends BaseActivity {
         if (request==IMPORT) { final String passphrase=phrase.getText().toString(); phrase.setText(""); task(() -> {
             ByteArrayOutputStream out=new ByteArrayOutputStream(); try(InputStream in=getContentResolver().openInputStream(uri)) { if(in==null)throw new Exception("NO_FILE"); byte[] buf=new byte[4096]; int n; while((n=in.read(buf))!=-1){ if(out.size()+n>128*1024)throw new Exception("KEY_LARGE");out.write(buf,0,n); } }
             String privateKey=out.toString(StandardCharsets.UTF_8.name()); JSONObject info=SshKeys.inspect(privateKey,passphrase); info.put(SshKeys.PRIVATE,privateKey).put(SshKeys.PHRASE,passphrase);
-            runOnUiThread(() -> { if (isDestroyed()) return; new AlertDialog.Builder(this).setTitle("Импортировать этот ключ?").setMessage(info.optString("fingerprint") + "\nТекущий локальный ключ этого профиля будет заменён.").setNegativeButton("Отмена",null).setPositiveButton("Импортировать",(d,w) -> task(() -> { saveForRoutes(info); return "Ключ импортирован и зашифрован"; })).show(); }); return "Проверьте fingerprint и подтвердите импорт";
+            runOnUiThread(() -> { if (isDestroyed()) return; new AlertDialog.Builder(this).setTitle("Импортировать этот ключ?").setMessage(info.optString("fingerprint") + "\nТекущий локальный ключ этого профиля будет заменён.").setNegativeButton("Отмена",null).setPositiveButton("Импортировать",(d,w) -> task(() -> { saveKey(info); return "Ключ импортирован и зашифрован"; })).show(); }); return "Проверьте fingerprint и подтвердите импорт";
         }); } else if (request==EXPORT) task(() -> { if(exportedPublic.isEmpty())throw new Exception("KEY_MISSING"); try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new Exception("NO_FILE");out.write((exportedPublic+"\n").getBytes(StandardCharsets.UTF_8));}exportedPublic="";return "Публичный ключ сохранён без приватной части"; });
+    }
+    @Override protected void onSaveInstanceState(Bundle state){
+        state.putString("public_export",exportedPublic);state.putString("public_export_host",host);state.putInt("public_export_port",port);state.putString("public_export_user",user);super.onSaveInstanceState(state);
     }
     @Override protected void onDestroy() { phrase.setText(""); worker.shutdownNow(); super.onDestroy(); }
 }

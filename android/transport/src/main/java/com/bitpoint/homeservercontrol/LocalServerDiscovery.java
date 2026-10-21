@@ -26,7 +26,11 @@ final class LocalServerDiscovery {
     private LocalServerDiscovery() {}
 
     static Result discover(int port) {
-        String localIp = localIpv4();
+        return discover(localIpv4(),port);
+    }
+
+    /** Separate interface selection from bounded probing; tests supply an isolated loopback subnet. */
+    static Result discover(String localIp,int port) {
         if (localIp == null) return new Result(localIp, Collections.emptyList(),
                 "Не удалось определить IPv4 этого телефона. Проверь Wi-Fi.");
 
