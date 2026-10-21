@@ -1,0 +1,26 @@
+name: Publish LocalLS Android 0.11.12
+on:
+  push:
+    branches: [codex/publish-native-01112]
+    paths: ['.github/workflows/publish-native-01112.yml', 'release-artifacts/android-0.11.12/**']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify prepared signed release
+        working-directory: release-artifacts/android-0.11.12
+        run: |
+          sha256sum -c SHA256SUMS-Android-0.11.12.txt
+          echo 'a0e71c0fc3cde0e3586b00eedd380615094db53d134f630bbb68eeefdae7161e  LocalLS-0.11.12-release.apk' | sha256sum -c -
+      - name: Publish APK and setup guide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: release-artifacts/android-0.11.12
+        run: |
+          gh release upload android-v0.11.12 --repo grigorywork/LocalLS --clobber LocalLS-0.11.12-release.apk LocalLS-0.11.12-source.zip LocalLS-0.11.12-verification.json LocalLS-0.11.12-report.md LocalLS-0.11.12-release-notes.md SHA256SUMS-Android-0.11.12.txt LocalLS-0.11.12-setup.txt
+          gh release edit android-v0.11.12 --repo grigorywork/LocalLS --draft=false --prerelease=false --latest
