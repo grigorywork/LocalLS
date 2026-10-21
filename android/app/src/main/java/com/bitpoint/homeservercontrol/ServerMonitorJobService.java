@@ -17,11 +17,12 @@ public class ServerMonitorJobService extends JobService {
 
     @Override
     public boolean onStartJob(JobParameters params) {
+        if(DeviceRole.serverOnly(this))return false;
         currentTask = executor.submit(() -> {
             try {
                 ConfigMigrator.migrate(this);
                 SharedPreferences prefs = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE);
-                if (!prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false)) return;
+                if (DeviceRole.serverOnly(this) || !prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false)) return;
 
                 String host = ConnectionSelector.selectedHost(this);
                 int port = prefs.getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT);

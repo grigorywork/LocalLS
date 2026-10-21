@@ -64,6 +64,24 @@ public class LastModIntegrationTest {
             File target=new File(provider.root,folder.getName()+" (1)");assertTrue(new File(target,"empty").isDirectory());assertArrayEquals(bytes,Files.readAllBytes(new File(target,"файл.bin").toPath()));assertArrayEquals(bytes,Files.readAllBytes(source.toPath()));
         }finally{provider.release.countDown();controller.destroy();}
     }
+    @Test public void phoneSelectionAndServerAutomaticSaveUseIndependentFolders()throws Exception{
+        assertTrue(new File(provider.root,"Phone").mkdir());assertTrue(new File(provider.root,"Auto").mkdir());
+        Uri phoneTree=DocumentsContract.buildTreeDocumentUri(AUTHORITY,"root/Phone"),autoTree=DocumentsContract.buildTreeDocumentUri(AUTHORITY,"root/Auto");
+        app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,autoTree.toString()).commit();
+        try(var screen=Robolectric.buildActivity(FilesActivity.class,new Intent(app,FilesActivity.class).putExtra("own_server",true)).create()){
+            screen.get().onActivityResult(505,android.app.Activity.RESULT_OK,new Intent().setData(phoneTree).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));
+        }
+        File root=EmbeddedServerService.share(app);root.mkdirs();String name="independent-"+System.nanoTime()+".bin";
+        byte[] bytes={1,4,7,9};Files.write(new File(root,name).toPath(),bytes);
+        var service=Robolectric.buildService(TransferForegroundService.class).create();
+        try(AutoReceive automatic=new AutoReceive(app)){
+            automatic.received(name);ArrayList<Bundle> sources=new ArrayList<>();sources.add(new FileNodes.Node("share",name,name,false,bytes.length).bundle());
+            service.get().onStartCommand(new Intent(app,TransferForegroundService.class).setAction(TransferForegroundService.SAVE).putParcelableArrayListExtra("sources",sources),0,1);
+            File manual=new File(provider.root,"Phone/"+name),auto=new File(provider.root,"Auto/"+name);
+            await(()->manual.length()==bytes.length && auto.length()==bytes.length && !TransferForegroundService.state.active && !AutoReceive.active);
+            assertArrayEquals(bytes,Files.readAllBytes(manual.toPath()));assertArrayEquals(bytes,Files.readAllBytes(auto.toPath()));assertArrayEquals(bytes,Files.readAllBytes(new File(root,name).toPath()));
+        }finally{service.destroy();}
+    }
     @Test public void completedUploadAutomaticallySavesWithoutServerUiAndDeduplicatesEvents()throws Exception{
         app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,tree.toString()).commit();
         String path="auto-"+System.nanoTime()+"/фото.bin";File source=new File(EmbeddedServerService.share(app),path);assertTrue(source.getParentFile().mkdirs());byte[] bytes={1,3,5,7};Files.write(source.toPath(),bytes);

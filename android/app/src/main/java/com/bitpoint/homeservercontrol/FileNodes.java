@@ -10,14 +10,21 @@ import java.util.*;
 
 /** A file reference, never a byte array. Local roots are scoped, granted documents or app Downloads. */
 final class FileNodes {
+    static final String PHONE_TREE="phone_folder_tree";
     static final class Node {
         final String kind,path,name;final boolean directory;final long size;
         Node(String k,String p,String n,boolean d,long s){kind=k;path=p;name=n;directory=d;size=s;}
         Bundle bundle(){Bundle b=new Bundle();b.putString("kind",kind);b.putString("path",path);b.putString("name",name);b.putBoolean("directory",directory);b.putLong("size",size);return b;}
-        static Node from(Bundle b){return new Node(b.getString("kind"),b.getString("path"),TransferPaths.name(b.getString("name")),b.getBoolean("directory"),b.getLong("size"));}
+        static Node from(Bundle b){String kind=b.getString("kind"),path=b.getString("path");return new Node(kind,path,"downloads".equals(kind)&&"".equals(path)?"Загрузки / LocalLS":TransferPaths.name(b.getString("name")),b.getBoolean("directory"),b.getLong("size"));}
     }
     static Node shareRoot(){return new Node("share","","Мой сервер",true,0);}
     static Node downloadsRoot(){return new Node("downloads","","Загрузки / LocalLS",true,0);}
+    static Node phoneRoot(Context c){
+        var p=c.getSharedPreferences(EmbeddedServerService.PREFS,0);
+        if(!p.contains(PHONE_TREE))p.edit().putString(PHONE_TREE,ReceiveFolder.selected(c)).apply();
+        String tree=p.getString(PHONE_TREE,"");
+        return tree.isEmpty()?downloadsRoot():new Node("doc",DocumentFiles.root(Uri.parse(tree)).toString(),"Папка телефона",true,0);
+    }
     static Node document(Context c,Uri uri)throws IOException{DocumentFiles.Entry e=DocumentFiles.info(c,uri);return new Node("doc",uri.toString(),e.name,e.directory,e.size);}
     static List<Node> children(Context c,Node folder)throws Exception {
         ArrayList<Node> out=new ArrayList<>();

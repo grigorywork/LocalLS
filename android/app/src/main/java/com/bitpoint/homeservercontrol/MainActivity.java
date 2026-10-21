@@ -72,6 +72,7 @@ public class MainActivity extends BaseActivity {
     private int loadedConfigSignature;
     private boolean checking = false;
     private boolean firstResume = true;
+    private Boolean lastClientRole;
 
     private String lastSeenFingerprint = "";
     private String lastSeenHost = "";
@@ -144,12 +145,16 @@ public class MainActivity extends BaseActivity {
         renderConnectionSummary();
     }
 
-    private boolean clientEnabled(){var p=getSharedPreferences(EmbeddedServerService.PREFS,0);return !p.getBoolean("server_role",false)||p.getBoolean("show_client",false);}
+    private boolean clientEnabled(){return !DeviceRole.serverOnly(this);}
     private void renderRole(){
         var p=getSharedPreferences(EmbeddedServerService.PREFS,0);boolean server=p.getBoolean("server_role",false),show=p.getBoolean("show_client",false);
         Switch toggle=findViewById(R.id.showClientSwitch);toggle.setVisibility(server?View.VISIBLE:View.GONE);
         if(toggle.isChecked()!=show)toggle.setChecked(show);
         findViewById(R.id.remoteConnectionCard).setVisibility(server&&!show?View.GONE:View.VISIBLE);
+        boolean enabled=clientEnabled();findViewById(R.id.networkButton).setVisibility(enabled?View.VISIBLE:View.GONE);
+        if(lastClientRole==null || lastClientRole!=enabled){lastClientRole=enabled;
+            if(getSharedPreferences(ServerConfig.PREFS,0).getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR,false))MonitoringScheduler.setEnabled(this,enabled);
+        }
     }
     private void refreshLocalServer() {
         renderRole();

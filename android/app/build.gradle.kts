@@ -126,3 +126,9 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
 }
+
+// Robolectric native SQLite bindings cannot be shared across all sandbox configurations.
+// Each test class gets a fresh process; the release APK is unaffected.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    forkEvery = 1L
+}

@@ -14,7 +14,7 @@ final class MonitoringScheduler {
     static boolean setEnabled(Context context, boolean enabled) {
         JobScheduler scheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if (scheduler == null) return false;
-        if (!enabled) {
+        if (!enabled || DeviceRole.serverOnly(context)) {
             scheduler.cancel(JOB_ID);
             return true;
         }

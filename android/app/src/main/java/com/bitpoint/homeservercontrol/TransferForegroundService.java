@@ -155,8 +155,7 @@ public class TransferForegroundService extends Service {
             Bundle b=request.getBundleExtra("destination");File root=EmbeddedServerService.share(TransferForegroundService.this);root.mkdirs();
             return b==null?root:SharedFolderAccess.within(root,new File(root,TransferPaths.relative(FileNodes.Node.from(b).path)));
         }
-        FileNodes.Node destination(){Bundle b=request.getBundleExtra("destination");if(b!=null)return FileNodes.Node.from(b);String tree=ReceiveFolder.selected(TransferForegroundService.this);
-            return tree.isEmpty()?FileNodes.downloadsRoot():new FileNodes.Node("doc",DocumentFiles.root(Uri.parse(tree)).toString(),"Папка телефона",true,0);}
+        FileNodes.Node destination(){Bundle b=request.getBundleExtra("destination");return b!=null?FileNodes.Node.from(b):FileNodes.phoneRoot(TransferForegroundService.this);}
         FileNodes.Node subfolder(FileNodes.Node parent,String name)throws Exception{
             TransferPaths.name(name);
             if("doc".equals(parent.kind)){Uri at=Uri.parse(parent.path);String unique=DocumentFiles.unique(TransferForegroundService.this,at,name);Uri made=DocumentFiles.create(TransferForegroundService.this,at,unique,DocumentFiles.DIRECTORY);return new FileNodes.Node("doc",made.toString(),unique,true,0);}

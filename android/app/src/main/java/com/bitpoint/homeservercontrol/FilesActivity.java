@@ -14,8 +14,8 @@ import java.util.concurrent.*;
 /** One file manager: phone on one side, shared server on the other, with one set of copy actions. */
 public class FilesActivity extends BaseActivity {
     private static final int FILES=501,FOLDER=504,PHONE=505;
-    private boolean own,wasActive,remoteReady;private volatile boolean closed;
-    private String host,user,pin,remotePath=".";private int port;private volatile int requestGeneration;
+    private boolean own,wasActive,remoteReady,phoneReady,wideLayout;private volatile boolean closed;
+    private String host,user,pin,remotePath=".";private int port;private volatile int requestGeneration,phoneGeneration;
     private FileNodes.Node phone,server=FileNodes.shareRoot();
     private final ArrayDeque<FileNodes.Node> phoneBack=new ArrayDeque<>(),serverBack=new ArrayDeque<>();
     private final List<FileNodes.Node> phoneEntries=new ArrayList<>(),serverEntries=new ArrayList<>();
@@ -28,10 +28,10 @@ public class FilesActivity extends BaseActivity {
     @Override protected void onCreate(Bundle saved){
         super.onCreate(saved);ConfigMigrator.migrate(this);
         var p=getSharedPreferences(ServerConfig.PREFS,0);var local=getSharedPreferences(EmbeddedServerService.PREFS,0);
-        own=getIntent().getBooleanExtra("own_server",local.getBoolean("server_role",false)&&!local.getBoolean("show_client",false));
+        own=getIntent().getBooleanExtra("own_server",DeviceRole.serverOnly(this));
         host=ConnectionSelector.hostForFiles(this);port=p.getInt(ServerConfig.KEY_PORT,8022);user=p.getString(ServerConfig.KEY_USER,"localls");pin=HostTrustStore.get(this,host,port);if(!own)remotePath=places().last();
-        String tree=ReceiveFolder.selected(this);phone=tree.isEmpty()?FileNodes.downloadsRoot():new FileNodes.Node("doc",DocumentFiles.root(Uri.parse(tree)).toString(),"Папка телефона",true,0);
-        if(saved!=null){remotePath=saved.getString("remote_path",".");Bundle b=saved.getBundle("phone");if(b!=null)phone=FileNodes.Node.from(b);b=saved.getBundle("server");if(b!=null)server=FileNodes.Node.from(b);}
+        phone=FileNodes.phoneRoot(this);
+        if(saved!=null){remotePath=saved.getString("remote_path",".");Bundle b=saved.getBundle("phone");if(b!=null)phone=FileNodes.Node.from(b);b=saved.getBundle("server");if(b!=null)server=FileNodes.Node.from(b);restoreBack(saved,"phone_back",phoneBack);restoreBack(saved,"server_back",serverBack);}
         LinearLayout root=column();root.setPadding(dp(12),dp(8),dp(12),dp(8));
         TextView title=label(root,"Файлы",20);title.setGravity(Gravity.CENTER);if(getResources().getConfiguration().fontScale>=1.5f)title.setVisibility(View.GONE);
         help=label(root,"Файл: нажми для выбора. Папка: удерживай для выбора. Операции — в меню удержания.",13);if(getResources().getConfiguration().fontScale>1.25f)help.setVisibility(View.GONE);
@@ -39,13 +39,13 @@ public class FilesActivity extends BaseActivity {
         button(tools,"Файлы",()->pickFiles());button(tools,"Папку",()->pickTree(FOLDER));button(tools,"Место",()->pickTree(PHONE));
         LinearLayout panes=new LinearLayout(this);panes.setOrientation(getResources().getConfiguration().screenWidthDp>=600?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
         root.addView(panes,new LinearLayout.LayoutParams(-1,0,1));
-        boolean wide=panes.getOrientation()==LinearLayout.HORIZONTAL;
+        boolean wide=panes.getOrientation()==LinearLayout.HORIZONTAL;wideLayout=wide;
         LinearLayout left=column(),right=column();panes.addView(left,new LinearLayout.LayoutParams(wide?0:-1,wide?-1:0,1));panes.addView(right,new LinearLayout.LayoutParams(wide?0:-1,wide?-1:0,1));
         phonePath=label(left,"Телефон",14);phonePath.setMaxLines(1);phonePath.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        LinearLayout nav=row(left);button(nav,"↑",()->{if(!phoneBack.isEmpty()){phone=phoneBack.pop();refreshPhone();}});button(nav,getResources().getConfiguration().fontScale>1.25f?"↓":"Загрузки",()->{phone=FileNodes.downloadsRoot();phoneBack.clear();refreshPhone();});button(nav,"↻",this::refreshPhone);
+        LinearLayout nav=row(left);button(nav,"↑",()->{if(!phoneBack.isEmpty()){phone=phoneBack.pop();refreshPhone();}});button(nav,getResources().getConfiguration().fontScale>1.25f?"↓":"Загрузки",()->{phone=FileNodes.downloadsRoot();phoneBack.clear();refreshPhone();});button(nav,"↻",this::refreshPhone);button(nav,"⋮",this::phoneMenu).setContentDescription("Меню файлов телефона");
         phoneList=listPanel(left,R.id.phoneFileList);
         serverPath=label(right,own?"Мой сервер":"Сервер",14);serverPath.setMaxLines(1);serverPath.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        nav=row(right);button(nav,"↑",()->{if(own){if(!serverBack.isEmpty())server=serverBack.pop();}else remotePath=SftpClient.parent(remotePath);refreshServer();});button(nav,"⌂",()->{server=FileNodes.shareRoot();serverBack.clear();remotePath=".";refreshServer();});button(nav,"↻",this::refreshServer);button(nav,"⋮",this::serverMenu);
+        nav=row(right);button(nav,"↑",()->{if(own){if(!serverBack.isEmpty())server=serverBack.pop();}else remotePath=SftpClient.parent(remotePath);refreshServer();});button(nav,"⌂",()->{server=FileNodes.shareRoot();serverBack.clear();remotePath=".";refreshServer();});button(nav,"↻",this::refreshServer);button(nav,"⋮",this::serverMenu).setContentDescription("Меню файлов сервера");
         serverList=listPanel(right,R.id.remoteFileList);serverPath.setOnClickListener(v->promptPath());
         status=label(root,"",12);status.setId(R.id.transferStatusText);
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10000);root.addView(progress);
@@ -90,25 +90,26 @@ public class FilesActivity extends BaseActivity {
                 }).show();return true;});buttons();
     }
     private void refreshPhone(){
-        FileNodes.Node folder=phone;phonePath.setText("Телефон · "+("downloads".equals(folder.kind)?"Загрузки / LocalLS/"+folder.path:folder.name));
-        browse.execute(()->{try{List<FileNodes.Node> result=FileNodes.children(this,folder);ui.post(()->{if(!closed && phone==folder){phoneEntries.clear();phoneEntries.addAll(result);renderList(true);}});}catch(Exception e){ui.post(()->{if(!closed && phone==folder){phoneEntries.clear();renderList(true);message("Папка телефона недоступна. Выбери её заново кнопкой «Место».");}});}});
+        int generation=++phoneGeneration;phoneReady=false;phoneSelected.clear();phoneList.clearChoices();phoneList.setEnabled(false);buttons();FileNodes.Node folder=phone;phonePath.setText("Телефон · "+("downloads".equals(folder.kind)?"Загрузки / LocalLS/"+folder.path:folder.name));
+        browse.execute(()->{try{List<FileNodes.Node> result=FileNodes.children(this,folder);ui.post(()->{if(!closed && generation==phoneGeneration && phone==folder){phoneReady=true;phoneList.setEnabled(true);phoneEntries.clear();phoneEntries.addAll(result);renderList(true);}});}catch(Exception e){ui.post(()->{if(!closed && generation==phoneGeneration && phone==folder){phoneEntries.clear();renderList(true);message("Папка телефона недоступна. Выбери её заново кнопкой «Место».");}});}});
     }
     private void refreshServer(){
-        int generation=++requestGeneration;String path=remotePath;FileNodes.Node folder=server;remoteReady=false;serverSelected.clear();buttons();
+        int generation=++requestGeneration;String path=remotePath;FileNodes.Node folder=server;remoteReady=false;serverSelected.clear();serverList.setEnabled(false);buttons();
         serverPath.setText((own?"Мой сервер · "+folder.name:"Сервер · "+path)+"\nЗагрузка…");
         browse.execute(()->{if(closed || generation!=requestGeneration)return;try{
             List<FileNodes.Node> result=new ArrayList<>();String actual=path;
             if(own)result=FileNodes.children(this,folder);
             else{SftpClient.DirectoryListing listing=SftpClient.browse(host,port,user,SshKeys.keyCredentials(this,host,port,user),pin,path);actual=listing.path;for(RemoteEntry e:listing.entries)if(!TransferPaths.temporary(e.name))result.add(new FileNodes.Node("remote",e.path,e.name,e.directory,e.size));}
             List<FileNodes.Node> finalResult=result;String finalPath=actual;
-            ui.post(()->{if(closed || generation!=requestGeneration)return;remoteReady=true;if(!own){remotePath=finalPath;places().remember(finalPath);}serverEntries.clear();serverEntries.addAll(finalResult);renderList(false);serverPath.setText(own?"Мой сервер · /"+server.path:"Сервер · "+remotePath);});
+            ui.post(()->{if(closed || generation!=requestGeneration)return;remoteReady=true;serverList.setEnabled(true);if(!own){remotePath=finalPath;places().remember(finalPath);}serverEntries.clear();serverEntries.addAll(finalResult);renderList(false);serverPath.setText(own?"Мой сервер · /"+server.path:"Сервер · "+remotePath);});
         }catch(Exception e){ui.post(()->{if(!closed && generation==requestGeneration){serverEntries.clear();renderList(false);serverPath.setText(own?"Мой сервер · ошибка":"Сервер недоступен · проверь подключение и ключ");}});}});
     }
-    private void buttons(){if(send==null)return;send.setEnabled(remoteReady && !phoneSelected.isEmpty());receive.setEnabled(remoteReady && !serverSelected.isEmpty());send.setText("На сервер ↓ ("+phoneSelected.size()+")");receive.setText("На телефон ↑ ("+serverSelected.size()+")");}
+    private void buttons(){if(send==null)return;send.setEnabled(phoneReady && remoteReady && !phoneSelected.isEmpty());receive.setEnabled(phoneReady && remoteReady && !serverSelected.isEmpty());send.setText("На сервер ↓ ("+phoneSelected.size()+")");receive.setText("На телефон ↑ ("+serverSelected.size()+")");}
     private void sendSelection(){enqueue(own?TransferForegroundService.IMPORT:TransferForegroundService.UPLOAD,new ArrayList<>(phoneSelected),own?server:null);}
     private void receiveSelection(){enqueue(own?TransferForegroundService.SAVE:TransferForegroundService.DOWNLOAD,new ArrayList<>(serverSelected),phone);}
     private void enqueue(String action,List<FileNodes.Node> nodes,FileNodes.Node target){
         if(!own && (pin.isEmpty() || host.isEmpty())){message("Сначала проверь SSH и подтверди fingerprint на главном экране.");return;}
+        if(nodes.size()>64){message("Выбери до 64 файлов или папок за один раз. Вложенные файлы папки копируются вместе с ней.");return;}
         try{TransferForegroundService.enqueue(this,action,nodes,remotePath,target);phoneSelected.clear();serverSelected.clear();renderList(true);renderList(false);message("Добавлено в очередь. Можно свернуть приложение.");}catch(Exception e){message("Android не разрешил начать передачу. Открой приложение и повтори.");}
     }
     private void pickFiles(){try{startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true),FILES);}catch(Exception e){message("Не удалось открыть выбор файлов");}}
@@ -116,19 +117,44 @@ public class FilesActivity extends BaseActivity {
     @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(result!=RESULT_OK || data==null)return;
         try{
             if(request==PHONE || request==FOLDER){DocumentFiles.grant(this,data);FileNodes.Node folder=FileNodes.document(this,DocumentFiles.root(data.getData()));
-                if(request==PHONE){if((data.getFlags()&Intent.FLAG_GRANT_WRITE_URI_PERMISSION)==0)throw new IOException("Папка только для чтения");getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,data.getData().toString()).apply();phone=folder;phoneBack.clear();refreshPhone();message("Папка сохранена. Приём будет сохранять сюда без новых подтверждений.");}
+                if(request==PHONE){if((data.getFlags()&Intent.FLAG_GRANT_WRITE_URI_PERMISSION)==0)throw new IOException("Папка только для чтения");getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(FileNodes.PHONE_TREE,data.getData().toString()).apply();phone=folder;phoneBack.clear();refreshPhone();message("Папка телефона сохранена. Копирование будет в открытую здесь папку. Автосохранение сервера настраивается в «Мой сервер».");}
                 else enqueue(own?TransferForegroundService.IMPORT:TransferForegroundService.UPLOAD,Collections.singletonList(folder),own?server:null);
             }else if(request==FILES){ArrayList<Uri> uris=FileAttachments.from(data);for(Uri uri:uris)try{getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){}receivePicked(uris);}
         }catch(Exception e){message("Нет доступа к папке. Выбери доступную папку, например созданную внутри «Документы».");}
     }
     private void receivePicked(List<Uri> uris){browse.execute(()->{try{ArrayList<FileNodes.Node> nodes=new ArrayList<>();for(Uri uri:uris)nodes.add(FileNodes.document(this,uri));ui.post(()->{if(!closed)enqueue(own?TransferForegroundService.IMPORT:TransferForegroundService.UPLOAD,nodes,own?server:null);});}catch(Exception e){ui.post(()->message("Не удалось прочитать выбранные файлы"));}});}
-    private void serverMenu(){new AlertDialog.Builder(this).setTitle(own?"Мой сервер":"Сервер").setItems(new String[]{"Новая папка","Выбрать всё","Снять выбор","Отменить очередь","Повторить неудачную передачу","Открыть папку","Избранное","Назад"},(d,w)->{if(w==0)newFolder();else if(w==3)TransferForegroundService.cancel(this);else if(w==4){if(TransferForegroundService.canRetry())TransferForegroundService.retry(this);else message("Неудачных передач для повтора нет");}else if(w==5)promptPath();else if(w==6)favorites();else if(w==7)finish();else{serverSelected.clear();if(w==1)serverSelected.addAll(serverEntries);for(int n=0;n<serverEntries.size();n++)serverList.setItemChecked(n,w==1);buttons();}}).show();}
-    private void newFolder(){EditText input=new EditText(this);new AlertDialog.Builder(this).setTitle("Новая папка на сервере").setView(input).setNegativeButton("Отмена",null).setPositiveButton("Создать",(d,w)->operation(()->{String name=TransferPaths.name(input.getText().toString().trim());if(own){File parent=new File(EmbeddedServerService.share(this),server.path);if(!FileNodes.uniqueShare(this,parent,name).mkdir())throw new IOException();}else SftpClient.mkdir(this,host,port,user,"",pin,SftpClient.join(remotePath,name));})).show();}
-    private void rename(FileNodes.Node node,boolean local){EditText input=new EditText(this);input.setText(node.name);new AlertDialog.Builder(this).setTitle("Переименовать").setView(input).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",(d,w)->operation(()->{
-        String name=TransferPaths.name(input.getText().toString().trim());
+    private void serverMenu(){new AlertDialog.Builder(this).setTitle(own?"Мой сервер":"Сервер").setItems(new String[]{"Новая папка","Выбрать всё","Снять выбор","Отменить очередь","Повторить неудачную передачу","Открыть папку","Избранное","Назад"},(d,w)->{if(w==0)newFolder(false);else if(w==3)TransferForegroundService.cancel(this);else if(w==4){if(TransferForegroundService.canRetry())TransferForegroundService.retry(this);else message("Неудачных передач для повтора нет");}else if(w==5)promptPath();else if(w==6)favorites();else if(w==7)finish();else selectAll(false,w==1);}).show();}
+    private void selectAll(boolean local,boolean all){
+        if(local?!phoneReady:!remoteReady)return;
+        List<FileNodes.Node> entries=local?phoneEntries:serverEntries;Set<FileNodes.Node> selected=local?phoneSelected:serverSelected;ListView list=local?phoneList:serverList;
+        selected.clear();if(all)selected.addAll(entries);for(int n=0;n<entries.size();n++)list.setItemChecked(n,all);buttons();
+    }
+    private void phoneMenu(){
+        boolean create=phoneReady && "doc".equals(phone.kind) && DocumentsContract.isDocumentUri(this,Uri.parse(phone.path));
+        String[] items=create?new String[]{"Новая папка","Выбрать всё","Снять выбор"}:new String[]{"Выбрать всё","Снять выбор"};
+        new AlertDialog.Builder(this).setTitle("Телефон").setItems(items,(d,w)->{if(create && w==0)newFolder(true);else selectAll(true,w==(create?1:0));}).show();
+    }
+    private void newFolder(boolean local){
+        if(local?!phoneReady:!remoteReady){message("Сначала открой доступную папку и дождись её загрузки.");return;}
+        FileNodes.Node folder=local?phone:server;String path=remotePath;EditText input=new EditText(this);
+        new AlertDialog.Builder(this).setTitle(local?"Новая папка на телефоне":"Новая папка на сервере").setView(input).setNegativeButton("Отмена",null).setPositiveButton("Создать",(d,w)->{
+            String raw=input.getText().toString().trim();operation(()->{String name=TransferPaths.name(raw);
+                if(local){if(!"doc".equals(folder.kind))throw new IOException();Uri at=Uri.parse(folder.path);DocumentFiles.create(this,at,DocumentFiles.unique(this,at,name),DocumentFiles.DIRECTORY);}
+                else if(own){File parent=new File(EmbeddedServerService.share(this),folder.path);if(!FileNodes.uniqueShare(this,parent,name).mkdir())throw new IOException();}
+                else SftpClient.mkdir(this,host,port,user,"",pin,SftpClient.join(path,name));
+            });
+        }).show();
+    }
+    private void rename(FileNodes.Node node,boolean local){FileNodes.Node parent=phone;EditText input=new EditText(this);input.setText(node.name);new AlertDialog.Builder(this).setTitle("Переименовать").setView(input).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",(d,w)->operation(()->{
+        String name=TransferPaths.name(input.getText().toString().trim());if(name.equals(node.name))return;
+        if(local)for(FileNodes.Node entry:FileNodes.children(this,parent))if(!entry.path.equals(node.path) && entry.name.equalsIgnoreCase(name))throw new IOException("Имя занято");
         if("share".equals(node.kind)){File root=EmbeddedServerService.share(this),file=SharedFolderAccess.within(root,new File(root,node.path)),target=new File(file.getParentFile(),name);if(target.exists() || !file.renameTo(target))throw new IOException();}
         else if("remote".equals(node.kind)){String next=SftpClient.join(SftpClient.parent(node.path),name);try(SftpClient.TreeSession s=new SftpClient.TreeSession(host,port,user,SshKeys.keyCredentials(this,host,port,user),pin)){String unique=s.unique(SftpClient.parent(node.path),name);if(!next.equals(unique))throw new IOException("Имя занято");}SftpClient.rename(this,host,port,user,"",pin,node.path,next);}
-        else if("doc".equals(node.kind)){if(DocumentsContract.renameDocument(getContentResolver(),Uri.parse(node.path),name)==null)throw new IOException();}
+        else if("doc".equals(node.kind)){Uri uri=Uri.parse(node.path);
+            if(DocumentsContract.isDocumentUri(this,uri)){if(DocumentsContract.renameDocument(getContentResolver(),uri,name)==null)throw new IOException();}
+            else if("media".equals(uri.getAuthority())){ContentValues values=new ContentValues();values.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME,name);if(getContentResolver().update(uri,values,null,null)!=1)throw new IOException();}
+            else throw new IOException();
+        }
         else throw new IOException();
     })).show();}
     private void remove(FileNodes.Node node,boolean local){new AlertDialog.Builder(this).setTitle("Удалить «"+node.name+"»?").setMessage(node.directory?"Удаляется только пустая папка.":"Файл будет удалён из выбранной области.").setNegativeButton("Отмена",null).setPositiveButton("Удалить",(d,w)->operation(()->{
@@ -142,8 +168,11 @@ public class FilesActivity extends BaseActivity {
     private void renderTransfer(){TransferForegroundService.State value=TransferForegroundService.state;status.setText(value.text+(own?"\n"+AutoReceive.status:""));StatusBadge.apply(status,value.error || (own&&AutoReceive.error)?StatusBadge.Tone.ERROR:value.active || (own&&AutoReceive.active)?StatusBadge.Tone.WARNING:value.text.startsWith("Готово")?StatusBadge.Tone.SUCCESS:StatusBadge.Tone.NEUTRAL);
         progress.setVisibility(value.active?View.VISIBLE:View.GONE);progress.setIndeterminate(value.total<=0);progress.setProgress(value.total<=0?0:(int)Math.min(10000,value.bytes*10000d/value.total));
         if(wasActive && !value.active){refreshPhone();refreshServer();}wasActive=value.active;}
-    @Override protected void onSaveInstanceState(Bundle b){b.putString("remote_path",remotePath);b.putBundle("phone",phone.bundle());b.putBundle("server",server.bundle());super.onSaveInstanceState(b);}
+    private void restoreBack(Bundle b,String name,ArrayDeque<FileNodes.Node> back){ArrayList<Bundle> raw=b.getParcelableArrayList(name);if(raw!=null)for(Bundle item:raw)back.addLast(FileNodes.Node.from(item));}
+    private void saveBack(Bundle b,String name,ArrayDeque<FileNodes.Node> back){ArrayList<Bundle> raw=new ArrayList<>();for(FileNodes.Node node:back)raw.add(node.bundle());b.putParcelableArrayList(name,raw);}
+    @Override public void onConfigurationChanged(android.content.res.Configuration config){super.onConfigurationChanged(config);if(wideLayout!=(config.screenWidthDp>=600))recreate();}
+    @Override protected void onSaveInstanceState(Bundle b){saveBack(b,"phone_back",phoneBack);saveBack(b,"server_back",serverBack);b.putString("remote_path",remotePath);b.putBundle("phone",phone.bundle());b.putBundle("server",server.bundle());super.onSaveInstanceState(b);}
     @Override protected void onResume(){super.onResume();closed=false;ui.post(poll);}
     @Override protected void onPause(){ui.removeCallbacks(poll);super.onPause();}
-    @Override protected void onDestroy(){closed=true;requestGeneration++;ui.removeCallbacksAndMessages(null);browse.shutdownNow();super.onDestroy();}
+    @Override protected void onDestroy(){closed=true;requestGeneration++;phoneGeneration++;ui.removeCallbacksAndMessages(null);browse.shutdownNow();super.onDestroy();}
 }
