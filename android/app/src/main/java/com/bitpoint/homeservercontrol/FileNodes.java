@@ -29,9 +29,11 @@ final class FileNodes {
     static List<Node> children(Context c,Node folder)throws Exception {
         ArrayList<Node> out=new ArrayList<>();
         if("share".equals(folder.kind)){
-            File root=EmbeddedServerService.share(c),dir=SharedFolderAccess.within(root,new File(root,TransferPaths.relative(folder.path)));
-            File[] found=dir.listFiles();if(found==null && dir.exists())throw new IOException("Папка недоступна");
-            if(found!=null)for(File f:found){try{SharedFolderAccess.within(root,f);String relative=folder.path.isEmpty()?f.getName():folder.path+"/"+f.getName();
+            File root=EmbeddedServerService.share(c);
+            if(folder.path.isEmpty() && !root.isDirectory() && !root.mkdirs())throw new IOException("Папка сервера недоступна");
+            File dir=SharedFolderAccess.within(root,new File(root,TransferPaths.relative(folder.path)));
+            File[] found=dir.listFiles();if(found==null)throw new IOException("Папка удалена или недоступна");
+            for(File f:found){try{SharedFolderAccess.within(root,f);String relative=folder.path.isEmpty()?f.getName():folder.path+"/"+f.getName();
                 if(!TransferPaths.temporary(relative))out.add(new Node("share",relative,TransferPaths.name(f.getName()),f.isDirectory(),f.length()));}catch(IOException ignored){}}
         }else if("doc".equals(folder.kind))for(DocumentFiles.Entry e:DocumentFiles.children(c,Uri.parse(folder.path)))out.add(new Node("doc",e.uri.toString(),e.name,e.directory,e.size));
         else if("downloads".equals(folder.kind)){

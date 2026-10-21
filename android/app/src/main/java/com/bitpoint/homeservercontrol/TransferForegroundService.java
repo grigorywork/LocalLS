@@ -36,6 +36,9 @@ public class TransferForegroundService extends Service {
     static volatile State state=new State(false,false,"Передач пока нет","",0,0,0);
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final AtomicInteger queued=new AtomicInteger();
+    private final Object lifecycle=new Object();
+    private boolean destroyed;
+    private long commandRevision;
     private volatile int generation,latestId;
     private TransferPowerGuard power;
     private long lastProgress;
@@ -65,6 +68,11 @@ public class TransferForegroundService extends Service {
         return b.setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification).setContentTitle("LocalLS · передача файлов").setContentText(text).setContentIntent(open).setOngoing(true).addAction(0,"Отменить очередь",cancel).build();
     }
     @Override public int onStartCommand(Intent intent,int flags,int id){
+        synchronized(lifecycle){return startCommand(intent,id);}
+    }
+    private int startCommand(Intent intent,int id){
+        if(destroyed)return START_NOT_STICKY;
+        commandRevision++;
         latestId=id;
         if(intent==null){stopSelf(id);return START_NOT_STICKY;}
         if(CANCEL.equals(intent.getAction())){
@@ -77,6 +85,9 @@ public class TransferForegroundService extends Service {
         String supplied=request.getStringExtra(REQUEST_ID);
         final String requestId=supplied==null || supplied.isEmpty()?UUID.randomUUID().toString():supplied;
         request.putExtra(REQUEST_ID,requestId);
+        // The destination belongs to this request, including retries, not to future UI choices.
+        if((SAVE.equals(request.getAction()) || DOWNLOAD.equals(request.getAction())) && !request.hasExtra("destination"))
+            request.putExtra("destination",FileNodes.phoneRoot(this).bundle());
         try{startForeground(NOTIFICATION,notification("Подготовка файлов и папок…"));}
         catch(RuntimeException error){
             String diagnostic=LocalExportFailure.report("FOREGROUND",error);failed(request,diagnostic);
@@ -90,38 +101,47 @@ public class TransferForegroundService extends Service {
         worker.execute(()->{
             Object telemetry=new Object();boolean success=false,claimReleased=false;
             try{
-                if(batch!=generation)return;
-                power.acquire();state=new State(true,false,"Подготовка передачи…","",0,0,queued.get());
+                synchronized(lifecycle){
+                    if(destroyed || batch!=generation)return;
+                    power.acquire();state=new State(true,false,"Подготовка передачи…","",0,0,queued.get());
+                }
                 TransferSpeedStore.begin(telemetry);new Job(request,batch,telemetry).run();
-                if(batch==generation){
-                    success=true;FailedJob remaining=succeeded(requestId);
-                    state=new State(false,remaining!=null,remaining==null?"Готово. Файлы и папки скопированы.":"Задание скопировано. Есть неудачная передача для повтора.",remaining==null?"":remaining.diagnostic,0,0,queued.get()-1);
+                synchronized(lifecycle){if(!destroyed && batch==generation){
+                    success=true;FailedJob remaining=succeeded(requestId);int pending=queued.get()-1;
+                    state=new State(pending>0,remaining!=null,pending>0?"Задание скопировано. Осталось в очереди: "+pending:remaining==null?"Готово. Файлы и папки скопированы.":"Задание скопировано. Есть неудачная передача для повтора.",remaining==null?"":remaining.diagnostic,0,0,pending);
+                }}
+                if(success){
                     try{
                         if(TransferSpeedStore.snapshot().peak>0)MetricHistoryStore.addSpeed(this,TransferSpeedStore.snapshot().peak);
                         TransferLogStore.add(this,"Копирование файлов и папок","Готово");
                     }catch(RuntimeException ignored){/* Telemetry must not turn a completed copy into a retry. */}
                 }
             }catch(Exception | LinkageError error){
-                if(batch==generation){
+                boolean reported=false;
+                synchronized(lifecycle){if(!destroyed && batch==generation){
                     String diagnostic=LocalExportFailure.report("TRANSFER",error);
                     synchronized(REQUEST_LOCK){
                         failed(request,diagnostic);
-                        state=new State(false,true,"Передача не завершена. Исходники сохранены. Проверь сеть, папку и свободное место.",diagnostic,0,0,queued.get()-1);
+                        int pending=queued.get()-1;
+                        state=new State(pending>0,true,"Передача не завершена. Исходники сохранены. Проверь сеть, папку и свободное место."+(pending>0?" Осталось в очереди: "+pending:""),diagnostic,0,0,pending);
                         inFlight.remove(requestId);claimReleased=true;
                     }
-                    try{TransferLogStore.add(this,"Копирование файлов и папок","Ошибка. Можно повторить.");}catch(RuntimeException ignored){}
-                }
+                    reported=true;
+                }}
+                if(reported)try{TransferLogStore.add(this,"Копирование файлов и папок","Ошибка. Можно повторить.");}catch(RuntimeException ignored){}
             }finally{
                 if(!claimReleased)release(requestId);
                 TransferSpeedStore.end(telemetry,success?"Завершено":batch==generation?"Ошибка":"Отменено");
-                if(queued.decrementAndGet()==0){
-                    power.release();new Handler(getMainLooper()).post(()->{
-                        if(queued.get()==0){
-                            if(batch!=generation)state=new State(false,false,"Очередь отменена. Завершённые файлы сохранены.","",0,0,0);
-                            stopSelf(latestId);
-                        }
-                    });
-                }
+                synchronized(lifecycle){if(queued.decrementAndGet()==0){
+                    power.release();
+                    if(!destroyed){
+                        if(batch!=generation)state=new State(false,false,"Очередь отменена. Завершённые файлы сохранены.","",0,0,0);
+                        final long finishedRevision=commandRevision;final int finishedId=latestId;
+                        new Handler(getMainLooper()).post(()->{synchronized(lifecycle){
+                            if(!destroyed && queued.get()==0 && finishedRevision==commandRevision)stopSelf(finishedId);
+                        }});
+                    }
+                }}
             }
         });
         return START_NOT_STICKY;
@@ -129,16 +149,18 @@ public class TransferForegroundService extends Service {
     private final class Job {
         final Intent request;final int batch;final Object telemetry;long previousBytes,previousTime;double smoothedSpeed;int visited,completed;SftpClient.TreeSession remote;
         Job(Intent i,int b,Object t){request=i;batch=b;telemetry=t;}
-        void check()throws IOException{if(batch!=generation || Thread.currentThread().isInterrupted())throw new InterruptedIOException();power.acquire();}
+        void check()throws IOException{synchronized(lifecycle){if(destroyed || batch!=generation || Thread.currentThread().isInterrupted())throw new InterruptedIOException();power.acquire();}}
         void visit(int depth)throws IOException{check();if(depth>48 || ++visited>10000)throw new IOException("Слишком большая папка: максимум 10000 элементов и 48 уровней");}
         void progress(long bytes,long total){
-            if(batch!=generation)return;
+            synchronized(lifecycle){
+            if(destroyed || batch!=generation)return;
             long now=SystemClock.elapsedRealtime();
             if(bytes<previousBytes){previousBytes=0;previousTime=now;}
             if(previousTime>0 && now>previousTime){double sample=Math.max(0,bytes-previousBytes)*1000d/(now-previousTime);smoothedSpeed=smoothedSpeed==0?sample:smoothedSpeed*.7+sample*.3;TransferSpeedStore.record(telemetry,smoothedSpeed);}
             previousBytes=bytes;previousTime=now;if(now-lastProgress<200 && bytes!=total)return;lastProgress=now;
             String text="Скопировано файлов: "+completed+" · "+LocalFileExportService.format(bytes)+(total>0?" / "+LocalFileExportService.format(total):"");
             state=new State(true,false,text,"",bytes,total,queued.get());getSystemService(NotificationManager.class).notify(NOTIFICATION,notification(text));
+            }
         }
         boolean remoteProgress(long n,long total){try{check();progress(n,total);return true;}catch(IOException e){return false;}}
         void run()throws Exception{
@@ -193,6 +215,6 @@ public class TransferForegroundService extends Service {
         void copy(InputStream in,OutputStream out,long size)throws Exception{check();byte[] buffer=new byte[65536];long count=0;int n;while((n=in.read(buffer))!=-1){check();out.write(buffer,0,n);count+=n;progress(count,size);}check();if(size>0 && size!=count)throw new IOException("Исходный файл изменился");out.flush();}
     }
     @Override public IBinder onBind(Intent i){return null;}
-    @Override public void onTimeout(int id,int type){generation++;stopSelf();}
-    @Override public void onDestroy(){generation++;worker.shutdownNow();if(state.active)state=new State(false,true,"Передача остановлена Android. Завершённые файлы сохранены; повтори незавершённую передачу.","SERVICE_STOPPED",0,0,0);power.release();stopForeground(true);super.onDestroy();}
+    @Override public void onTimeout(int id,int type){synchronized(lifecycle){generation++;stopSelf();}}
+    @Override public void onDestroy(){synchronized(lifecycle){destroyed=true;generation++;worker.shutdownNow();if(state.active)state=new State(false,true,"Передача остановлена Android. Завершённые файлы сохранены; повтори незавершённую передачу.","SERVICE_STOPPED",0,0,0);power.release();}stopForeground(true);super.onDestroy();}
 }
