@@ -16,7 +16,23 @@ public class TransferForegroundService extends Service {
         final boolean active,error;final String text,diagnostic;final long bytes,total;final int queued;
         State(boolean a,boolean e,String t,String d,long b,long n,int q){active=a;error=e;text=t;diagnostic=d;bytes=b;total=n;queued=q;}
     }
-    private static volatile Intent lastFailed;
+    private static final String REQUEST_ID="request_id";
+    private static final Object REQUEST_LOCK=new Object();
+    private static final LinkedHashSet<String> completedRequests=new LinkedHashSet<>();
+    private static final class FailedJob {
+        final Intent request;final String diagnostic;
+        FailedJob(Intent request,String diagnostic){this.request=new Intent(request);this.diagnostic=diagnostic;}
+    }
+    private static volatile FailedJob lastFailed;
+    private final Set<String> inFlight=new HashSet<>();
+    private boolean claim(String id){synchronized(REQUEST_LOCK){return !completedRequests.contains(id) && inFlight.add(id);}}
+    private void release(String id){synchronized(REQUEST_LOCK){inFlight.remove(id);}}
+    private static void failed(Intent request,String diagnostic){synchronized(REQUEST_LOCK){lastFailed=new FailedJob(request,diagnostic);}}
+    private static FailedJob succeeded(String id){synchronized(REQUEST_LOCK){
+        completedRequests.add(id);while(completedRequests.size()>256)completedRequests.remove(completedRequests.iterator().next());
+        if(lastFailed!=null && id.equals(lastFailed.request.getStringExtra(REQUEST_ID)))lastFailed=null;
+        return lastFailed;
+    }}
     static volatile State state=new State(false,false,"Передач пока нет","",0,0,0);
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final AtomicInteger queued=new AtomicInteger();
@@ -26,7 +42,7 @@ public class TransferForegroundService extends Service {
     private static final int NOTIFICATION=2208;
     static void enqueue(Context c,String action,List<FileNodes.Node> sources,String remotePath,FileNodes.Node destination){
         if(sources.isEmpty() || sources.size()>64)throw new IllegalArgumentException("Выбери от 1 до 64 элементов");
-        Intent i=new Intent(c,TransferForegroundService.class).setAction(action);
+        Intent i=new Intent(c,TransferForegroundService.class).setAction(action).putExtra(REQUEST_ID,UUID.randomUUID().toString());
         ArrayList<Bundle> nodes=new ArrayList<>();for(FileNodes.Node n:sources)nodes.add(n.bundle());i.putParcelableArrayListExtra("sources",nodes);
         if(destination!=null)i.putExtra("destination",destination.bundle());i.putExtra("remote",remotePath);
         SharedPreferences p=c.getSharedPreferences(ServerConfig.PREFS,0);String host=ConnectionSelector.hostForFiles(c);
@@ -36,7 +52,7 @@ public class TransferForegroundService extends Service {
         if(!grants.isEmpty()){ClipData clip=ClipData.newRawUri("LocalLS files",grants.get(0));for(int n=1;n<grants.size();n++)clip.addItem(new ClipData.Item(grants.get(n)));i.setClipData(clip);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);}
         if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);
     }
-    static void retry(Context c){Intent previous=lastFailed;if(previous!=null){Intent i=new Intent(previous);if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);}}
+    static void retry(Context c){FailedJob previous=lastFailed;if(previous!=null){Intent i=new Intent(previous.request);if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);}}
     static boolean canRetry(){return lastFailed!=null;}
     static void stop(Context c){c.stopService(new Intent(c,TransferForegroundService.class));}
     static void cancel(Context c){c.startService(new Intent(c,TransferForegroundService.class).setAction(CANCEL));}
@@ -50,21 +66,64 @@ public class TransferForegroundService extends Service {
     @Override public int onStartCommand(Intent intent,int flags,int id){
         latestId=id;
         if(intent==null){stopSelf(id);return START_NOT_STICKY;}
-        if(CANCEL.equals(intent.getAction())){generation++;state=new State(queued.get()>0,true,"Останавливаем очередь…","",0,0,queued.get());if(queued.get()==0)stopSelf(id);return START_NOT_STICKY;}
-        try{startForeground(NOTIFICATION,notification("Подготовка файлов и папок…"));}catch(RuntimeException error){lastFailed=new Intent(intent);state=new State(false,true,"Android не разрешил запустить фоновую передачу. Открой LocalLS и повтори.",LocalExportFailure.report("FOREGROUND",error),0,0,0);stopSelf(id);return START_NOT_STICKY;}
-        int count=queued.incrementAndGet(),batch=generation;state=new State(true,false,"В очереди: "+count,"",0,0,count);
+        if(CANCEL.equals(intent.getAction())){
+            generation++;int count=queued.get();
+            state=new State(count>0,false,count>0?"Останавливаем очередь…":"Очередь пуста.","",0,0,count);
+            if(count==0)stopSelf(id);
+            return START_NOT_STICKY;
+        }
+        Intent request=new Intent(intent);
+        String supplied=request.getStringExtra(REQUEST_ID);
+        final String requestId=supplied==null || supplied.isEmpty()?UUID.randomUUID().toString():supplied;
+        request.putExtra(REQUEST_ID,requestId);
+        try{startForeground(NOTIFICATION,notification("Подготовка файлов и папок…"));}
+        catch(RuntimeException error){
+            String diagnostic=LocalExportFailure.report("FOREGROUND",error);failed(request,diagnostic);
+            state=new State(false,true,"Android не разрешил запустить фоновую передачу. Открой LocalLS и повтори.",diagnostic,0,0,0);
+            stopSelf(id);return START_NOT_STICKY;
+        }
+        // Repeated retry taps retain the id; deliberate new copies receive new ids.
+        if(!claim(requestId)){if(queued.get()==0)stopSelf(id);return START_NOT_STICKY;}
+        int count=queued.incrementAndGet(),batch=generation;
+        state=new State(true,false,"В очереди: "+count,"",0,0,count);
         worker.execute(()->{
-            Object telemetry=new Object();
+            Object telemetry=new Object();boolean success=false,claimReleased=false;
             try{
-                if(batch!=generation)return;power.acquire();state=new State(true,false,"Подготовка передачи…","",0,0,queued.get());TransferSpeedStore.begin(telemetry);new Job(intent,batch,telemetry).run();
-                if(batch==generation){if(TransferSpeedStore.snapshot().peak>0)MetricHistoryStore.addSpeed(this,TransferSpeedStore.snapshot().peak);lastFailed=null;state=new State(false,false,"Готово. Файлы и папки скопированы.","",0,0,queued.get()-1);TransferLogStore.add(this,"Копирование файлов и папок","Готово");}
+                if(batch!=generation)return;
+                power.acquire();state=new State(true,false,"Подготовка передачи…","",0,0,queued.get());
+                TransferSpeedStore.begin(telemetry);new Job(request,batch,telemetry).run();
+                if(batch==generation){
+                    success=true;FailedJob remaining=succeeded(requestId);
+                    state=new State(false,remaining!=null,remaining==null?"Готово. Файлы и папки скопированы.":"Задание скопировано. Есть неудачная передача для повтора.",remaining==null?"":remaining.diagnostic,0,0,queued.get()-1);
+                    try{
+                        if(TransferSpeedStore.snapshot().peak>0)MetricHistoryStore.addSpeed(this,TransferSpeedStore.snapshot().peak);
+                        TransferLogStore.add(this,"Копирование файлов и папок","Готово");
+                    }catch(RuntimeException ignored){/* Telemetry must not turn a completed copy into a retry. */}
+                }
             }catch(Exception | LinkageError error){
-                if(batch==generation){lastFailed=new Intent(intent);TransferLogStore.add(this,"Копирование файлов и папок","Ошибка. Можно повторить.");state=new State(false,true,"Передача не завершена. Исходники сохранены. Проверь сеть, папку и свободное место.",LocalExportFailure.report("TRANSFER",error),0,0,queued.get()-1);}
+                if(batch==generation){
+                    String diagnostic=LocalExportFailure.report("TRANSFER",error);
+                    synchronized(REQUEST_LOCK){
+                        failed(request,diagnostic);
+                        state=new State(false,true,"Передача не завершена. Исходники сохранены. Проверь сеть, папку и свободное место.",diagnostic,0,0,queued.get()-1);
+                        inFlight.remove(requestId);claimReleased=true;
+                    }
+                    try{TransferLogStore.add(this,"Копирование файлов и папок","Ошибка. Можно повторить.");}catch(RuntimeException ignored){}
+                }
             }finally{
-                TransferSpeedStore.end(telemetry,batch==generation?"Передача завершена":"Отменено");
-                if(queued.decrementAndGet()==0){power.release();new Handler(getMainLooper()).post(()->{if(queued.get()==0){if(batch!=generation)state=new State(false,false,"Очередь отменена. Завершённые файлы сохранены.","",0,0,0);stopSelf(latestId);}});}
+                if(!claimReleased)release(requestId);
+                TransferSpeedStore.end(telemetry,success?"Завершено":batch==generation?"Ошибка":"Отменено");
+                if(queued.decrementAndGet()==0){
+                    power.release();new Handler(getMainLooper()).post(()->{
+                        if(queued.get()==0){
+                            if(batch!=generation)state=new State(false,false,"Очередь отменена. Завершённые файлы сохранены.","",0,0,0);
+                            stopSelf(latestId);
+                        }
+                    });
+                }
             }
-        });return START_NOT_STICKY;
+        });
+        return START_NOT_STICKY;
     }
     private final class Job {
         final Intent request;final int batch;final Object telemetry;long previousBytes,previousTime;double smoothedSpeed;int visited,completed;SftpClient.TreeSession remote;
@@ -72,6 +131,7 @@ public class TransferForegroundService extends Service {
         void check()throws IOException{if(batch!=generation || Thread.currentThread().isInterrupted())throw new InterruptedIOException();power.acquire();}
         void visit(int depth)throws IOException{check();if(depth>48 || ++visited>10000)throw new IOException("Слишком большая папка: максимум 10000 элементов и 48 уровней");}
         void progress(long bytes,long total){
+            if(batch!=generation)return;
             long now=SystemClock.elapsedRealtime();
             if(bytes<previousBytes){previousBytes=0;previousTime=now;}
             if(previousTime>0 && now>previousTime){double sample=Math.max(0,bytes-previousBytes)*1000d/(now-previousTime);smoothedSpeed=smoothedSpeed==0?sample:smoothedSpeed*.7+sample*.3;TransferSpeedStore.record(telemetry,smoothedSpeed);}
@@ -117,20 +177,20 @@ public class TransferForegroundService extends Service {
         void download(FileNodes.Node source,FileNodes.Node parent,int depth)throws Exception{
             visit(depth);if(source.directory){FileNodes.Node folder=subfolder(parent,source.name);for(RemoteEntry e:remote.list(source.path))download(new FileNodes.Node("remote",e.path,e.name,e.directory,e.size),folder,depth+1);}
             else{LocalFileExporter.Destination target=output(parent,source.name);boolean done=false;
-                try{try(OutputStream out=target.open()){if(out==null)throw new IOException();remote.read(source.path,out,this::remoteProgress);check();}target.publish();done=true;completed++;}finally{if(!done)target.abort();}}
+                try{try(OutputStream out=target.open()){if(out==null)throw new IOException();remote.read(source.path,out,this::remoteProgress);check();}check();target.publish();done=true;completed++;}finally{if(!done)target.abort();}}
         }
         void importShare(FileNodes.Node source,File parent,int depth)throws Exception{
             visit(depth);File target=FileNodes.uniqueShare(TransferForegroundService.this,parent,source.name);
             if(source.directory){if(!target.mkdir())throw new IOException();for(FileNodes.Node n:FileNodes.children(TransferForegroundService.this,source))importShare(n,target,depth+1);}
             else{File temp=File.createTempFile(".import-",".part",parent);boolean done=false;
-                try{try(InputStream in=FileNodes.open(TransferForegroundService.this,source);OutputStream out=new FileOutputStream(temp)){copy(in,out,source.size);}if(Build.VERSION.SDK_INT<26)throw new IOException("Android 8 required");java.nio.file.Files.move(temp.toPath(),target.toPath());done=true;completed++;}finally{if(!done)temp.delete();}}
+                try{try(InputStream in=FileNodes.open(TransferForegroundService.this,source);OutputStream out=new FileOutputStream(temp)){copy(in,out,source.size);}check();if(Build.VERSION.SDK_INT<26)throw new IOException("Android 8 required");java.nio.file.Files.move(temp.toPath(),target.toPath());done=true;completed++;}finally{if(!done)temp.delete();}}
         }
         void save(FileNodes.Node source,FileNodes.Node parent,int depth)throws Exception{
             visit(depth);if(source.directory){FileNodes.Node folder=subfolder(parent,source.name);for(FileNodes.Node n:FileNodes.children(TransferForegroundService.this,source))save(n,folder,depth+1);}
             else{LocalFileExporter.Destination target=output(parent,source.name);boolean done=false;
-                try{try(InputStream in=FileNodes.open(TransferForegroundService.this,source);OutputStream out=target.open()){if(out==null)throw new IOException();copy(in,out,source.size);}target.publish();done=true;completed++;}finally{if(!done)target.abort();}}
+                try{try(InputStream in=FileNodes.open(TransferForegroundService.this,source);OutputStream out=target.open()){if(out==null)throw new IOException();copy(in,out,source.size);}check();target.publish();done=true;completed++;}finally{if(!done)target.abort();}}
         }
-        void copy(InputStream in,OutputStream out,long size)throws Exception{byte[] buffer=new byte[65536];long count=0;int n;while((n=in.read(buffer))!=-1){check();out.write(buffer,0,n);count+=n;progress(count,size);}if(size>0 && size!=count)throw new IOException("Исходный файл изменился");out.flush();}
+        void copy(InputStream in,OutputStream out,long size)throws Exception{check();byte[] buffer=new byte[65536];long count=0;int n;while((n=in.read(buffer))!=-1){check();out.write(buffer,0,n);count+=n;progress(count,size);}check();if(size>0 && size!=count)throw new IOException("Исходный файл изменился");out.flush();}
     }
     @Override public IBinder onBind(Intent i){return null;}
     @Override public void onTimeout(int id,int type){generation++;stopSelf();}
