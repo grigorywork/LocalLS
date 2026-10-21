@@ -68,7 +68,7 @@ final class SftpClient {
             ChannelSftp sftp = connection.sftp;
             String path = requestedPath == null || requestedPath.trim().isEmpty()
                     ? ServerConfig.DEFAULT_REMOTE_PATH : requestedPath;
-            sftp.cd(path);
+            sftp.cd(literal(path));
             String actualPath = sftp.pwd();
 
             @SuppressWarnings("unchecked")
@@ -101,7 +101,7 @@ final class SftpClient {
                                 String trustedFingerprint, String path) throws Exception {
         Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
-            connection.sftp.cd(path);
+            connection.sftp.cd(literal(path));
             return connection.sftp.pwd();
         } finally {
             connection.close();
@@ -113,7 +113,7 @@ final class SftpClient {
                          long expectedBytes, ProgressCallback callback) throws Exception {
         Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
-            connection.sftp.get(remotePath, output, monitor(callback, expectedBytes));
+            connection.sftp.get(literal(remotePath), output, monitor(callback, expectedBytes));
             output.flush();
         } finally {
             connection.close();
@@ -125,7 +125,7 @@ final class SftpClient {
                        long expectedBytes, ProgressCallback callback) throws Exception {
         Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
-            connection.sftp.put(input, remotePath, monitor(callback, expectedBytes), ChannelSftp.OVERWRITE);
+            connection.sftp.put(input, literal(remotePath), monitor(callback, expectedBytes), ChannelSftp.OVERWRITE);
         } finally {
             connection.close();
         }
@@ -145,7 +145,7 @@ final class SftpClient {
                        String trustedFingerprint, String oldPath, String newPath) throws Exception {
         Connection connection = connect(host, port, user, credential, trustedFingerprint);
         try {
-            connection.sftp.rename(oldPath, newPath);
+            connection.sftp.rename(literal(oldPath), literal(newPath));
         } finally {
             connection.close();
         }
@@ -157,9 +157,9 @@ final class SftpClient {
         try {
             if (entry.directory) {
                 // Защитное поведение: удаляем только пустую папку. Рекурсивное удаление специально не делаем.
-                connection.sftp.rmdir(entry.path);
+                connection.sftp.rmdir(literal(entry.path));
             } else {
-                connection.sftp.rm(entry.path);
+                connection.sftp.rm(literal(entry.path));
             }
         } finally {
             connection.close();
@@ -170,16 +170,16 @@ final class SftpClient {
         if (!publicKey.matches("(?:ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp(?:256|384|521)) [A-Za-z0-9+/=]+ LocalLS")) throw new Exception("Ключ не распознан");
         Connection connection=connect(host,port,user,credential,pin);
         try { ChannelSftp s=connection.sftp; String home=s.getHome(),dir=join(home,".ssh"),file=join(dir,"authorized_keys"); SftpATTRS attrs;
-            try { attrs=s.lstat(dir); if(!attrs.isDir()||attrs.isLink())throw new Exception("Небезопасная папка .ssh"); }
-            catch(com.jcraft.jsch.SftpException e){if(e.id!=ChannelSftp.SSH_FX_NO_SUCH_FILE)throw e;s.mkdir(dir);} s.chmod(0700,dir);
+            try { attrs=s.lstat(literal(dir)); if(!attrs.isDir()||attrs.isLink())throw new Exception("Небезопасная папка .ssh"); }
+            catch(com.jcraft.jsch.SftpException e){if(e.id!=ChannelSftp.SSH_FX_NO_SUCH_FILE)throw e;s.mkdir(dir);} s.chmod(0700,literal(dir));
             byte[] old=new byte[0];
-            try { attrs=s.lstat(file); if(!attrs.isReg()||attrs.isLink()||attrs.getSize()>512*1024)throw new Exception("Небезопасный authorized_keys");
-                java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();try(InputStream in=s.get(file)){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1){if(out.size()+n>512*1024)throw new Exception("authorized_keys слишком большой");out.write(b,0,n);}}old=out.toByteArray();
+            try { attrs=s.lstat(literal(file)); if(!attrs.isReg()||attrs.isLink()||attrs.getSize()>512*1024)throw new Exception("Небезопасный authorized_keys");
+                java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();try(InputStream in=s.get(literal(file))){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1){if(out.size()+n>512*1024)throw new Exception("authorized_keys слишком большой");out.write(b,0,n);}}old=out.toByteArray();
             }catch(com.jcraft.jsch.SftpException e){if(e.id!=ChannelSftp.SSH_FX_NO_SUCH_FILE)throw e;}
             String text=new String(old,java.nio.charset.StandardCharsets.UTF_8); String[] expected=publicKey.split(" "); boolean exists=false;
             for(String line:text.split("\\r?\\n")){String[] parts=line.trim().split("\\s+");if(!line.trim().startsWith("#"))for(int i=0;i+1<parts.length;i++)if(parts[i].equals(expected[0])&&parts[i+1].equals(expected[1]))exists=true;}
-            if(!exists){String addition=(!text.isEmpty()&&!text.endsWith("\n")?"\n":"")+publicKey+"\n";try(OutputStream out=s.put(file,ChannelSftp.APPEND)){out.write(addition.getBytes(java.nio.charset.StandardCharsets.UTF_8));}}
-            s.chmod(0600,file);
+            if(!exists){String addition=(!text.isEmpty()&&!text.endsWith("\n")?"\n":"")+publicKey+"\n";try(OutputStream out=s.put(literal(file),ChannelSftp.APPEND)){out.write(addition.getBytes(java.nio.charset.StandardCharsets.UTF_8));}}
+            s.chmod(0600,literal(file));
         }finally{connection.close();}
     }
 
@@ -190,6 +190,11 @@ final class SftpClient {
         int index = clean.lastIndexOf('/');
         if (index <= 0) return "/";
         return clean.substring(0, index);
+    }
+
+    /** JSch treats remote names as glob patterns even for rm/rmdir. UI paths are always literal. */
+    private static String literal(String path) {
+        return path.replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?");
     }
 
     static String join(String parent, String name) {
@@ -225,16 +230,16 @@ final class SftpClient {
         private final Connection c;
         TreeSession(String host,int port,String user,SshCredentials key,String pin)throws Exception{c=connect(host,port,user,key,pin);}
         List<RemoteEntry> list(String path)throws Exception{
-            SftpATTRS parent=c.sftp.lstat(path);if(parent.isLink() || !parent.isDir())throw new java.io.IOException("Папка недоступна");
+            SftpATTRS parent=c.sftp.lstat(literal(path));if(parent.isLink() || !parent.isDir())throw new java.io.IOException("Папка недоступна");
             List<RemoteEntry> out=new ArrayList<>();
-            @SuppressWarnings("unchecked") Vector<ChannelSftp.LsEntry> raw=c.sftp.ls(path);
+            @SuppressWarnings("unchecked") Vector<ChannelSftp.LsEntry> raw=c.sftp.ls(literal(path));
             for(ChannelSftp.LsEntry e:raw){String name=e.getFilename();if(name.equals(".")||name.equals("..")||TransferPaths.temporary(name))continue;
                 TransferPaths.name(name);SftpATTRS a=e.getAttrs();if(a==null || a.isLink() || (!a.isDir() && !a.isReg()))continue;
                 if(out.size()>=10000)throw new java.io.IOException("Слишком много файлов");
                 out.add(new RemoteEntry(name,join(path,name),a.isDir(),a.getSize(),a.getMTime()));}
             return out;
         }
-        private boolean exists(String path)throws Exception{try{c.sftp.lstat(path);return true;}catch(com.jcraft.jsch.SftpException e){if(e.id==ChannelSftp.SSH_FX_NO_SUCH_FILE)return false;throw e;}}
+        private boolean exists(String path)throws Exception{try{c.sftp.lstat(literal(path));return true;}catch(com.jcraft.jsch.SftpException e){if(e.id==ChannelSftp.SSH_FX_NO_SUCH_FILE)return false;throw e;}}
         String unique(String parent,String name)throws Exception{
             TransferPaths.name(name);String path=join(parent,name);if(!exists(path))return path;
             for(int i=1;i<10000;i++){String next=join(parent,TransferPaths.duplicate(name,i));if(!exists(next))return next;}
@@ -243,21 +248,28 @@ final class SftpClient {
         String folder(String parent,String name)throws Exception{String path=unique(parent,name);c.sftp.mkdir(path);return path;}
         void read(String path,OutputStream out,ProgressCallback progress)throws Exception{
             if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Передача отменена");
-            SftpATTRS a=c.sftp.lstat(path);if(a.isLink() || !a.isReg())throw new java.io.IOException("Недопустимый файл");
+            SftpATTRS a=c.sftp.lstat(literal(path));if(a.isLink() || !a.isReg())throw new java.io.IOException("Недопустимый файл");
             final long[] copied={0};final boolean[] keepGoing={true};
-            c.sftp.get(path,out,monitor((n,total)->{copied[0]=n;keepGoing[0]=keepGoing[0] && (progress==null || progress.onProgress(n,total));return keepGoing[0];},a.getSize()));
+            c.sftp.get(literal(path),out,monitor((n,total)->{copied[0]=n;keepGoing[0]=keepGoing[0] && (progress==null || progress.onProgress(n,total));return keepGoing[0];},a.getSize()));
             if(!keepGoing[0] || Thread.currentThread().isInterrupted() || copied[0]!=a.getSize())throw new java.io.InterruptedIOException("Передача не завершена");
-            SftpATTRS after=c.sftp.lstat(path);
+            SftpATTRS after=c.sftp.lstat(literal(path));
             if(after.isLink() || !after.isReg() || after.getSize()!=a.getSize() || after.getMTime()!=a.getMTime())throw new java.io.IOException("Файл на сервере изменился во время скачивания. Повтори передачу.");
             out.flush();
         }
         String write(String parent,String name,InputStream input,long size,ProgressCallback progress)throws Exception{
-            String target=unique(parent,name),temp=join(parent,".localls-upload-"+java.util.UUID.randomUUID()+".part");
+            TransferPaths.name(name);String temp=join(parent,".localls-upload-"+java.util.UUID.randomUUID()+".part");
             boolean moved=false;final long[] copied={0};final boolean[] keepGoing={true};
-            try{c.sftp.put(input,temp,monitor((n,total)->{copied[0]=n;keepGoing[0]=keepGoing[0] && (progress==null || progress.onProgress(n,total));return keepGoing[0];},size),ChannelSftp.OVERWRITE);
+            try{c.sftp.put(input,literal(temp),monitor((n,total)->{copied[0]=n;keepGoing[0]=keepGoing[0] && (progress==null || progress.onProgress(n,total));return keepGoing[0];},size),ChannelSftp.OVERWRITE);
                 if(!keepGoing[0] || Thread.currentThread().isInterrupted() || (size>0 && copied[0]!=size))throw new java.io.InterruptedIOException();
-                c.sftp.rename(temp,target);moved=true;return target;
-            }finally{if(!moved)try{c.sftp.rm(temp);}catch(Exception ignored){}}
+                // Resolve the name after streaming; another upload may have finished meanwhile.
+                for(int attempt=0;attempt<16;attempt++){
+                    if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException();
+                    String target=unique(parent,name);
+                    try{c.sftp.rename(literal(temp),literal(target));moved=true;return target;}
+                    catch(com.jcraft.jsch.SftpException error){if(!exists(target))throw error;}
+                }
+                throw new java.io.IOException("Имя одновременно занимают другие передачи. Повтори копирование.");
+            }finally{if(!moved)try{c.sftp.rm(literal(temp));}catch(Exception ignored){}}
         }
         @Override public void close(){c.close();}
     }

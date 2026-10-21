@@ -92,7 +92,8 @@ final class SshKeys {
         String raw=SecurePrefs.loadNamed(c,storageId(c,from,port,user));
         if(raw==null || raw.isEmpty())return false;
         JSONObject source=new JSONObject(raw);JSONObject sourceInfo=inspect(source.getString(PRIVATE),source.optString(PHRASE));
-        String targetRaw=SecurePrefs.loadNamed(c,storageId(c,to,port,user));
+        String targetId=storageId(c,to,port,user),targetRaw=SecurePrefs.loadNamed(c,targetId);
+        if((targetRaw==null || targetRaw.isEmpty()) && SecurePrefs.containsNamed(c,targetId))return false;
         if(targetRaw!=null && !targetRaw.isEmpty()){
             JSONObject target=new JSONObject(targetRaw);
             if(!sourceInfo.getString(PUBLIC).equals(inspect(target.getString(PRIVATE),target.optString(PHRASE)).getString(PUBLIC)))return false;

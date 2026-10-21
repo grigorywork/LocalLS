@@ -18,16 +18,17 @@ final class LocalFileExporter {
     static long copy(File root,String relative,Destination target,Progress progress) throws Failure {
         String stage="SOURCE";boolean opened=false;
         try {
+            checkInterrupted();
             File source=SharedFolderAccess.within(root,new File(root,relative));
             if(!source.isFile())throw new FileNotFoundException();
             long expected=source.length(),modified=source.lastModified(),copied=0;
             try(InputStream input=new FileInputStream(source)) {
-                stage="DESTINATION";opened=true;
+                stage="DESTINATION";checkInterrupted();opened=true;
                 try(OutputStream output=target.open()) {
                     if(output==null)throw new IOException("Destination stream unavailable");
                     stage="COPY";byte[] buffer=new byte[65536];int count;progress.update(0,expected);
                     while((count=input.read(buffer))!=-1) {
-                        if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
+                        checkInterrupted();
                         if(copied+count>expected)throw new SourceChanged();
                         output.write(buffer,0,count);copied+=count;progress.update(copied,expected);
                     }
@@ -35,10 +36,13 @@ final class LocalFileExporter {
                     output.flush();stage="CLOSE";
                 }
             }
-            stage="PUBLISH";target.publish();return copied;
+            stage="PUBLISH";checkInterrupted();
+            // A provider can block in close(). Recheck the owner's cancellation after both streams close.
+            progress.update(copied,expected);checkInterrupted();target.publish();return copied;
         } catch(Exception error) {
             if(opened)try{target.abort();}catch(Exception ignored) { }
             throw new Failure(stage,error);
         }
     }
+    private static void checkInterrupted()throws InterruptedIOException{if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();}
 }

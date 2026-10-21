@@ -74,4 +74,14 @@ public class RouteIdentityTest {
         assertEquals(identity.getString(SshKeys.PUBLIC),SshKeys.info(c,next,8022,"localls").getString(SshKeys.PUBLIC));
         assertEquals("SHA256:legacy",HostTrustStore.get(c,next,8022));
     }
+    @Test public void addressChangeCannotReplaceUnreadableStoredDestinationIdentity()throws Exception{
+        Context c=RuntimeEnvironment.getApplication();Secrets.store.clear();String first="192.0.2.121",next="192.0.2.122";
+        SshKeys.save(c,next,8022,"localls",SshKeys.generate());String destinationId=Secrets.store.keySet().iterator().next();
+        // Existing encrypted record whose decryption yields no data: presence is distinct from absence.
+        Secrets.store.put(destinationId,"");SshKeys.save(c,first,8022,"localls",SshKeys.generate());HostTrustStore.trust(c,first,8022,"SHA256:source");
+        Map<String,String> before=new HashMap<>(Secrets.store);Map<String,?> prefsBefore=new HashMap<>(SshKeys.prefs(c).getAll());
+        assertFalse("Unreadable destination record must require explicit recovery",SshKeys.moveRoute(c,first,next,8022,"localls"));
+        assertTrue("Stored records changed",before.equals(Secrets.store));assertTrue("Route preferences changed",prefsBefore.equals(SshKeys.prefs(c).getAll()));assertEquals("",HostTrustStore.get(c,next,8022));
+    }
+
 }

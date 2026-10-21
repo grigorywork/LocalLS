@@ -72,4 +72,29 @@ public class LocalFileExporterTest {
             assertFalse(target.opened);assertFalse(target.published);
         }
     }
+    @Test public void cancellationOnFinalBlockCannotPublishTheCopy()throws Exception{
+        File root=temp.newFolder();Files.write(new File(root,"x").toPath(),new byte[]{1});Target target=new Target(new File(temp.newFolder(),"x"));
+        try{LocalFileExporter.copy(root,"x",target,(done,total)->{if(done>0)Thread.currentThread().interrupt();});fail("Last-block cancellation reported success");}
+        catch(LocalFileExporter.Failure error){assertTrue(error.getCause() instanceof InterruptedIOException);}
+        finally{Thread.interrupted();}
+        assertTrue(target.aborted);assertFalse(target.published);assertTrue(new File(root,"x").exists());
+    }
+    @Test public void cancellationDuringDestinationCloseIsCheckedBeforePublishing()throws Exception{
+        File root=temp.newFolder();Files.write(new File(root,"x").toPath(),new byte[]{1});java.util.concurrent.atomic.AtomicBoolean cancelled=new java.util.concurrent.atomic.AtomicBoolean();
+        Target target=new Target(new File(temp.newFolder(),"x")){
+            @Override public OutputStream open(){return new ByteArrayOutputStream(){@Override public void close(){cancelled.set(true);}};}
+        };
+        try{LocalFileExporter.copy(root,"x",target,(done,total)->{if(cancelled.get())throw new java.util.concurrent.CancellationException();});fail("Close-time cancellation reported success");}
+        catch(LocalFileExporter.Failure error){assertTrue(error.getCause() instanceof java.util.concurrent.CancellationException);}
+        assertTrue(target.aborted);assertFalse(target.published);assertTrue(new File(root,"x").exists());
+    }
+    @Test public void alreadyInterruptedEmptyCopyDoesNotCreateDestination()throws Exception{
+        File root=temp.newFolder();Files.write(new File(root,"empty").toPath(),new byte[0]);Target target=new Target(new File(temp.newFolder(),"copy"));
+        Thread.currentThread().interrupt();
+        try{LocalFileExporter.copy(root,"empty",target,(done,total)->{});fail("An interrupted empty copy was published");}
+        catch(LocalFileExporter.Failure error){assertTrue(error.getCause() instanceof InterruptedIOException);}
+        finally{Thread.interrupted();}
+        assertFalse(target.opened);assertFalse(target.published);assertTrue(new File(root,"empty").exists());
+    }
+
 }

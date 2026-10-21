@@ -339,4 +339,70 @@ public class EmbeddedSftpServerTest {
         com.jcraft.jsch.KeyPair weak=com.jcraft.jsch.KeyPair.genKeyPair(new JSch(),com.jcraft.jsch.KeyPair.RSA,2048);ByteArrayOutputStream out=new ByteArrayOutputStream();weak.writePublicKey(out,"weak");weak.dispose();
         try{EmbeddedSftpServer.authorizedKey(out.toString("UTF-8"));fail("Weak RSA accepted");}catch(Exception expected){}
     }
+    @Test public void deletingLiteralWildcardFileNeverDeletesItsNeighbours()throws Exception{
+        Path root=temp.newFolder().toPath();Files.write(root.resolve("*.txt"),new byte[]{1});Files.write(root.resolve("keep.txt"),new byte[]{7,8});
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            SftpClient.delete("127.0.0.1",port,"localls",SshCredentials.key(new String(clientPrivate,"UTF-8"),""),EmbeddedSftpServer.fingerprint(host),new RemoteEntry("*.txt","/*.txt",false,1,0));
+            assertFalse(Files.exists(root.resolve("*.txt")));assertArrayEquals("Literal delete expanded into other files",new byte[]{7,8},Files.readAllBytes(root.resolve("keep.txt")));
+        }
+    }
+    @Test public void deletingLiteralWildcardDirectoryNeverDeletesOtherDirectories()throws Exception{
+        Path root=temp.newFolder().toPath();Files.createDirectory(root.resolve("?.dir"));Files.createDirectory(root.resolve("a.dir"));
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            SftpClient.delete("127.0.0.1",port,"localls",SshCredentials.key(new String(clientPrivate,"UTF-8"),""),EmbeddedSftpServer.fingerprint(host),new RemoteEntry("?.dir","/?.dir",true,0,0));
+            assertFalse(Files.exists(root.resolve("?.dir")));assertTrue("Literal directory delete expanded into neighbours",Files.isDirectory(root.resolve("a.dir")));
+        }
+    }
+    @Test public void globCharactersRemainLiteralAcrossBrowseCopyAndRename()throws Exception{
+        Path root=temp.newFolder().toPath();Files.createDirectory(root.resolve("group*"));Files.createDirectory(root.resolve("group1"));
+        Files.write(root.resolve("group*/dataA.bin"),new byte[]{9});
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            String pin=EmbeddedSftpServer.fingerprint(host);SshCredentials key=SshCredentials.key(new String(clientPrivate,"UTF-8"),"");
+            assertEquals("/group*",SftpClient.browse("127.0.0.1",port,"localls",key,pin,"/group*").path);
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",key,pin)){
+                assertEquals("/group*/data?.bin",tree.write("/group*","data?.bin",new ByteArrayInputStream(new byte[]{1,3}),2,(n,total)->true));
+                ByteArrayOutputStream copy=new ByteArrayOutputStream();tree.read("/group*/data?.bin",copy,(n,total)->true);assertArrayEquals(new byte[]{1,3},copy.toByteArray());assertEquals(2,tree.list("/group*").size());
+            }
+            SftpClient.rename("127.0.0.1",port,"localls",key,pin,"/group*/data?.bin","/group*/renamed*.bin");
+            assertArrayEquals(new byte[]{1,3},Files.readAllBytes(root.resolve("group*/renamed*.bin")));assertArrayEquals(new byte[]{9},Files.readAllBytes(root.resolve("group*/dataA.bin")));
+        }
+    }
+    @Test public void fileCreatedDuringUploadIsNeverReplacedByFinalRename()throws Exception{
+        Path root=temp.newFolder().toPath();byte[] other={9,8,7},mine={1,2,3};
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",SshCredentials.key(new String(clientPrivate,"UTF-8"),""),EmbeddedSftpServer.fingerprint(host))){
+                boolean[] added={false};String copied=tree.write("/","race.bin",new ByteArrayInputStream(mine),mine.length,(n,total)->{
+                    if(!added[0]){added[0]=true;try{Files.write(root.resolve("race.bin"),other);}catch(IOException e){throw new UncheckedIOException(e);}}return true;
+                });
+                assertArrayEquals("An upload replaced a file created after its initial name check",other,Files.readAllBytes(root.resolve("race.bin")));
+                assertNotEquals("/race.bin",copied);assertArrayEquals(mine,Files.readAllBytes(root.resolve(copied.substring(1))));
+            }
+        }
+    }
+
+    @Test public void collisionAtFinalServerRenamePreservesExistingFileAndRetriesAnotherName()throws Exception{
+        Path root=temp.newFolder().toPath();byte[] mine={1,4,7},other={9,6,3};
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);
+            java.lang.reflect.Field field=EmbeddedSftpServer.class.getDeclaredField("server");field.setAccessible(true);
+            org.apache.sshd.server.SshServer ssh=(org.apache.sshd.server.SshServer)field.get(server);
+            org.apache.sshd.sftp.server.SftpSubsystemFactory subsystem=(org.apache.sshd.sftp.server.SftpSubsystemFactory)ssh.getSubsystemFactories().get(0);
+            java.util.concurrent.atomic.AtomicBoolean added=new java.util.concurrent.atomic.AtomicBoolean();
+            subsystem.addSftpEventListener(new org.apache.sshd.sftp.server.SftpEventListener(){
+                @Override public void moving(org.apache.sshd.server.session.ServerSession session,Path from,Path to,java.util.Collection<CopyOption> options)throws IOException{
+                    if(to.toString().equals("/race.bin") && added.compareAndSet(false,true))Files.write(root.resolve("race.bin"),other);
+                }
+            });
+            try(SftpClient.TreeSession tree=new SftpClient.TreeSession("127.0.0.1",port,"localls",SshCredentials.key(new String(clientPrivate,"UTF-8"),""),EmbeddedSftpServer.fingerprint(host))){
+                assertEquals("/race (1).bin",tree.write("/","race.bin",new ByteArrayInputStream(mine),mine.length,(n,total)->true));
+                assertTrue(added.get());assertArrayEquals(other,Files.readAllBytes(root.resolve("race.bin")));assertArrayEquals(mine,Files.readAllBytes(root.resolve("race (1).bin")));
+                assertEquals(2,tree.list("/").size());
+            }
+        }
+    }
+
 }

@@ -164,4 +164,22 @@ public class LastModIntegrationTest {
             ((android.widget.Switch)a.findViewById(R.id.showClientSwitch)).setChecked(true);assertEquals(View.VISIBLE,a.findViewById(R.id.remoteConnectionCard).getVisibility());
         }
     }
+    @Test public void stoppingAutoSaveDuringProviderCloseKeepsOriginalAndPendingRetry()throws Exception{
+        TransferRecoveryTest.Documents closing=new TransferRecoveryTest.Documents();closing.root=provider.root;closing.holdClose=true;
+        ProviderInfo info=new ProviderInfo();info.authority=AUTHORITY;info.applicationInfo=app.getApplicationInfo();info.exported=true;info.grantUriPermissions=true;
+        info.readPermission=android.Manifest.permission.MANAGE_DOCUMENTS;info.writePermission=android.Manifest.permission.MANAGE_DOCUMENTS;
+        closing.attachInfo(app,info);ShadowContentResolver.registerProviderInternal(AUTHORITY,closing);
+        app.getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,tree.toString()).commit();
+        File share=EmbeddedServerService.share(app);share.mkdirs();String name="close-auto-"+System.nanoTime()+".bin";byte[] bytes={5,8,13};File original=new File(share,name);Files.write(original.toPath(),bytes);
+        AutoReceive receive=new AutoReceive(app);
+        try{
+            receive.received(name);assertTrue(closing.closeEntered.await(5,TimeUnit.SECONDS));receive.close();closing.closeRelease.countDown();
+            ExecutorService worker=org.robolectric.util.ReflectionHelpers.getField(receive,"worker");assertTrue(worker.awaitTermination(5,TimeUnit.SECONDS));
+            assertArrayEquals(bytes,Files.readAllBytes(original.toPath()));assertFalse("Cancelled copy remained published",new File(closing.root,name).exists());
+            try(AutoReceive.Queue queue=new AutoReceive.Queue(app)){assertNotNull("Cancelled item must remain retryable",queue.next());}
+            closing.holdClose=false;
+            try(AutoReceive retried=new AutoReceive(app)){await(()->new File(closing.root,name).length()==bytes.length && !AutoReceive.active);assertArrayEquals(bytes,Files.readAllBytes(new File(closing.root,name).toPath()));}
+        }finally{closing.closeRelease.countDown();receive.close();}
+    }
+
 }

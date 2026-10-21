@@ -90,8 +90,16 @@ final class EmbeddedSftpServer implements AutoCloseable {
                     }.newFileSystem(root,Collections.emptyMap());
                 }
             });
+            // POSIX rename replaces its destination by design. This share preserves existing files.
+            org.apache.sshd.sftp.SftpModuleProperties.OPENSSH_EXTENSIONS.set(ssh,
+                    "fsync@openssh.com=1,lsetstat@openssh.com=1,limits@openssh.com=1");
             SftpSubsystemFactory factory=new SftpSubsystemFactory.Builder()
                     .withFileSystemAccessor(new SftpFileSystemAccessor() {
+                        @Override public void renameFile(SftpSubsystemProxy subsystem,Path source,Path target,java.util.Collection<CopyOption> options) throws IOException {
+                            if(options.contains(StandardCopyOption.REPLACE_EXISTING) || options.contains(StandardCopyOption.ATOMIC_MOVE))
+                                throw new java.nio.file.AccessDeniedException("Overwrite rename is disabled");
+                            Files.move(source,target);
+                        }
                         @Override public void createLink(SftpSubsystemProxy subsystem,Path link,Path target,boolean symbolic) throws IOException {
                             throw new java.nio.file.AccessDeniedException("Links are disabled");
                         }
