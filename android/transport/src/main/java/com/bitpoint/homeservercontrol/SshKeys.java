@@ -68,6 +68,22 @@ final class SshKeys {
     }
     static void clear(Context c, String host, int port, String user) { SecurePrefs.clearNamed(c, storageId(c,host,port,user)); prefs(c).edit().putLong(REVISION, System.currentTimeMillis()).apply(); }
     private static String storageId(Context c,String host,int port,String user){return prefs(c).getString("route_"+keyId(host,port,user),keyId(host,port,user));}
+    /** Repair an old lost address binding only for an already trusted server and one unique identity. */
+    static boolean recoverRoute(Context c,String host,int port,String user,String observedPin)throws Exception{
+        if(!ConnectionEndpoint.validHost(host) || !ConnectionEndpoint.validUser(user) || port<1 || port>65535 || observedPin==null || observedPin.isEmpty())return false;
+        String targetPin=HostTrustStore.get(c,host,port);
+        if(!targetPin.isEmpty() && !targetPin.equals(observedPin))return false;
+        if(SecurePrefs.containsNamed(c,storageId(c,host,port,user)))return false;
+        String source=null,publicKey=null;
+        for(String candidate:HostTrustStore.hostsForFingerprint(c,port,observedPin)){
+            if(candidate.equals(host))continue;
+            JSONObject info=info(c,candidate,port,user);if(!info.has(PUBLIC))continue;
+            String candidateKey=info.getString(PUBLIC);
+            if(publicKey!=null && !publicKey.equals(candidateKey))return false;
+            source=candidate;publicKey=candidateKey;
+        }
+        return source!=null && moveRoute(c,source,host,port,user);
+    }
     /** Address changes of the same pinned server retain identity; an existing different pin is never replaced. */
     static boolean moveRoute(Context c,String from,String to,int port,String user)throws Exception{
         if(from==null || from.isEmpty() || from.equals(to))return false;

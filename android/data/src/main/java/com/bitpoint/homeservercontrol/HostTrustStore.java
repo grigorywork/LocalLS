@@ -18,6 +18,20 @@ final class HostTrustStore {
         prefs(context).edit().remove(key(host, port)).apply();
     }
 
+    /** Local trusted addresses only; never probes or discovers network devices. */
+    static java.util.List<String> hostsForFingerprint(Context context,int port,String fingerprint) {
+        java.util.Set<String> hosts=new java.util.TreeSet<>();
+        if(fingerprint==null || fingerprint.isEmpty())return new java.util.ArrayList<>(hosts);
+        String prefix=ServerConfig.KEY_TRUSTED_FINGERPRINT_PREFIX,suffix=":"+port;
+        for(java.util.Map.Entry<String,?> entry:prefs(context).getAll().entrySet()) {
+            String name=entry.getKey();
+            if(!name.startsWith(prefix) || !name.endsWith(suffix) || !fingerprint.equals(entry.getValue()))continue;
+            String host=name.substring(prefix.length(),name.length()-suffix.length());
+            if(ConnectionEndpoint.validHost(host))hosts.add(host);
+        }
+        return new java.util.ArrayList<>(hosts);
+    }
+
     private static String key(String host, int port) {
         return ServerConfig.KEY_TRUSTED_FINGERPRINT_PREFIX + host + ":" + port;
     }

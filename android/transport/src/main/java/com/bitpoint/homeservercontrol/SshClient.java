@@ -14,7 +14,17 @@ final class SshClient {
     private SshClient() {}
 
     static ServerStats probe(String host, int port, String user, String password, String trustedFingerprint) { return probe(host, port, user, SshCredentials.password(password), trustedFingerprint); }
-    static ServerStats probe(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint) { return probe(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint); }
+    static ServerStats probe(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint) {
+        SshCredentials credential=SshKeys.credentials(context,host,port,user,password);
+        ServerStats result=probe(host,port,user,credential,trustedFingerprint);
+        if(!credential.available() && !result.authenticated && !result.hostKeyMismatch && !result.hostFingerprint.isEmpty()){
+            try{
+                if(SshKeys.recoverRoute(context,host,port,user,result.hostFingerprint))
+                    return probe(host,port,user,SshKeys.credentials(context,host,port,user,password),HostTrustStore.get(context,host,port));
+            }catch(Exception e){result.error="Не удалось восстановить сохранённый доступ. Ключи и настройки не удалены.";}
+        }
+        return result;
+    }
     static SshCommandResult runCommand(String host, int port, String user, String password, String trustedFingerprint, String command, int timeoutMs) { return runCommand(host, port, user, SshCredentials.password(password), trustedFingerprint, command, timeoutMs); }
     static SshCommandResult runCommand(android.content.Context context, String host, int port, String user, String password, String trustedFingerprint, String command, int timeoutMs) { return runCommand(host, port, user, SshKeys.credentials(context, host, port, user, password), trustedFingerprint, command, timeoutMs); }
 

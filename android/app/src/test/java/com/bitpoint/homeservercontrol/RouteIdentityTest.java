@@ -17,6 +17,7 @@ public class RouteIdentityTest {
         @Implementation protected static void saveNamed(Context c,String id,String value){store.put(id,value);}
         @Implementation protected static String loadNamed(Context c,String id){return store.getOrDefault(id,"");}
         @Implementation protected static void clearNamed(Context c,String id){store.remove(id);}
+        @Implementation protected static boolean containsNamed(Context c,String id){return store.containsKey(id);}
     }
     @Test public void sameServerNewWifiAddressKeepsPrivateIdentityAndOriginalPin()throws Exception{
         Context c=RuntimeEnvironment.getApplication();Secrets.store.clear();JSONObject key=SshKeys.generate();String first="192.0.2.11",next="198.51.100.22";
