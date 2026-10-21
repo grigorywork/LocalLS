@@ -1,0 +1,26 @@
+name: Publish LocalLS Android 0.11.8
+on:
+  push:
+    branches: [codex/publish-native-0118]
+    paths: ['.github/workflows/publish-native-0118.yml', 'release-artifacts/android-0.11.8/**']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify prepared signed release
+        working-directory: release-artifacts/android-0.11.8
+        run: |
+          sha256sum -c SHA256SUMS-Android-0.11.8.txt
+          echo '9d3aa9d339202d6d685804885136cd681687d6398e9cde36f71b8899dfe79b0f  LocalLS-0.11.8-release.apk' | sha256sum -c -
+      - name: Publish APK and setup guide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: release-artifacts/android-0.11.8
+        run: |
+          gh release upload android-v0.11.8 --repo grigorywork/LocalLS --clobber LocalLS-0.11.8-release.apk LocalLS-0.11.8-source.zip LocalLS-0.11.8-verification.json LocalLS-0.11.8-report.md LocalLS-0.11.8-release-notes.md SHA256SUMS-Android-0.11.8.txt LocalLS-0.11.8-setup.txt
+          gh release edit android-v0.11.8 --repo grigorywork/LocalLS --draft=false --prerelease=false --latest
