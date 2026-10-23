@@ -1,2 +1,4 @@
 distributions/**/*.txt text eol=crlf
 /SECURITY_GUIDE_*.txt text eol=crlf
+
+/downloads/LocalLS-0.9.5-Windows-x64-home-status-Setup.exe filter=lfs diff=lfs merge=lfs -text
