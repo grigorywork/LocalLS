@@ -13,5 +13,5 @@
 
 [Короткая инструкция](android/app/src/main/assets/phone-setup.txt) · [Android](android/README.md) · [Сохранённые выпуски](https://github.com/grigorywork/LocalLS/releases)
 
-Актуальный проверенный Android APK: [LocalLS 1.32](https://raw.githubusercontent.com/grigorywork/LocalLS/10da3f0cf19239b85f669d0a8268d832af201f54/downloads/LocalLS-1.32-code54-audit-20261028.apk).
+Актуальный проверенный Android APK: [LocalLS 1.33](https://raw.githubusercontent.com/grigorywork/LocalLS/9d2c24ec2dc97de6433ac97b3f10101441b5b4ac/downloads/LocalLS-1.33-code55-devices-20261028.apk).
 Windows с клиентом и сервером готовится отдельно; Fedora — следующий этап.
