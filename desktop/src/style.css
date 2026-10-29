@@ -255,6 +255,8 @@ dialog form>div { display:flex; justify-content:flex-end; gap:9px; }
 ::-webkit-scrollbar { width:7px; height:7px; }
 ::-webkit-scrollbar-thumb { background:color-mix(in srgb,var(--muted) 32%,transparent); border-radius:8px; }
 @media(max-width:1180px) {
+  .header-actions .status { display:none; }
+  .header-actions button { white-space:nowrap; }
   .server-columns { grid-template-columns:1fr; }
   .server-columns>.stack:first-child { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start; }
   .server-columns>.stack:first-child .metrics { grid-template-columns:1fr; }

@@ -7,7 +7,7 @@
 Unicode true
 Name "LocalLS"
 SetCompressor /SOLID lzma
-SetCompressorDictSize 64
+SetCompressorDictSize 128
 RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\Programs\LocalLS"
 InstallDirRegKey HKCU "Software\LocalLS" "InstallDir"
@@ -42,6 +42,11 @@ Section "LocalLS" install
   SetOutPath "$INSTDIR"
   SetOverwrite on
   File /r "${APP_OUT_DIR}\*"
+  ; Retire only the two obsolete runtime files shipped by older LocalLS builds.
+  Delete "$INSTDIR\dxcompiler.dll"
+  Delete "$INSTDIR\dxil.dll"
+  Delete "$INSTDIR\resources\elevate.exe"
+  ClearErrors
   WriteUninstaller "$INSTDIR\Uninstall LocalLS.exe"
   WriteRegStr HKCU "Software\LocalLS" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "DisplayName" "LocalLS"

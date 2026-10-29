@@ -4,6 +4,8 @@ const path = require('node:path');
 const clientVersion = require('../package.json').version.split('.').map(Number);
 module.exports = async context => {
   if (context.electronPlatformName !== 'win32') return;
+  const removed=require('./slim-runtime.cjs').slimRuntime(context.appOutDir);
+  fs.writeFileSync(path.join(path.dirname(context.appOutDir),'runtime-savings.json'),JSON.stringify({removed,removedBytes:removed.reduce((n,f)=>n+f.bytes,0)},null,2));
   const PE = await import('pe-library');
   const R = await import('resedit');
   const target = path.join(context.appOutDir, 'LocalLS.exe');

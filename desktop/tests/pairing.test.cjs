@@ -15,6 +15,10 @@ test('expired, malformed, secret-bearing and oversized QR payloads fail closed',
  for(const value of [invitation({expires:Date.now()-1}),invitation({port:'8022'}),invitation({user:'user;command'}),invitation({pin:'wrong'}),{...invitation(),privateKey:'never-import-this'},invitation({type:'client'}),null])assert.throws(()=>pairing.decode(JSON.stringify(value)));
  assert.throws(()=>pairing.decode(' '.repeat(12001)));assert.throws(()=>pairing.decodePixels(Buffer.alloc(4),30000,30000));assert.throws(()=>pairing.decodePixels(Buffer.alloc(40*40*4),40,40));
 });
+test('transparent PNG reads on white instead of turning every transparent module black',async()=>{
+ const code=invitation(),png=PNG.sync.read(await QRCode.toBuffer(JSON.stringify(code),{width:720,margin:4,color:{dark:'#000000ff',light:'#00000000'}}));
+ assert.deepEqual(pairing.decodePixels(png.data,png.width,png.height),code);
+});
 test('matching code binds exact server, nonce and client identity',async()=>{
  const code=invitation(),key=await security.generateIdentity(),other=await security.generateIdentity();const value=pairing.syncCode(code,key.publicKey);assert.match(value,/^\d{4} \d{4}$/);
  assert.equal(value,pairing.syncCode(code,key.publicKey.replace(/ LocalLS$/,' comment')));assert.notEqual(value,pairing.syncCode({...code,nonce:crypto.randomUUID()},key.publicKey));assert.notEqual(value,pairing.syncCode(code,other.publicKey));

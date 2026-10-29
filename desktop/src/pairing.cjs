@@ -18,13 +18,15 @@ function syncCode(code,publicKey){
 }
 function decodePixels(data,width,height){
  if(!Number.isInteger(width)||!Number.isInteger(height)||width<21||height<21||width*height>20000000||data.length!==width*height*4)throw new Error('QR_IMAGE_INVALID');
- const result=jsQR(new Uint8ClampedArray(data),width,height,{inversionAttempts:'attemptBoth'});
+ const pixels=new Uint8ClampedArray(data);
+ for(let i=0;i<pixels.length;i+=4){const alpha=pixels[i+3]/255;if(alpha<1){for(let c=0;c<3;c++)pixels[i+c]=pixels[i+c]*alpha+255*(1-alpha);pixels[i+3]=255;}}
+ const result=jsQR(pixels,width,height,{inversionAttempts:'attemptBoth'});
  if(!result)throw new Error('QR_IMAGE_INVALID');return decode(result.data);
 }
 function imageCode(image){
- if(!image||image.isEmpty())throw new Error('QR_IMAGE_INVALID');const {width,height}=image.getSize();
+ if(!image||image.isEmpty())throw new Error('QR_IMAGE_INVALID');const {width,height}=image.getSize(1);
  if(width*height>20000000)throw new Error('QR_IMAGE_INVALID');
- const bitmap=image.toBitmap();for(let i=0;i<bitmap.length;i+=4){const blue=bitmap[i];bitmap[i]=bitmap[i+2];bitmap[i+2]=blue;}
+ const bitmap=image.toBitmap({scaleFactor:1});for(let i=0;i<bitmap.length;i+=4){const blue=bitmap[i];bitmap[i]=bitmap[i+2];bitmap[i+2]=blue;}
  return decodePixels(bitmap,width,height);
 }
 function loginAttempt(code,identity,pairing=false,Client=require('ssh2').Client){

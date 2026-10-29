@@ -1,5 +1,6 @@
 'use strict';
 const {app,BrowserWindow,ipcMain,dialog,Tray,Menu,nativeImage,safeStorage,shell,powerSaveBlocker,powerMonitor,nativeTheme} = require('electron');
+require('./runtime-policy.cjs').configureRuntime(app);
 const fs=require('node:fs'); const path=require('node:path'); const {execFile}=require('node:child_process');
 const {profile,endpoint,name,remotePath,safeDownloadName,call,publicError,Server,Transfers}=require('./core.cjs');
 const security=require('./security.cjs');
@@ -193,7 +194,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
 app.on('second-instance',()=>{window?.show();window?.focus();});
 app.whenReady().then(()=>{try{hostConfig=serverVault.readConfig(file('server.json'),{port:8022,user:'localls',root:path.join(app.getPath('userData'),'shared'),devices:[]});hostServer.restoreDevices(hostConfig.devices);}catch(error){hostConfigError=error.message;}const stored=read('settings.json',{});settings={...defaultSettings,...stored};if(!Object.hasOwn(stored,'appearanceVersion')){settings.light=stored.theme?stored.theme!=='dark':false;settings.theme=stored.theme==='dark'?'violet':stored.theme||'violet';settings.appearanceVersion=2;}if(!Object.hasOwn(stored,'role'))settings.role=stored.profile?'client':'server';try{settings.profile=profile(settings.profile);effectiveProfile();}catch{settings={...defaultSettings};}localRoot=fs.realpathSync(fs.existsSync(app.getPath('downloads'))?app.getPath('downloads'):app.getPath('home'));transfers.items=read('history.json',[]).filter(j=>['completed','failed','cancelled','running','queued'].includes(j.state)).slice(-1200).map(j=>['running','queued'].includes(j.state)?{...j,state:'failed',speed:0,error:'Не завершено. Подключись к тому же серверу и нажми «Повторить».',recovered:true}:j);
 nativeTheme.themeSource=settings.light?'light':'dark';
-window=new BrowserWindow({width:1280,height:840,minWidth:960,minHeight:660,title:'LocalLS',icon,...windowOptions(settings),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+window=new BrowserWindow({width:1280,height:840,minWidth:960,minHeight:660,title:'LocalLS',icon,...windowOptions(settings),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webgl:false}});
 applyAppearance();
 window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',(e,url)=>{if(url!==require('node:url').pathToFileURL(page).href)e.preventDefault();});window.webContents.session.setPermissionRequestHandler((_,__,cb)=>cb(false));
 window.loadFile(page);if(settings.qrPending&&vaultAvailable()){try{const code=pairing.decode(JSON.stringify(settings.qrPending));resumeQr(code).catch(()=>{});}catch{qrProgress={status:'Параметры и ключ сохранены. Для разрешённого устройства новый QR не нужен.'};}}window.on('close',e=>{if(!quitting){e.preventDefault();window.hide();}});window.on('minimize',()=>window.hide());

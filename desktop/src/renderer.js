@@ -9,6 +9,7 @@ let currentRole='server',currentPanel='',hosting=null,hostQrShown=false,hostQrGe
 let clientTraffic={bytes:0,speed:0,points:Array(60).fill(0)},serverTraffic={bytes:0,speed:0,points:Array(60).fill(0)},trafficReading=false;
 let state,connected=false,currentPage='overview',remoteFolder='.',localFolder='',localRoot='',pendingAttachments=[],jobs=[],toastTimer;
 let networkPayloadBytes=0;
+let appearanceDraft=null,appearanceRevision=0,appearanceWrites=Promise.resolve();
 let remoteGeneration=0,localGeneration=0,connectionGeneration=0,statsRunning=false,connectRunning=false;
 const remoteSelected=new Map(),localSelected=new Map();
 function bytes(n){n=Number(n)||0;if(n<1024)return Math.round(n)+' Б';if(n<1048576)return (n/1024).toFixed(1)+' КБ';if(n<1073741824)return (n/1048576).toFixed(1)+' МБ';return (n/1073741824).toFixed(2)+' ГБ';}
@@ -22,7 +23,7 @@ function appearance(settings){
  document.body.dataset.glass=String(settings.glass===true);document.body.dataset.outline=settings.outline==='light'?'light':'theme';
 }
 function applyState(value,fill=true){
- state=value;document.body.dataset.nativeGlass=String(value.nativeGlass===true);renderQr(value.qrProgress);const s=value.settings,p=s.profile;appearance(s);
+ state=value;document.body.dataset.nativeGlass=String(value.nativeGlass===true);renderQr(value.qrProgress);const s=value.settings,p=s.profile;appearance(appearanceDraft||s);
  $('passwordField').classList.toggle('hidden',s.qrManaged===true&&s.authMethod==='key');$('authMethodField').classList.toggle('hidden',s.qrManaged===true);
  if(fill){for(const k of ['host','port','user','folder'])$(k).value=p[k];$('theme').value=s.theme==='dark'?'violet':s.theme;
   $('lightMode').checked=document.body.dataset.light==='true';$('glassMode').checked=s.glass===true;$('outlineMode').checked=s.outline==='light';$('authMethod').value=s.authMethod;
@@ -33,7 +34,7 @@ function applyState(value,fill=true){
  $('hostMetric').textContent=s.route==='vpn'?s.vpnHost||'Не задан':p.host;$('routeMetric').textContent='Порт '+p.port+' · Доступ '+(s.authMethod==='key'?'по ключу':'к существующему серверу');$('userMetric').textContent=p.user;
  $('appVersion').textContent=value.release?.version||'1.33.0';setRole(s.role||currentRole,false);if(value.hosting)renderHosting(value.hosting);
 }
-function page(id){if(id==='files')setRole('client',false);currentPage=id;for(const el of document.querySelectorAll('.page'))el.classList.toggle('hidden',el.id!==id);for(const el of document.querySelectorAll('[data-page]'))el.classList.toggle('active',el.dataset.page===id);$('pageTitle').textContent={overview:'Главная',files:'Файлы и папки',history:'Очередь'}[id];if(id==='files'){if(!localFolder)loadLocal(localRoot).catch(e=>toast(e.message,true));if(connected)loadRemote(remoteFolder).catch(e=>toast(e.message,true));}if(id==='overview'){drawChart();drawHostChart();}}
+function page(id){if(id==='files')setRole('client');currentPage=id;for(const el of document.querySelectorAll('.page'))el.classList.toggle('hidden',el.id!==id);for(const el of document.querySelectorAll('[data-page]'))el.classList.toggle('active',el.dataset.page===id);$('pageTitle').textContent={overview:'Главная',files:'Файлы и папки',history:'Очередь'}[id];if(id==='files'){if(!localFolder)loadLocal(localRoot).catch(e=>toast(e.message,true));if(connected)loadRemote(remoteFolder).catch(e=>toast(e.message,true));}if(id==='overview'){drawChart();drawHostChart();}}
 for(const el of document.querySelectorAll('[data-page]'))el.addEventListener('click',()=>page(el.dataset.page));
 function drawer(panel){
  currentPanel=panel;$('drawer').classList.remove('hidden');$('drawerShade').classList.remove('hidden');
@@ -42,11 +43,16 @@ function drawer(panel){
  $('saveStatus').textContent='';$('saveSettings').classList.toggle('hidden',panel==='about'||panel==='security');$('saveSettings').disabled=panel==='server'&&hosting?.running===true;
 }
 for(const el of document.querySelectorAll('[data-drawer]'))el.addEventListener('click',()=>drawer(el.dataset.drawer));
-function closeDrawer(){$('drawer').classList.add('hidden');$('drawerShade').classList.add('hidden');if(state)appearance(state.settings);drawChart();drawHostChart();}
+function closeDrawer(){$('drawer').classList.add('hidden');$('drawerShade').classList.add('hidden');if(state)appearance(appearanceDraft||state.settings);drawChart();drawHostChart();}
 on('closeDrawer',closeDrawer);$('drawerShade').addEventListener('click',closeDrawer);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
-function previewAppearance(){appearance({theme:$('theme').value,light:$('lightMode').checked,glass:$('glassMode').checked,outline:$('outlineMode').checked?'light':'theme',appearanceVersion:2});drawChart();drawHostChart();}
+function previewAppearance(){
+ const draft={theme:$('theme').value,light:$('lightMode').checked,glass:$('glassMode').checked,outline:$('outlineMode').checked?'light':'theme',appearanceVersion:2},revision=++appearanceRevision;
+ appearanceDraft=draft;appearance(draft);drawChart();drawHostChart();$('saveStatus').textContent='Сохраняем…';
+ appearanceWrites=appearanceWrites.then(async()=>{const next=await invoke('saveAppearance',draft);if(revision!==appearanceRevision)return;appearanceDraft=null;applyState(next,false);$('saveStatus').textContent='Сохранено';}).catch(error=>{if(revision!==appearanceRevision)return;appearanceDraft=null;if(state)applyState(state);$('saveStatus').textContent='Не сохранено';toast(error.message,true);});
+}
 for(const id of ['theme','lightMode','glassMode','outlineMode'])$(id).addEventListener('change',previewAppearance);
 async function save(){
+ await appearanceWrites;
  if(currentPanel==='settings'){
   const next=await invoke('saveAppearance',{theme:$('theme').value,light:$('lightMode').checked,glass:$('glassMode').checked,outline:$('outlineMode').checked?'light':'theme'});applyState(next);$('saveStatus').textContent='Сохранено';return next;
  }
@@ -95,7 +101,8 @@ async function identityResult(action,arg){const result=await invoke(action,arg);
 on('generateIdentity',()=>identityResult('generateIdentity'));on('removeIdentity',()=>identityResult('removeIdentity'));on('importIdentity',async()=>{const passphrase=$('keyPassphrase').value;$('keyPassphrase').value='';await identityResult('importIdentity',{passphrase});});on('exportPublicKey',()=>invoke('exportPublicKey'));on('installIdentity',async()=>{const password=$('keyBootstrapPassword').value;$('keyBootstrapPassword').value='';await identityResult('installIdentity',{password});});
 
 function renderQr(progress){if(!progress)return;$('qrStatus').textContent=progress.status||'';$('qrSyncCode').textContent=progress.code||'';}
-on('importQrImage',async()=>{const result=await invoke('importQrImage');if(result){applyState(result);renderQr(result.qrProgress);setConnection(result.connected);}});
+async function openQrImage(){drawer('connection');const result=await invoke('importQrImage');if(result){applyState(result);renderQr(result.qrProgress);setConnection(result.connected);}}
+on('importQrImage',openQrImage);on('openQrFile',openQrImage);
 api.on('qr',renderQr);
 
 function fileKind(name){const ext=name.toLowerCase().split('.').pop();if(['jpg','jpeg','png','webp','gif','bmp','heic','svg'].includes(ext))return 'image';if(['mp4','mkv','avi','mov','webm'].includes(ext))return 'video';if(['zip','rar','7z','gz','tar','bz2','xz'].includes(ext))return 'archive';if(ext==='pdf')return 'pdf';if(['dwg','dxf'].includes(ext))return 'cad';if(['mp3','flac','ogg','wav','m4a'].includes(ext))return 'audio';return 'file';}
