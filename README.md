@@ -14,4 +14,4 @@
 [Короткая инструкция](android/app/src/main/assets/phone-setup.txt) · [Android](android/README.md) · [Сохранённые выпуски](https://github.com/grigorywork/LocalLS/releases)
 
 Актуальный проверенный Android APK: [LocalLS 1.36](https://raw.githubusercontent.com/grigorywork/LocalLS/657b18d3482752a7ac28e6277e438a425f683844/downloads/LocalLS-1.36-code58-health-align-final-20261028.apk).
-Windows: [LocalLS 1.33 — клиент и сервер, тестовая сборка](https://raw.githubusercontent.com/grigorywork/LocalLS/45f87cb8fabd215f6907cb88c26a84786e4a1018/downloads/LocalLS-1.33-Windows-x64-Setup.exe). [Короткая инструкция Windows](https://github.com/grigorywork/LocalLS/blob/45f87cb8fabd215f6907cb88c26a84786e4a1018/desktop/README.md). Fedora — следующий этап.
+Windows: [LocalLS 1.34 — клиент и сервер, тестовая сборка](https://raw.githubusercontent.com/grigorywork/LocalLS/bdd93d47ee06498719e388e236f058b829af104f/downloads/LocalLS-1.34-Windows-x64-Setup.exe). [Короткая инструкция Windows](https://github.com/grigorywork/LocalLS/blob/bdd93d47ee06498719e388e236f058b829af104f/desktop/README.md). Fedora — следующий этап.
