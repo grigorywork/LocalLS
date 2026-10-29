@@ -1,0 +1,35 @@
+[
+  {
+    "at": "2026-10-29T12:42:55.122Z",
+    "name": "qr-owner-approval-key-only",
+    "passed": true
+  },
+  {
+    "at": "2026-10-29T12:42:59.340Z",
+    "name": "64MiB-folder-roundtrip",
+    "passed": true,
+    "bytesEachWay": 67108864,
+    "sha256": "0d4d1451c685976f3abef32d0558c78a9a854f9ce1d9f49e96807cbfa9b45a2b",
+    "unicode": true,
+    "zeroByte": true,
+    "emptyDirectory": true
+  },
+  {
+    "at": "2026-10-29T12:42:59.382Z",
+    "name": "cancel-midstream-next-job",
+    "passed": true,
+    "bytesBeforeCancel": 1048576
+  },
+  {
+    "at": "2026-10-29T12:42:59.432Z",
+    "name": "disconnect-queue",
+    "passed": true,
+    "bytesBeforeCut": 1114112,
+    "partialFiles": 1
+  },
+  {
+    "at": "2026-10-29T12:42:59.481Z",
+    "name": "same-key-reconnect-after-server-restart",
+    "passed": true
+  }
+]

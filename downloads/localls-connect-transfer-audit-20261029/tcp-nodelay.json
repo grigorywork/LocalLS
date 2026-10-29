@@ -1,0 +1,58 @@
+[
+  {
+    "trial": 0,
+    "client": false,
+    "server": false,
+    "bytesEachWay": 2097152,
+    "roundtripMs": 17814
+  },
+  {
+    "trial": 0,
+    "client": true,
+    "server": false,
+    "bytesEachWay": 2097152,
+    "roundtripMs": 8965
+  },
+  {
+    "trial": 0,
+    "client": false,
+    "server": true,
+    "bytesEachWay": 2097152,
+    "roundtripMs": 8926
+  },
+  {
+    "trial": 0,
+    "client": true,
+    "server": true,
+    "bytesEachWay": 2097152,
+    "roundtripMs": 88
+  },
+  {
+    "trial": 1,
+    "client": false,
+    "server": false,
+    "bytesEachWay": 2097152,
+    "roundtripMs": 17761
+  },
+  {
+    "trial": 1,
+    "client": true,
+    "server": false,
+    "bytesEachWay": 2097152,
+    "roundtripMs": 8983
+  },
+  {
+    "trial": 1,
+    "client": false,
+    "server": true,
+    "bytesEachWay": 2097152,
+    "roundtripMs": 8941
+  },
+  {
+    "trial": 1,
+    "client": true,
+    "server": true,
+    "bytesEachWay": 2097152,
+    "roundtripMs": 98
+  }
+]

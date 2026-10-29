@@ -7,6 +7,7 @@ const { EventEmitter } = require('node:events');
 const { pipeline } = require('node:stream/promises');
 const { Transform } = require('node:stream');
 const {TrafficHistory} = require('./traffic-history.cjs');
+const {call,protect:protectSftp}=require('./sftp-channel.cjs');
 
 function profile(input) {
   if (!input || typeof input !== 'object') throw new Error('Некорректный профиль');
@@ -36,7 +37,6 @@ function safeDownloadName(value) {
   if (/[<>:"|?*]/.test(value) || /[. ]$/.test(value) || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i.test(value)) throw new Error('Имя файла несовместимо с Windows');
   return value;
 }
-function call(sftp, method, ...args) { return new Promise((resolve, reject) => sftp[method](...args, (err, result) => err ? reject(err) : resolve(result))); }
 function publicError(err) {
   const known={PASSWORD_LONG:'Пароль: максимум 4096 символов.',TOKEN_LONG:'Токен: максимум 4096 символов.',CONNECTION_CHANGED:'Параметры подключения изменились. Подключитесь заново.',QUEUE_STORE:'Не удалось сохранить очередь. Освободи место в папке приложения и повтори.',COPY_LINK:'Передача ссылок и специальных файлов не поддерживается. Выбери обычные файлы или папки без ссылок.',COPY_LIMIT:'Слишком большая папка или истекло время подготовки. За один раз можно выбрать до 1000 элементов и 48 уровней.',COPY_FOLDER_CHANGED:'Выбранная папка изменилась. Выбери её заново; прежние файлы сохранены.',SCAN_TIMEOUT:'Сервер не ответил при подготовке папки. Проверь соединение и повтори.',RETRY_PROFILE:'Подключись к прежнему серверу для повтора. Старые задания без привязки к ключу выбери заново.',CLIENT_VAULT_UNREADABLE:'Сохранённое хранилище доступа не удалось открыть. Ключи не заменены; восстанови доступ к защищённому хранилищу Windows.',SERVER_VAULT_REQUIRED:'Защищённое хранилище Windows недоступно. Ключ сервера не создан.',SERVER_VAULT_UNREADABLE:'Не удалось открыть прежний ключ сервера. Он сохранён без замены; восстанови доступ к защищённому хранилищу Windows.',SERVER_VAULT_WRITE:'Не удалось сохранить ключ сервера. Проверь доступ к папке приложения.',SERVER_CONFIG_UNREADABLE:'Не удалось прочитать настройки сервера. Прежние устройства и данные не сброшены.',SERVER_STOP_FIRST:'Сначала останови сервер для изменения его параметров.',SERVER_NO_NETWORK:'Подключи компьютер к локальной сети, чтобы показать QR-код.',DEVICE_LIMIT:'Уже разрешено семь устройств. Сначала отзови доступ одного из них.',PORT_BUSY:'Этот порт уже занят. Выбери другой в настройках сервера.',SOURCE_CHANGED:'Исходный файл изменился. Повторите передачу.',QR_VAULT_UNREADABLE:'Сохранённое хранилище ключей не удалось открыть. Прежние ключи не заменены; восстанови доступ к системному хранилищу.',QR_INVALID:'Это не QR подключения к серверу LocalLS.',QR_EXPIRED:'QR истёк. Обнови его на телефоне-сервере.',QR_IMAGE_INVALID:'На изображении не найден читаемый QR LocalLS. Выбери чёткое фото или скриншот.',QR_VAULT_REQUIRED:'Системное защищённое хранилище недоступно. Включи его, чтобы сохранить привязку без повторного QR.',KEY_INVALID:'Ключ не распознан или неверна парольная фраза.',KEY_WEAK:'Используйте RSA не менее 3072 бит или Ed25519/ECDSA.',KEY_UNSUPPORTED:'Тип SSH-ключа не поддерживается.',KEY_GENERATION_FAILED:'Не удалось создать SSH-ключ.',KEY_REMOTE_UNSAFE:'Папка .ssh или authorized_keys имеет небезопасный тип или размер.',KEY_MISSING:'Создайте или импортируйте SSH-ключ в разделе безопасности.',KEY_BOOTSTRAP_REQUIRED:'Для установки публичного ключа введите действующий пароль сервера.',AGENT_TRUST_REQUIRED:'Сначала проверьте и подтвердите HTTPS-сертификат агента.',AGENT_TLS_FAILED:'Защищённое соединение агента не установлено: проверьте HTTPS, сертификат и порт.',AGENT_FAILED:'Агент не выполнил запрос.',NO_TOKEN:'Сохраните токен существующего агента в настройках сервера.',NOT_INSTALLED:'Установите официальный клиент Tailscale.',NOT_CONNECTED:'Сначала подключитесь к SSH-серверу.',FILES_ONLY:'Для передачи выберите файлы внутри папки.',DEST_EXISTS:'Файл с таким именем уже существует.',EXISTS:'Это имя уже занято.',NO_KEY:'Не удалось получить ключ SSH-сервера.'};
   if(known[err?.message])return known[err.message];
@@ -60,6 +60,7 @@ class Server extends EventEmitter {
       c.on('close', () => { if (!found) reject(new Error('NO_KEY')); });
       c.connect({ host: p.host, port: p.port, username: p.user, readyTimeout: 12000,
         authHandler: ['none'], hostVerifier: key => { found = true; resolve(fingerprint(key)); return false; } });
+      c.setNoDelay?.(true);
     });
   }
   async connect(p, credential, trusted) {
@@ -79,11 +80,15 @@ class Server extends EventEmitter {
         c.connect({ host: p.host, port: p.port, username: p.user, ...(auth.method==='key'?{privateKey:auth.privateKey,passphrase:auth.passphrase||'',authHandler:['publickey']}:{password:auth.password||'',authHandler:['password']}),
           readyTimeout: 15000, keepaliveInterval: 15000, keepaliveCountMax: 3,
           hostVerifier: key => { mismatch = fingerprint(key) !== trusted; return !mismatch; } });
+        c.setNoDelay?.(true);
       });
       requireCurrent();
       const s = await new Promise((resolve, reject) => c.sftp((err, channel) => err ? reject(err) : resolve(channel)));
       requireCurrent();
+      protectSftp(s);
       this.sftp = s;
+      const channelClosed=()=>{if(this.client===c&&this.sftp===s){this.disconnect();this.emit('closed');}};
+      s.once?.('end',channelClosed);s.once?.('close',channelClosed);s.once?.('error',channelClosed);
       const location = await call(s, 'realpath', p.folder);
       requireCurrent();
       const result = await this.list(location);

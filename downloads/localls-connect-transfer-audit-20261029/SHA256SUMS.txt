@@ -1,0 +1,1 @@
+e575f5dd84c442bd2528b4ad02d4e6c00467d22a5764d6ee72252c363a9e7ca3  LocalLS-1.36-Windows-x64-Setup.exe
