@@ -4,9 +4,10 @@
 !include "x64.nsh"
 !include "WinVer.nsh"
 !include "${PROJECT_DIR}\tools\package-path.nsh"
+Unicode true
 Name "LocalLS"
 SetCompressor /SOLID lzma
-SetCompressorDictSize 32
+SetCompressorDictSize 64
 RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\Programs\LocalLS"
 InstallDirRegKey HKCU "Software\LocalLS" "InstallDir"
@@ -47,7 +48,7 @@ Section "LocalLS" install
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "Publisher" "MSS9LN"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "DisplayIcon" "$INSTDIR\LocalLS.exe"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "UninstallString" '$"$INSTDIR\Uninstall LocalLS.exe$"'
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "UninstallString" '"$INSTDIR\Uninstall LocalLS.exe"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "NoRepair" 1
   CreateDirectory "$SMPROGRAMS\LocalLS"

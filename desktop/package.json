@@ -16,6 +16,7 @@
   "build": {
     "appId": "com.localls.desktop",
     "productName": "LocalLS",
+    "electronLanguages": ["en-US", "ru"],
     "directories": {
       "output": "artifacts"
     },

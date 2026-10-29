@@ -1,16 +1,16 @@
 {
   "installer": {
-    "path": "artifacts/windows-1.33-20261029-final/LocalLS-1.33-Windows-x64-Setup.exe",
-    "size": 112677027,
-    "sha256": "5d7869c7a90e01eb8d469969501ef36dfda94a52aa939b033b54a5d9530b11e0"
+    "path": "/workspace/LocalLS/desktop/artifacts/windows-1.33-20261029-release/LocalLS-1.33-Windows-x64-Setup.exe",
+    "size": 104006912,
+    "sha256": "8751084183197638edfdda87cd23d3e6733d922f846eec5ad3836fc6707e4430"
   },
   "application": {
-    "path": "artifacts/windows-1.33-20261029-final/win-unpacked/LocalLS.exe",
+    "path": "/workspace/LocalLS/desktop/artifacts/windows-1.33-20261029-release/win-unpacked/LocalLS.exe",
     "size": 246830592,
     "sha256": "4bdb2d713aee891ed16b9bb8e45aca3118e36833a48a7adacf3213a94671475d"
   },
   "archive": {
-    "path": "artifacts/windows-1.33-20261029-final/win-unpacked/resources/app.asar",
+    "path": "/workspace/LocalLS/desktop/artifacts/windows-1.33-20261029-release/win-unpacked/resources/app.asar",
     "size": 3050094,
     "sha256": "44e749bab33a6b193f7feaaa88ffabea7acd8096c17bf808cba03316387e8fb7"
   },
@@ -24,8 +24,7 @@
   "installerPE": true,
   "uninstallerDeletesOnlyManifest": true,
   "packagedFileCount": 368,
-  "at": "2026-10-29T06:08:56.908039+00:00",
-  "sharedInstaller": "/workspace/shared/LocalLS-1.33-Windows-x64-client-server-20261029.exe",
+  "at": "2026-10-29T06:30:03.143306+00:00",
   "nodeTests": 47,
   "pythonVersionTests": 4,
   "guiScenarios": [
@@ -40,5 +39,10 @@
   "authenticodeCertificateTableEmpty": true,
   "physicalWindowsRuntimeTested": false,
   "old438ArtifactsPreserved": true,
-  "androidFedoraPreserved": true
+  "androidFedoraPreserved": true,
+  "electronLocales": [
+    "en-US",
+    "ru"
+  ],
+  "sharedInstaller": "/workspace/shared/LocalLS-1.33-Windows-x64-Setup-20261029.exe"
 }
