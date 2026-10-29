@@ -24,18 +24,5 @@ module.exports = async context => {
   }
   res.outputResource(exe);
   fs.writeFileSync(target, Buffer.from(exe.generate()));
-  const files = [], dirs = [];
-  function walk(dir) {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, e.name);
-      const rel = path.relative(context.appOutDir, full).split(path.sep).join('\\');
-      if (e.isDirectory()) { dirs.push(rel); walk(full); } else files.push(rel);
-    }
-  }
-  walk(context.appOutDir);
-  const escape = value => value.replaceAll('$', '$$').replaceAll('"', '$\\"');
-  fs.writeFileSync(path.join(context.packager.projectDir, 'tools/package-path.nsh'), '!define APP_OUT_DIR "' + escape(context.appOutDir) + '"\n');
-  const lines = files.map(p => `Delete "$INSTDIR\\${escape(p)}"`);
-  lines.push(...dirs.sort((a, b) => b.length - a.length).map(p => `RMDir "$INSTDIR\\${escape(p)}"`));
-  fs.writeFileSync(path.join(context.packager.projectDir, 'tools/uninstall-files.nsh'), lines.join('\n') + '\n');
+  require('./installer-inputs.cjs').writeInstallerInputs(context.appOutDir,context.packager.projectDir);
 };

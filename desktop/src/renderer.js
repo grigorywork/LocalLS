@@ -22,7 +22,7 @@ function appearance(settings){
  document.body.dataset.glass=String(settings.glass===true);document.body.dataset.outline=settings.outline==='light'?'light':'theme';
 }
 function applyState(value,fill=true){
- state=value;renderQr(value.qrProgress);const s=value.settings,p=s.profile;appearance(s);
+ state=value;document.body.dataset.nativeGlass=String(value.nativeGlass===true);renderQr(value.qrProgress);const s=value.settings,p=s.profile;appearance(s);
  $('passwordField').classList.toggle('hidden',s.qrManaged===true&&s.authMethod==='key');$('authMethodField').classList.toggle('hidden',s.qrManaged===true);
  if(fill){for(const k of ['host','port','user','folder'])$(k).value=p[k];$('theme').value=s.theme==='dark'?'violet':s.theme;
   $('lightMode').checked=document.body.dataset.light==='true';$('glassMode').checked=s.glass===true;$('outlineMode').checked=s.outline==='light';$('authMethod').value=s.authMethod;

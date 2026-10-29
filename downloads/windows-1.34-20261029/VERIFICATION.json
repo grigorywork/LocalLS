@@ -1,0 +1,56 @@
+{
+  "installer": {
+    "path": "/workspace/LocalLS/desktop/artifacts/windows-1.34-20261029-ready/LocalLS-1.34-Windows-x64-Setup.exe",
+    "size": 104004306,
+    "sha256": "4c51b83d8b45bacd0338629375124268acf0335beeceda974597b0875c17e7e8"
+  },
+  "application": {
+    "path": "/workspace/LocalLS/desktop/artifacts/windows-1.34-20261029-ready/win-unpacked/LocalLS.exe",
+    "size": 246830592,
+    "sha256": "d576e48e48d92ff30a4beaa0c9eac37098a96701101c7ddfdebfb800b303d1e5"
+  },
+  "archive": {
+    "path": "/workspace/LocalLS/desktop/artifacts/windows-1.34-20261029-ready/win-unpacked/resources/app.asar",
+    "size": 3053168,
+    "sha256": "c041f3a9bc8205a94203e20d74b2fc863fe65440f99ede9779e1d26791084979"
+  },
+  "package": "localls-desktop",
+  "version": "1.34.0",
+  "windowsRuntimeTested": false,
+  "authenticodeSigned": false,
+  "architecture": "Windows x64",
+  "appIcon": "cloud + lightning, 6 ICO sizes",
+  "sourceMatchesPackage": true,
+  "installerPE": true,
+  "uninstallerDeletesOnlyManifest": true,
+  "packagedFileCount": 369,
+  "at": "2026-10-29T07:23:08.862051+00:00",
+  "nodeTests": 52,
+  "pythonVersionTests": 4,
+  "guiScenarios": [
+    "client",
+    "server",
+    "QR",
+    "damaged vault",
+    "packaged ASAR server",
+    "matte32",
+    "stale-connect",
+    "invalid-save"
+  ],
+  "folderRoundtrip": true,
+  "sourceMatchesInstallerPayload": true,
+  "authenticodeCertificateTableEmpty": true,
+  "physicalWindowsRuntimeTested": false,
+  "old438ArtifactsPreserved": true,
+  "androidFedoraPreserved": true,
+  "electronLocales": [
+    "en-US",
+    "ru"
+  ],
+  "sharedInstaller": "/workspace/shared/LocalLS-1.34-Windows-x64-Setup-20261029.exe",
+  "nodeTestBreakdown": {
+    "applicationAndMaterial": 50,
+    "buildChecks": 2
+  },
+  "nativeWindowsAcrylicTested": false
+}

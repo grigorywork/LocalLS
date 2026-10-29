@@ -1,6 +1,6 @@
 {
   "name": "localls-desktop",
-  "version": "1.33.0",
+  "version": "1.34.0",
   "description": "LocalLS — Windows SSH/SFTP client and server",
   "author": "MSS9LN",
   "license": "UNLICENSED",
@@ -10,13 +10,16 @@
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",
     "test:ui": "node tools/ui-smoke.cjs",
-    "build:win": "electron-builder --win nsis --x64 --publish never",
+    "build:win": "node tools/build-windows.cjs",
     "build:linux-test": "electron-builder --linux dir --x64"
   },
   "build": {
     "appId": "com.localls.desktop",
     "productName": "LocalLS",
-    "electronLanguages": ["en-US", "ru"],
+    "electronLanguages": [
+      "en-US",
+      "ru"
+    ],
     "directories": {
       "output": "artifacts"
     },
@@ -46,7 +49,7 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "artifactName": "LocalLS-1.33-Windows-x64-Setup.exe",
+      "artifactName": "LocalLS-1.34-Windows-x64-Setup.exe",
       "script": "tools/installer.nsi",
       "warningsAsErrors": false
     },
