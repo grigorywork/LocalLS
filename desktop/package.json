@@ -1,8 +1,8 @@
 {
   "name": "localls-desktop",
-  "version": "0.9.5",
-  "description": "LocalLS \u2014 Windows SSH/SFTP client",
-  "author": "LocalLS",
+  "version": "1.33.0",
+  "description": "LocalLS — Windows SSH/SFTP client and server",
+  "author": "MSS9LN",
   "license": "UNLICENSED",
   "private": true,
   "main": "src/main.cjs",
@@ -21,6 +21,7 @@
     },
     "files": [
       "src/**/*",
+      "release.json",
       "assets/**/*",
       "package.json",
       "!**/*.node",
@@ -44,7 +45,7 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "artifactName": "LocalLS-0.9.5-Windows-x64-Setup.exe",
+      "artifactName": "LocalLS-1.33-Windows-x64-Setup.exe",
       "script": "tools/installer.nsi",
       "warningsAsErrors": false
     },
@@ -56,11 +57,13 @@
     "publish": []
   },
   "dependencies": {
-    "ssh2": "1.17.0"
+    "jsqr": "1.4.0",
+    "ssh2": "1.17.0",
+    "qrcode": "1.5.4"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
-    "electron": "44.7.0",
+    "electron": "44.9.3",
     "electron-builder": "26.15.3",
     "playwright": "1.64.0",
     "resedit": "3.1.0"

@@ -17,8 +17,8 @@ module.exports = async context => {
     vi.setFileVersion(...clientVersion, 0, 1033);
     vi.setProductVersion(...clientVersion, 0, 1033);
     vi.setStringValues({ lang: 1033, codepage: 1200 }, {
-      FileDescription: 'LocalLS — SSH / SFTP', ProductName: 'LocalLS', CompanyName: 'LocalLS',
-      OriginalFilename: 'LocalLS.exe', InternalName: 'LocalLS', LegalCopyright: 'LocalLS'
+      FileDescription: 'LocalLS — SSH / SFTP client and server', ProductName: 'LocalLS', CompanyName: 'MSS9LN',
+      OriginalFilename: 'LocalLS.exe', InternalName: 'LocalLS', LegalCopyright: 'MSS9LN'
     });
     vi.outputToResourceEntries(res.entries);
   }
@@ -34,6 +34,7 @@ module.exports = async context => {
   }
   walk(context.appOutDir);
   const escape = value => value.replaceAll('$', '$$').replaceAll('"', '$\\"');
+  fs.writeFileSync(path.join(context.packager.projectDir, 'tools/package-path.nsh'), '!define APP_OUT_DIR "' + escape(context.appOutDir) + '"\n');
   const lines = files.map(p => `Delete "$INSTDIR\\${escape(p)}"`);
   lines.push(...dirs.sort((a, b) => b.length - a.length).map(p => `RMDir "$INSTDIR\\${escape(p)}"`));
   fs.writeFileSync(path.join(context.packager.projectDir, 'tools/uninstall-files.nsh'), lines.join('\n') + '\n');

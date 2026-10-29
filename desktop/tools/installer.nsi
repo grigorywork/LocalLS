@@ -3,7 +3,10 @@
 !include "MUI2.nsh"
 !include "x64.nsh"
 !include "WinVer.nsh"
+!include "${PROJECT_DIR}\tools\package-path.nsh"
 Name "LocalLS"
+SetCompressor /SOLID lzma
+SetCompressorDictSize 32
 RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\Programs\LocalLS"
 InstallDirRegKey HKCU "Software\LocalLS" "InstallDir"
@@ -37,12 +40,12 @@ FunctionEnd
 Section "LocalLS" install
   SetOutPath "$INSTDIR"
   SetOverwrite on
-  File /r "${PROJECT_DIR}\artifacts\win-unpacked\*"
+  File /r "${APP_OUT_DIR}\*"
   WriteUninstaller "$INSTDIR\Uninstall LocalLS.exe"
   WriteRegStr HKCU "Software\LocalLS" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "DisplayName" "LocalLS"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "DisplayVersion" "${VERSION}"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "Publisher" "LocalLS"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "Publisher" "MSS9LN"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "DisplayIcon" "$INSTDIR\LocalLS.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "UninstallString" '$"$INSTDIR\Uninstall LocalLS.exe$"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LocalLS" "NoModify" 1
