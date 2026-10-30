@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: localls-preview:; media-src localls-preview:; frame-src localls-preview:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>LocalLS</title>
   <link rel="stylesheet" href="style.css">
@@ -19,7 +19,7 @@
       <button class="nav" data-drawer="settings" data-icon="settings">Настройки</button>
       <button class="nav" data-drawer="about" data-icon="info">О приложении</button>
       <div class="server-mini"><i id="sideDot"></i><span id="sideHost">Нет подключения</span></div>
-      <small>LocalLS · 1.39.0 <span>MSS9LN</span></small>
+      <small>LocalLS · 1.40.0 <span>MSS9LN</span></small>
     </div>
   </aside>
   <main>
@@ -59,14 +59,14 @@
     </section>
     <section id="files" class="page hidden">
       <div class="file-toolbar"><div><button id="attachFiles" class="primary" data-icon="upload">Отправить</button><button id="downloadFiles" class="quiet" data-icon="download">На компьютер</button><button id="clearSelection" class="text-button">Снять выбор</button></div><button id="refreshFiles" class="icon-button" data-icon="refresh" title="Обновить папки" aria-label="Обновить папки"></button></div>
-      <div class="selection-bar"><span id="selectionCount">Ничего не выбрано</span><span class="muted">Двойной щелчок — открыть папку</span></div>
+      <div class="selection-bar"><span id="selectionCount">Ничего не выбрано</span><span class="muted">Удерживай файл — быстрый просмотр</span><button id="previewFile" class="text-button" data-icon="eye" disabled>Просмотр</button></div>
       <div class="panes">
         <article class="card pane"><div class="pane-title"><h3 data-icon="computer">Этот компьютер</h3><button id="chooseLocal" class="text-button">Выбрать папку</button></div><div class="path-bar"><button id="localUp" class="icon-button" data-icon="up" title="Выше" aria-label="Папка выше"></button><span id="localPath">—</span></div><div class="list-head"><span>Имя</span><span>Размер</span></div><div id="localEntries" class="entries"></div><div class="pane-footer" id="localSummary">0 элементов</div></article>
         <article class="card pane"><div class="pane-title"><h3 data-icon="server">Сервер</h3><div><button id="newFolder" class="icon-button" data-icon="folderPlus" title="Новая папка" aria-label="Новая папка"></button><button id="renameFile" class="icon-button" data-icon="edit" title="Переименовать" aria-label="Переименовать"></button><button id="deleteFile" class="icon-button" data-icon="trash" title="Удалить" aria-label="Удалить"></button></div></div><div class="path-bar"><button id="remoteUp" class="icon-button" data-icon="up" title="Выше" aria-label="Папка выше"></button><input id="remotePath" aria-label="Путь на сервере" placeholder="Путь на сервере"><button id="goRemote" class="icon-button" data-icon="arrow" title="Открыть путь" aria-label="Открыть путь"></button></div><div class="list-head"><span>Имя</span><span>Размер</span></div><div id="remoteEntries" class="entries empty">Подключись к серверу</div><div class="pane-footer" id="remoteSummary">Выбор сохраняется между папками</div></article>
       </div>
       <div id="attachmentBar" class="card attachment-bar hidden"><span id="attachmentLabel"></span><button id="sendAttachments" class="primary" data-icon="upload">Отправить в открытую папку</button><button id="discardAttachments" class="icon-button" data-icon="close" title="Убрать вложения" aria-label="Убрать вложения"></button></div>
     </section>
-    <section id="history" class="page hidden"><article class="card queue-card"><div class="card-head"><h3>Очередь и история</h3><span class="muted">Передачи продолжаются в трее</span></div><div id="historyTransfers" class="empty">Пока нет передач</div></article></section>
+    <section id="history" class="page hidden"><article class="card queue-card"><div class="card-head"><h3>Очередь и история</h3><div class="queue-actions"><button id="cancelAllTransfers" class="quiet" data-icon="close" disabled>Отменить все</button><button id="clearTransferList" class="quiet" data-icon="trash" disabled>Очистить список</button></div></div><div id="historyTransfers" class="empty">Пока нет передач</div></article></section>
     <footer><span id="footerState"><i></i>Готов к подключению</span><span id="footerSpeed">SFTP · 0 Б/с</span></footer>
   </main>
   <div id="drawerShade" class="drawer-shade hidden"></div>
@@ -84,11 +84,14 @@
       <div data-panel="security" class="hidden"><h3>SSH-ключ этого компьютера</h3><p id="identityStatus" class="note"></p><div class="action-list"><button id="generateIdentity" class="list-action" data-icon="shield"><span>Создать SSH-ключ</span><span class="chevron">›</span></button><button id="importIdentity" class="list-action" data-icon="import"><span>Импортировать ключ</span><span class="chevron">›</span></button><button id="exportPublicKey" class="list-action" data-icon="export"><span>Сохранить публичный ключ</span><span class="chevron">›</span></button><button id="removeIdentity" class="list-action danger" data-icon="trash"><span>Удалить локальный ключ</span><span class="chevron">›</span></button></div><label>Парольная фраза импортируемого ключа<input id="keyPassphrase" type="password" autocomplete="off"></label><h3 class="section-title">Подключение к старому серверу</h3><label>Действующий пароль сервера<input id="keyBootstrapPassword" type="password" autocomplete="off"></label><button id="installIdentity" class="list-action" data-icon="check"><span>Установить ключ и проверить вход</span><span class="chevron">›</span></button><p class="hint">Существующие ключи и настройки сервера сохраняются.</p></div>
       <div data-panel="settings" class="hidden"><h3>Оформление</h3><label>Цветовая тема<select id="theme"><option value="violet">Фиолетовая</option><option value="ocean">Синяя</option><option value="forest">Зелёная</option><option value="amber">Янтарная</option><option value="red">Красная</option><option value="turquoise">Бирюзовая</option><option value="silver">Серебряная</option><option value="indigo">Индиго</option></select></label><label class="switch-row"><span>Светлый фон</span><input id="lightMode" type="checkbox" role="switch"></label><label class="switch-row"><span>Эффект стекла</span><input id="glassMode" type="checkbox" role="switch"></label><label class="switch-row"><span>Светлая обводка</span><input id="outlineMode" type="checkbox" role="switch"></label><div class="action-list section-title"><button class="list-action" data-drawer="connection" data-icon="plug"><span>Подключение</span><span class="chevron">›</span></button><button class="list-action" data-drawer="server" data-icon="server"><span>Сервер компьютера</span><span class="chevron">›</span></button><button id="hideToTray" class="list-action" data-icon="tray"><span>Свернуть в трей</span><span class="chevron">›</span></button><button class="list-action" data-drawer="about" data-icon="info"><span>О приложении</span><span class="chevron">›</span></button></div></div>
       <div data-panel="server" class="hidden"><h3>Сервер этого компьютера</h3><label>Порт SSH<input id="hostPortInput" type="number" min="1" max="65535" value="8022"></label><label>Пользователь<input id="hostUserInput" autocomplete="off" value="localls"></label><button id="chooseSharedFolderSettings" class="list-action" data-icon="folder"><span>Выбрать папку доступа<small id="hostFolderSettings">—</small></span><span class="chevron">›</span></button><p class="hint">Для смены порта и папки останови сервер. При первом запуске разреши доступ LocalLS в брандмауэре Windows для частной сети.</p><div class="note"><strong>Доступ только по ключу</strong><p>Каждое новое устройство подтверждается на этом компьютере. Доступ ограничен выбранной папкой.</p></div></div>
-      <div data-panel="about" class="hidden"><div class="about-brand"><img src="../assets/logo.svg" alt=""><h3>LocalLS</h3><p>Привет! Это LocalLS — твои устройства, твои файлы.</p></div><div class="about-row"><span>Версия Windows</span><strong id="appVersion">1.39.0</strong></div><div class="about-row"><span>Автор</span><strong>MSS9LN</strong></div><p class="hint">Подключайся и передавай удобно. Клиент и сервер, QR-вход и защищённый обмен файлами.</p></div>
+      <div data-panel="about" class="hidden"><div class="about-brand"><img src="../assets/logo.svg" alt=""><h3>LocalLS</h3><p>Привет! Это LocalLS — твои устройства, твои файлы.</p></div><div class="about-row"><span>Версия Windows</span><strong id="appVersion">1.40.0</strong></div><div class="about-row"><span>Автор</span><strong>MSS9LN</strong></div><p class="hint">Подключайся и передавай удобно. Клиент и сервер, QR-вход и защищённый обмен файлами.</p></div>
     </div>
     <div class="drawer-bottom"><button id="saveSettings" class="primary" data-icon="save">Сохранить</button><span id="saveStatus" aria-live="polite"></span></div>
   </aside>
   <div id="toast" role="status" class="toast hidden"></div>
+  <section id="filePreview" class="file-preview hidden" role="dialog" aria-modal="true" aria-label="Просмотр файла">
+    <article class="preview-card"><header><div><strong id="previewTitle"></strong><small id="previewHint">Отпусти, чтобы закрыть</small></div><button id="closePreview" class="icon-button" data-icon="close" aria-label="Закрыть просмотр"></button></header><div id="previewContent" class="preview-content"></div></article>
+  </section>
   <dialog id="nameDialog"><form method="dialog"><h3 id="nameTitle">Название</h3><input id="nameInput" autocomplete="off" required maxlength="255"><div><button value="cancel" class="quiet">Отмена</button><button value="ok" class="primary">Продолжить</button></div></form></dialog>
   <script src="renderer.js"></script>
 </body>

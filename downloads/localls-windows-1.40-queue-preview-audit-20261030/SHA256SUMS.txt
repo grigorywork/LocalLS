@@ -1,0 +1,1 @@
+e1d371bf96206b05f634b00b4ea5cd42a438d2990a7313bbfd079c9feab0ada0  LocalLS-1.40-Windows-x64-Setup-unsigned-queue-preview-20261030.exe

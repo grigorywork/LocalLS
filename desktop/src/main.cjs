@@ -1,6 +1,8 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,dialog,Tray,Menu,nativeImage,safeStorage,shell,powerSaveBlocker,powerMonitor,nativeTheme} = require('electron');
+const {app,BrowserWindow,ipcMain,dialog,Tray,Menu,nativeImage,safeStorage,shell,powerSaveBlocker,powerMonitor,nativeTheme,protocol} = require('electron');
 require('./runtime-policy.cjs').configureRuntime(app);
+protocol.registerSchemesAsPrivileged([{scheme:'localls-preview',privileges:{standard:true,secure:true,supportFetchAPI:true,stream:true}}]);
+const {FilePreview,previewConnection}=require('./file-preview.cjs');let previewStore;
 const fs=require('node:fs'); const path=require('node:path'); const {execFile}=require('node:child_process');
 const {profile,endpoint,name,remotePath,safeDownloadName,call,publicError,Server,Transfers}=require('./core.cjs');
 const security=require('./security.cjs');
@@ -149,6 +151,27 @@ hostServer.on('traffic',()=>serverPower.pulse());
 register('saveAppearance',arg=>{if(!arg||!themes.includes(arg.theme)||typeof arg.light!=='boolean'||typeof arg.glass!=='boolean'||!['theme','light'].includes(arg.outline))throw new Error('BAD_APPEARANCE');const next={...settings,theme:arg.theme,light:arg.light,glass:arg.glass,outline:arg.outline,appearanceVersion:2};write('settings.json',next);settings=next;applyAppearance();return view();});
 register('setRole',role=>{if(!['client','server'].includes(role))throw new Error('BAD_ROLE');const next={...settings,role};write('settings.json',next);settings=next;return true;});
 function transferBinding(){const p=effectiveProfile();return authKey(p)+'|'+(settings.pins[endpoint(p)]||'');}
+register('cancelAll',async()=>{
+ const count=transfers.items.filter(j=>['queued','running'].includes(j.state)).length;
+ if(!count)return 0;
+ if(!await confirm('Отменить все передачи?',count+' заданий. Завершённые файлы сохранятся.'))return 0;
+ return transfers.cancelAll();
+});
+register('clearQueue',async()=>{
+ if(planning)throw new Error('BUSY');if(!transfers.items.length)return 0;
+ if(!await confirm('Очистить весь список передач?','Незавершённые задания будут отменены, очередь и история очищены. Файлы на устройствах сохранятся.'))return null;
+ return transfers.clearAll();
+});
+register('previewOpen',async arg=>{
+ if(!previewStore||!arg||typeof arg.path!=='string'||arg.path.length>4096)throw new Error('PREVIEW_FAILED');
+ const label=path.posix.basename(arg.path.replaceAll('\\','/'));
+ if(arg.side==='local')return previewStore.open({requestId:arg.requestId,name:label,local:allowedLocal(arg.path)});
+ if(arg.side!=='remote')throw new Error('PREVIEW_FAILED');
+ server.requireSftp();const client=server.client;
+ const p=effectiveProfile(),auth=credential(p),pin=settings.pins[endpoint(p)];
+ return previewStore.open({requestId:arg.requestId,name:label,remote:remotePath(arg.path),connect:signal=>previewConnection(p,auth,pin,signal),isCurrent:()=>server.client===client});
+});
+register('previewClose',arg=>previewStore?.close(arg?.requestId)||false);
 register('retry',id=>{server.requireSftp();const job=transfers.items.find(j=>j.id===id);if(!job||!['failed','cancelled'].includes(job.state)||!job.binding||job.binding!==transferBinding())throw new Error('RETRY_PROFILE');const existing=transfers.items.find(j=>j.retryOf===id&&['running','queued'].includes(j.state));if(existing)return [existing.id];const {controller,id:oldId,state:oldState,bytes:oldBytes,speed:oldSpeed,error:oldError,finished:oldFinished,started:oldStarted,...spec}=job;return transfers.add([{...spec,retryOf:id}]);});
 
 register('trafficSnapshot',()=>({client:transfers.traffic.snapshot(),server:hostServer.traffic.snapshot(),pending:transfers.items.filter(j=>['running','queued'].includes(j.state)).length}));
@@ -189,15 +212,17 @@ transfers.beforeEnqueue=items=>{try{write('history.json',journalJobs(items));que
 transfers.on('update',data=>{if(settings)try{write('history.json',journalJobs(transfers.items));queueWriteWarning=false;}catch{if(!queueWriteWarning)notify('notice',{message:'Не удалось обновить журнал очереди. Освободи место в папке приложения; исходные файлы сохранены.'});queueWriteWarning=true;}notify('transfers',data);});
 transfers.on('traffic',data=>notify('traffic',data));
 transfers.on('active',active=>{if(active)clientPower.acquire();else clientPower.release();});
-server.on('closed',()=>notify('connection',{connected:false}));
+server.on('closed',()=>{previewStore?.close();notify('connection',{connected:false});});
 if(!app.requestSingleInstanceLock())app.quit();else{
 app.on('second-instance',()=>{window?.show();window?.focus();});
 app.whenReady().then(()=>{try{hostConfig=serverVault.readConfig(file('server.json'),{port:8022,user:'localls',root:path.join(app.getPath('userData'),'shared'),devices:[]});hostServer.restoreDevices(hostConfig.devices);}catch(error){hostConfigError=error.message;}const stored=read('settings.json',{});settings={...defaultSettings,...stored};if(!Object.hasOwn(stored,'appearanceVersion')){settings.light=stored.theme?stored.theme!=='dark':false;settings.theme=stored.theme==='dark'?'violet':stored.theme||'violet';settings.appearanceVersion=2;}if(!Object.hasOwn(stored,'role'))settings.role=stored.profile?'client':'server';try{settings.profile=profile(settings.profile);effectiveProfile();}catch{settings={...defaultSettings};}localRoot=fs.realpathSync(fs.existsSync(app.getPath('downloads'))?app.getPath('downloads'):app.getPath('home'));transfers.items=read('history.json',[]).filter(j=>['completed','failed','cancelled','running','queued'].includes(j.state)).slice(-1200).map(j=>['running','queued'].includes(j.state)?{...j,state:'failed',speed:0,error:'Не завершено. Подключись к тому же серверу и нажми «Повторить».',recovered:true}:j);
 nativeTheme.themeSource=settings.light?'light':'dark';
-window=new BrowserWindow({width:1280,height:840,minWidth:960,minHeight:660,title:'LocalLS',icon,...windowOptions(settings),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webgl:false}});
+try{previewStore=new FilePreview(file('preview-cache'));}catch{}
+protocol.handle('localls-preview',request=>previewStore?.response(request)||new Response(null,{status:404}));
+window=new BrowserWindow({width:1280,height:840,minWidth:960,minHeight:660,title:'LocalLS',icon,...windowOptions(settings),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webgl:false,plugins:true}});
 applyAppearance();
 window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',(e,url)=>{if(url!==require('node:url').pathToFileURL(page).href)e.preventDefault();});window.webContents.session.setPermissionRequestHandler((_,__,cb)=>cb(false));
 window.loadFile(page);if(settings.qrPending&&vaultAvailable()){try{const code=pairing.decode(JSON.stringify(settings.qrPending));resumeQr(code).catch(()=>{});}catch{qrProgress={status:'Параметры и ключ сохранены. Для разрешённого устройства новый QR не нужен.'};}}window.on('close',e=>{if(!quitting){e.preventDefault();window.hide();}});window.on('minimize',()=>window.hide());
 const image=nativeImage.createFromPath(icon);tray=new Tray(image.resize({width:24,height:24}));tray.setToolTip('LocalLS — SSH / SFTP');tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть LocalLS',click:()=>{window.show();window.focus();}},{type:'separator'},{label:'Выйти',click:async()=>{if((transfers.running||hostServer.snapshot().devices.some(d=>d.online))&&!await confirm('Завершить работу LocalLS?','Передачи и подключения к серверу компьютера будут остановлены.'))return;quitting=true;await hostServer.stop();for(const j of transfers.items)transfers.cancel(j.id);server.disconnect();app.quit();}}]));tray.on('double-click',()=>{window.show();window.focus();});
 });
-app.on('window-all-closed',()=>{});app.on('before-quit',()=>{qrRevision++;quitting=true;server.disconnect();hostServer.stop().catch(()=>{});clientPower.release();serverPower.release();});}
+app.on('window-all-closed',()=>{});app.on('before-quit',()=>{qrRevision++;quitting=true;server.disconnect();hostServer.stop().catch(()=>{});clientPower.release();serverPower.release();previewStore?.destroy().catch(()=>{});});}
