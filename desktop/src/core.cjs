@@ -102,7 +102,7 @@ class Server extends EventEmitter {
       throw error;
     }
   }
-  disconnect() { if (this.client) this.client.end(); this.client = null; this.sftp = null; }
+  disconnect() { if (this.client) this.client.end(); this.client = null; this.sftp = null; this.statsOpening = null; }
   requireSftp() { if (!this.sftp) throw new Error('NOT_CONNECTED'); return this.sftp; }
   async list(folder) {
     const s = this.requireSftp(); const resolved = await call(s, 'realpath', remotePath(folder));
@@ -111,32 +111,82 @@ class Server extends EventEmitter {
   }
   async stats() {
     if (!this.client) throw new Error('NOT_CONNECTED');
-    const current=this.client;
-    const telemetry=await new Promise(resolve=>{
-      let stream,done=false,data='';
-      const finish=value=>{if(done)return;done=true;clearTimeout(timer);stream?.close();resolve(value);};
-      const timer=setTimeout(()=>finish(null),3500);
-      current.subsys('localls-status-v1',(err,channel)=>{
-        if(err)return finish(null);stream=channel;if(done){stream.close();return;}
-        stream.on('data',chunk=>{data+=chunk.toString('ascii');if(data.length>256)finish(null);});
-        stream.on('error',()=>finish(null));stream.on('close',()=>{
-          try{
-            const f=data.split('\n');if(f.length!==6||f[0]!=='localls-status-v1'||f[5]!==''||f.slice(1,5).some(v=>!/^(-1|0|[1-9][0-9]{0,18})$/.test(v)))return finish(null);
-            const [battery,free,total,uptime]=f.slice(1,5).map(Number);
-            if([battery,free,total,uptime].some(v=>!Number.isSafeInteger(v)||v < -1)||battery>100||(free>=0&&total>=0&&free>total))return finish(null);
-            finish({battery:battery<0?'—':battery+'%',freeBytes:free,uptime:uptime<0?'—':Math.floor(uptime/3600)+' ч '+Math.floor(uptime%3600/60)+' мин',disk:free<0?'—':formatBytes(free)});
-          }catch{finish(null);}
+    const current = this.client, deadline = performance.now() + 3500;
+    const timeout = () => Object.assign(new Error('TIMEOUT'), {code: 'ETIMEDOUT'});
+    if (this.statsOpening?.client === current) throw timeout();
+    // ssh2 exposes the channel only after the server accepts the request. If that
+    // reply times out, keep one marker until it arrives instead of leaking another
+    // pending channel on each refresh. Working SFTP remains connected.
+    const beginOpen = () => {
+      if (this.statsOpening?.client === current) throw timeout();
+      const token = {client: current}; this.statsOpening = token;
+      return () => { if (this.statsOpening === token) this.statsOpening = null; };
+    };
+    const requireCurrent = () => { if (this.client !== current) throw new Error('NOT_CONNECTED'); };
+    const readTelemetry = protocol => new Promise(resolve => {
+      const remaining = deadline - performance.now();
+      if (remaining <= 0 || this.statsOpening?.client === current) return resolve(null);
+      const releaseOpening = beginOpen();
+      let stream, done = false, data = '';
+      const closed = () => { releaseOpening(); finish(null); };
+      const finish = value => {
+        if (done) return; done = true; clearTimeout(timer);
+        current.removeListener('close', closed); current.removeListener('end', closed);
+        stream?.close(); resolve(value);
+      };
+      const timer = setTimeout(() => finish(null), remaining);
+      current.once('close', closed); current.once('end', closed);
+      try { current.subsys(protocol, (error, channel) => {
+        releaseOpening();
+        if (error) return finish(null);
+        stream = channel; stream.on('error', () => finish(null));
+        if (done) { stream.resume(); stream.stderr?.resume(); stream.close(); return; }
+        stream.on('data', chunk => { data += chunk.toString('ascii'); if (data.length > 256) finish(null); });
+        stream.on('close', () => {
+          try {
+            const fields = data.split('\n'), version2 = protocol === 'localls-status-v2';
+            if (fields.length !== (version2 ? 7 : 6) || fields[0] !== protocol || fields.at(-1) !== '' || fields.slice(1, -1).some(v => !/^(-1|0|[1-9][0-9]{0,18})$/.test(v))) return finish(null);
+            const values = fields.slice(1, -1).map(Number), [battery, free, total, uptime] = values, charging = version2 ? values[4] : -1;
+            if (values.some(v => !Number.isSafeInteger(v) || v < -1) || battery > 100 || charging > 1 || free >= 0 && total >= 0 && free > total) return finish(null);
+            finish({battery: battery < 0 ? '—' : battery + '%', freeBytes: free, totalBytes: total, charging,
+              uptime: uptime < 0 ? '—' : Math.floor(uptime / 3600) + ' ч ' + Math.floor(uptime % 3600 / 60) + ' мин', disk: free < 0 ? '—' : formatBytes(free)});
+          } catch { finish(null); }
         });
-      });
+      }); } catch { releaseOpening(); finish(null); }
     });
-    if(this.client!==current)throw new Error('NOT_CONNECTED');
-    if(telemetry)return telemetry;
-    return new Promise((resolve, reject) => this.client.exec('LC_ALL=C uptime; LC_ALL=C df -Pk .', { pty: false }, (err, stream) => {
-      if (err) return reject(err); let data = ''; const timer = setTimeout(() => { stream.close(); reject(new Error('TIMEOUT')); }, 10000);
-      stream.on('data', chunk => { if (data.length < 8000) data += chunk.toString().slice(0, 8000-data.length); });
-      stream.on('close', () => { clearTimeout(timer); const lines = data.trim().split('\n'); const disk = lines.find(l => /\d+%/.test(l)); const fields=disk?.trim().split(/\s+/);const free=fields&&/^\d+$/.test(fields[3])?Number(fields[3])*1024:-1;resolve({ uptime: lines[0]?.slice(0,160) || '—', disk:free>=0?formatBytes(free):'—',battery:'—',freeBytes:free }); });
-      stream.on('error', e => { clearTimeout(timer); reject(e); });
-    }));
+    for (const protocol of ['localls-status-v2', 'localls-status-v1']) {
+      const telemetry = await readTelemetry(protocol); requireCurrent();
+      if (telemetry) return telemetry;
+    }
+    const releaseOpening = beginOpen();
+    return new Promise((resolve, reject) => {
+      let stream, done = false, data = '';
+      const closed = () => { releaseOpening(); finish(new Error('NOT_CONNECTED')); };
+      const finish = (error, value) => {
+        if (done) return; done = true; clearTimeout(timer);
+        current.removeListener('close', closed); current.removeListener('end', closed);
+        stream?.close();
+        if (this.client !== current) error = new Error('NOT_CONNECTED');
+        error ? reject(error) : resolve(value);
+      };
+      // Include SSH channel opening and exec acceptance in the existing timeout.
+      const timer = setTimeout(() => finish(timeout()), 10000);
+      current.once('close', closed); current.once('end', closed);
+      try { current.exec('LC_ALL=C uptime; LC_ALL=C df -Pk .', {pty: false}, (error, channel) => {
+        releaseOpening();
+        if (error) return finish(error);
+        stream = channel; stream.on('error', error => finish(error));
+        if (done) { stream.resume(); stream.stderr?.resume(); stream.close(); return; }
+        if (this.client !== current) return finish(new Error('NOT_CONNECTED'));
+        stream.on('data', chunk => { if (data.length < 8000) data += chunk.toString().slice(0, 8000 - data.length); });
+        stream.on('close', () => {
+          const lines = data.trim().split('\n'), disk = lines.find(line => /\d+%/.test(line)), fields = disk?.trim().split(/\s+/);
+          const byteCount = index => fields && /^\d+$/.test(fields[index] || '') && Number.isSafeInteger(Number(fields[index]) * 1024) ? Number(fields[index]) * 1024 : -1;
+          let total = byteCount(1), free = byteCount(3); if (free >= 0 && total >= 0 && free > total) free = total = -1;
+          finish(null, {uptime: lines[0]?.slice(0, 160) || '—', disk: free >= 0 ? formatBytes(free) : '—', battery: '—', freeBytes: free, totalBytes: total, charging: -1});
+        });
+      }); } catch (error) { releaseOpening(); finish(error); }
+    });
   }
 }
 class Transfers extends EventEmitter {
@@ -160,11 +210,19 @@ class Transfers extends EventEmitter {
     finally { this.running = false; this.current = null; this.emit('active', false); this.publish(); }
   }
   async run(j) {
-    j.controller = new AbortController(); this.current = j; j.state = 'running'; j.started = Date.now(); this.publish(); let temp, localHandle, s;
+    let temp,localHandle,s,clientOwner,cancelTimer;
+    j.controller = new AbortController();const signal=j.controller.signal;
+    // A silent peer can keep SSH open while never answering the stream's CLOSE.
+    // Give an explicit cancellation a bounded cleanup window, then tear down only
+    // the client captured by this job, never a subsequently connected session.
+    const cancelCleanup=()=>{cancelTimer=setTimeout(()=>clientOwner?.destroy?.(),5000);cancelTimer.unref?.();};
+    signal.addEventListener('abort',cancelCleanup,{once:true});
+    this.current = j; j.state = 'running'; j.started = Date.now(); this.publish();
     let lastBytes = 0, lastAt = Date.now();
     const tick = setInterval(() => { const now = Date.now(); j.speed = (j.bytes-lastBytes)*1000/Math.max(1,now-lastAt); lastBytes=j.bytes; lastAt=now; this.publish(); }, 500);
     try {
       s = this.server.requireSftp();
+      clientOwner=this.server.client;
       const guards = require('./transfer-plan.cjs');
       if (j.direction === 'download') guards.verifyDestination(j); else guards.verifySource(j);
       if (j.directory) {
@@ -235,7 +293,7 @@ class Transfers extends EventEmitter {
       } else throw new Error('BAD_DIRECTION');
       j.state='completed'; j.finished=Date.now();
     } catch(err) { j.state=j.controller.signal.aborted?'cancelled':'failed'; j.error=publicError(err); j.finished=Date.now(); }
-    finally { clearInterval(tick); j.speed=0; await localHandle?.close().catch(()=>{}); if(temp) { if(j.direction==='download') await fs.promises.unlink(temp).catch(()=>{}); else if(s) await call(s,'unlink',temp).catch(()=>{}); } delete j.controller; this.publish(); }
+    finally { clearInterval(tick); j.speed=0; await localHandle?.close().catch(()=>{}); if(temp) { if(j.direction==='download') await fs.promises.unlink(temp).catch(()=>{}); else if(s) await call(s,'unlink',temp).catch(()=>{}); } clearTimeout(cancelTimer);signal.removeEventListener('abort',cancelCleanup);delete j.controller; this.publish(); }
   }
 }
 module.exports={profile,endpoint,fingerprint,name,remotePath,safeDownloadName,call,publicError,Server,Transfers};

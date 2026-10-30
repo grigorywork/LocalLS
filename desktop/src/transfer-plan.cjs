@@ -72,10 +72,16 @@ async function planUpload({files, folder, sftp, binding, allowed, confirmOverwri
     for (const tree of trees) {
       const base = name(path.basename(tree.source.path));
       if (!tree.source.directory) {
-        const remote = path.posix.join(canonical, base); let overwrite = false;
+        let remote = path.posix.join(canonical, base);
+        // Earlier files are still only planned: reserve their paths as well as
+        // directories so later selections cannot replace a sibling in this batch.
+        if (reserved.has(remote)) remote = await remoteUnique(sftp, canonical, base, reserved);
+        let overwrite = false;
         try { const existing = await timed(sftp, 'lstat', remote); if (!existing.isFile() || existing.isSymbolicLink()) throw new Error('DEST_EXISTS'); overwrite = true; } catch (error) { if (error.code !== 2) throw error; }
-        if (overwrite && !await confirmOverwrite(base)) continue;
-        jobs.push({direction:'upload', local:tree.source.path, remote, label:base, overwrite, binding, sourceSnapshot:tree.files[0].snapshot, sourceRoot:identity(path.dirname(tree.source.path))});
+        const label = path.posix.basename(remote);
+        if (overwrite && !await confirmOverwrite(label)) continue;
+        reserved.add(remote);
+        jobs.push({direction:'upload', local:tree.source.path, remote, label, overwrite, binding, sourceSnapshot:tree.files[0].snapshot, sourceRoot:identity(path.dirname(tree.source.path))});
         continue;
       }
       const destination = await remoteUnique(sftp, canonical, base, reserved), sourceRoot = identity(tree.source.path);

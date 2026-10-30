@@ -1,0 +1,1 @@
+17dbd67c97f7d01e08ce4b32a28e1c695667fbe432e0394344e3d17731814b8d  LocalLS-1.39-Windows-x64-Setup-unsigned-batch-fix-20261030.exe
