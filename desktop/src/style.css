@@ -312,3 +312,13 @@ dialog form>div { display:flex; justify-content:flex-end; gap:9px; }
 .preview-content p { color:var(--muted); text-align:center; padding:20px; }
 
 body[data-glass=true] .preview-card { background:rgba(var(--surface-rgb),var(--glass-alpha)); backdrop-filter:blur(20px); }
+
+.queue-overview { padding:13px 18px; }
+.queue-overview .card-head { flex-wrap:wrap; }
+.queue-summary { padding:12px 0 4px; }
+.queue-total { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:7px 18px; }
+.queue-eta { color:var(--accent); font-size:16px; font-weight:650; }
+.queue-current { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px; padding-top:9px; border-top:1px solid var(--line); min-width:0; }
+.queue-current>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.queue-current>small { color:var(--muted); white-space:nowrap; flex:none; }
+.queue-card>.card-head { position:sticky; top:-16px; z-index:2; background:var(--surface); padding-block:8px; }

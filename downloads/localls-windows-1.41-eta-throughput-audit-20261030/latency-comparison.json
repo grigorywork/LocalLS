@@ -1,0 +1,20 @@
+{
+  "payloadBytes": 8388608,
+  "replyDelayMs": 20,
+  "samePayloadSha256": "95ca6b5e7fc37fa1bc85d4ddf96ef32a88398f4fd1dff25469366dbdca0a41c4",
+  "comparison": [
+    {
+      "direction": "upload",
+      "beforeMiBps": 0.97056042130541,
+      "afterMiBps": 5.0222896812265985,
+      "factor": 5.174628566113984
+    },
+    {
+      "direction": "download",
+      "beforeMiBps": 0.9759169185687963,
+      "afterMiBps": 5.00525150988417,
+      "factor": 5.12876804843642
+    }
+  ],
+  "physicalWifiMeasured": false
+}

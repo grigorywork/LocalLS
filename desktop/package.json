@@ -1,6 +1,6 @@
 {
   "name": "localls-desktop",
-  "version": "1.40.0",
+  "version": "1.41.0",
   "description": "LocalLS \u2014 Windows SSH/SFTP client and server",
   "author": "MSS9LN",
   "license": "UNLICENSED",
@@ -49,7 +49,7 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "artifactName": "LocalLS-1.40-Windows-x64-Setup.exe",
+      "artifactName": "LocalLS-1.41-Windows-x64-Setup.exe",
       "script": "tools/installer.nsi",
       "warningsAsErrors": false
     },

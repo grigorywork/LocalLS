@@ -14,4 +14,4 @@
 [Короткая инструкция](https://github.com/grigorywork/LocalLS/blob/986f4402f38b8d75bb922b790c9df6ca8df991b4/android/app/src/main/assets/phone-setup.txt) · [Android](android/README.md) · [Сохранённые выпуски](https://github.com/grigorywork/LocalLS/releases)
 
 Актуальный Android APK: [LocalLS 1.38](downloads/LocalLS-1.38-code60-screen-off-wifi-fix-20261030.apk). [Проверки фоновой работы](downloads/localls-android-1.38-screen-off-audit-20261030/README.md).
-Windows: [LocalLS 1.40 — клиент и сервер, без подписи Windows](downloads/LocalLS-1.40-Windows-x64-Setup-unsigned-queue-preview-20261030.exe). [Короткая инструкция Windows](desktop/README.md) · [Очередь, просмотр файлов и проверки](downloads/localls-windows-1.40-queue-preview-audit-20261030/README.md). Fedora — следующий этап.
+Windows: [LocalLS 1.41 — клиент и сервер, без подписи Windows](downloads/LocalLS-1.41-Windows-x64-Setup-unsigned-eta-throughput-20261030.exe). [Короткая инструкция Windows](desktop/README.md) · [Время очереди, скорость и проверки](downloads/localls-windows-1.41-eta-throughput-audit-20261030/README.md). Fedora — следующий этап.

@@ -4,9 +4,9 @@ const { isIP } = require('node:net');
 const fs = require('node:fs');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
-const { pipeline } = require('node:stream/promises');
-const { Transform } = require('node:stream');
+const {downloadData,uploadData}=require('./data-transfer.cjs');
 const {TrafficHistory} = require('./traffic-history.cjs');
+const {QueueRate,queueEstimate}=require('./queue-estimate.cjs');
 const {call,protect:protectSftp}=require('./sftp-channel.cjs');
 
 function profile(input) {
@@ -190,7 +190,7 @@ class Server extends EventEmitter {
   }
 }
 class Transfers extends EventEmitter {
-  constructor(server) { super(); this.server = server; this.items = []; this.running = false; this.current = null; this.traffic = new TrafficHistory(); }
+  constructor(server) { super(); this.server = server; this.items = []; this.running = false; this.current = null; this.traffic = new TrafficHistory();this.queueRate=new QueueRate(); }
   get networkBytes() { return this.traffic.bytes; }
   add(specs) {
     if (this.clearing) throw new Error('BUSY');
@@ -203,7 +203,8 @@ class Transfers extends EventEmitter {
     const active = this.items.filter(j => ['running','queued'].includes(j.state)).slice(0,100), finished = this.items.filter(j => !['running','queued'].includes(j.state)).slice(-100);
     return [...active, ...finished].map(({controller, ...j}) => ({...j}));
   }
-  publish() { this.emit('update', this.snapshot()); this.emit('traffic', {...this.traffic.snapshot(), pending: this.items.filter(j => ['running','queued'].includes(j.state)).length}); }
+  summary(){return queueEstimate(this.items,this.queueRate.snapshot(),this.clearing);}
+  publish() { this.emit('update', this.snapshot()); this.emit('traffic', {...this.traffic.snapshot(), pending: this.items.filter(j => ['running','queued'].includes(j.state)).length,queue:this.summary()}); }
   cancel(id) { const j = this.items.find(j => j.id === id); if (!j) return; if (j.state === 'queued') j.state = 'cancelled'; else j.controller?.abort(); this.publish(); }
   cancelAll() {
     let count=0;
@@ -228,7 +229,7 @@ class Transfers extends EventEmitter {
     } finally {this.clearing=false;}
   }
   async drain() {
-    if (this.running) return; this.running = true; this.emit('active', true);
+    if (this.running) return; this.running = true;this.queueRate.begin(); this.emit('active', true);
     try { for (;;) { const job = this.items.find(j => j.state === 'queued'); if (!job) break; await this.run(job); } }
     finally { this.running = false; this.current = null; this.emit('active', false); this.publish(); }
   }
@@ -252,11 +253,10 @@ class Transfers extends EventEmitter {
         if (j.direction === 'upload') { const st = await call(s,'lstat',j.remote); if (!st.isDirectory() || st.isSymbolicLink()) throw new Error('COPY_FOLDER_CHANGED'); }
         j.total=0;j.state='completed';j.finished=Date.now();return;
       }
-      const owner = this;
-      const meter = new Transform({ transform(chunk, enc, done) {
-        if (j.bytes + chunk.length > j.total) return done(new Error('SOURCE_CHANGED'));
-        j.bytes += chunk.length; owner.traffic.record(chunk.length); done(null,chunk);
-      } });
+      const progress=n=>{
+        if(j.bytes+n>j.total)throw new Error('SOURCE_CHANGED');
+        j.bytes+=n;this.traffic.record(n);this.queueRate.record(n);
+      };
       if (j.direction === 'download') {
         safeDownloadName(path.posix.basename(j.remote));
         const type = await call(s,'lstat',j.remote); if (!type.isFile() || type.isSymbolicLink()) throw new Error('COPY_LINK');
@@ -264,19 +264,19 @@ class Transfers extends EventEmitter {
         if (j.remoteSnapshot && (stat.size !== j.remoteSnapshot.size || stat.mtime !== j.remoteSnapshot.mtime)) throw new Error('SOURCE_CHANGED');
         temp = path.join(path.dirname(j.local), '.localls-'+crypto.randomUUID()+'.part');
         localHandle = await fs.promises.open(temp, 'wx', 0o600);
-        await pipeline(s.createReadStream(j.remote), meter, localHandle.createWriteStream(), { signal: j.controller.signal });
-        localHandle = null;
+        await downloadData(s,j.remote,localHandle,j.total,signal,progress);
+        await localHandle.close();localHandle = null;
         // Hard-link gives an atomic commit which never overwrites an existing destination.
         if (j.controller.signal.aborted) throw Object.assign(new Error('CANCELLED'),{name:'AbortError'});
         if (j.bytes !== j.total) throw new Error('SOURCE_CHANGED');
         guards.verifyDestination(j);
-        if (j.remoteSnapshot) { const current=await call(s,'lstat',j.remote); if (!current.isFile() || current.isSymbolicLink() || current.size!==j.remoteSnapshot.size || current.mtime!==j.remoteSnapshot.mtime) throw new Error('SOURCE_CHANGED'); }
+        const current=await call(s,'lstat',j.remote);if(!current.isFile()||current.isSymbolicLink()||current.size!==stat.size||current.mtime!==stat.mtime)throw new Error('SOURCE_CHANGED');
         try { await fs.promises.link(temp, j.local); } catch(e) { if(!['EPERM','ENOTSUP','EOPNOTSUPP'].includes(e.code))throw e; await fs.promises.copyFile(temp,j.local,fs.constants.COPYFILE_EXCL); }
         await fs.promises.unlink(temp); temp=null;
       } else if (j.direction === 'upload') {
         const stat = await fs.promises.stat(j.local); if (!stat.isFile()) throw new Error('FILES_ONLY'); j.total = stat.size;
         temp = path.posix.join(path.posix.dirname(remotePath(j.remote)), '.localls-'+crypto.randomUUID()+'.part');
-        await pipeline(fs.createReadStream(j.local), meter, s.createWriteStream(temp, { flags:'wx', mode:0o600 }), { signal:j.controller.signal });
+        await uploadData(s,j.local,temp,j.total,signal,progress);
         if (j.controller.signal.aborted) throw Object.assign(new Error('CANCELLED'),{name:'AbortError'});
         if (j.bytes !== j.total) throw new Error('SOURCE_CHANGED');
         guards.verifySource(j);
