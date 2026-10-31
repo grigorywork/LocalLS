@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="network_search_title">Поиск сервера</string>
+    <string name="network_address_label">Адрес сервера</string>
+    <string name="network_address_hint">IP или имя сервера</string>
+    <string name="network_find">Найти в сети</string>
+    <string name="network_save_address">Сохранить адрес</string>
+    <string name="network_discovery_hint">Найди сервер в сети или укажи его адрес.</string>
+</resources>

@@ -24,8 +24,7 @@ public class PhoneSetupGuideActivity extends BaseActivity {
         Button online=new Button(this);online.setText("Инструкция на GitHub");content.addView(online);
         online.setOnClickListener(v -> {
             try {
-                String version=getPackageManager().getPackageInfo(getPackageName(),0).versionName;
-                Uri uri=Uri.parse("https://github.com/grigorywork/LocalLS/blob/android-v"+version+"/android/app/src/main/assets/phone-setup.txt");
+                Uri uri=Uri.parse("https://github.com/grigorywork/LocalLS/blob/main/android/app/src/main/assets/phone-setup.txt");
                 startActivity(new Intent(Intent.ACTION_VIEW,uri));
             } catch(Exception error) {Toast.makeText(this,"Открой страницу релиза LocalLS на GitHub",Toast.LENGTH_LONG).show();}
         });

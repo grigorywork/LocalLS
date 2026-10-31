@@ -45,20 +45,47 @@ public class MainActivity extends BaseActivity {
 
     private TextView statusText, statusDetail, ipValue, portValue, userValue,
             latencyValue, diskValue, uptimeValue, batteryValue, fingerprintValue, logText;
-    private Button checkButton, trustKeyButton;
+    private Button checkButton, connectionCheckButton, trustKeyButton;
 
     private static final int REQ_EXPORT_REPORT = 601;
     private static final int REQ_NOTIFICATIONS = 602;
+    private static final int REQ_SERVER_NOTIFICATIONS = 603;
+    private boolean serverHomeSelected;
     private String pendingReport = "";
     private LiveSpeedPanel liveSpeedPanel;
     private final ArrayList<Uri> attachedFiles = new ArrayList<>();
-    private boolean updatingVpnSwitch;
-    private Boolean requestedVpn;
-    private long vpnRequestDeadline;
-    private final Runnable vpnRefresh = () -> refreshVpnStatus();
     private final Runnable localServerRefresh=new Runnable() {
-        public void run() {refreshLocalServer();if(isUiActive())handler.postDelayed(this,1000);}
+        public void run() {refreshLocalServer();refreshHomeTransfers();if(isUiActive())handler.postDelayed(this,1000);}
     };
+    private final Runnable pairedMetricsRefresh=new Runnable(){
+        public void run(){
+            if(!isUiActive())return;
+            if(clientEnabled()&&!serverHomeSelected&&!autoRefreshCheck.isChecked()){
+                FileConnection route=FileConnection.current(MainActivity.this);
+                if(!route.pin.isEmpty()&&SshKeys.hasStoredKey(MainActivity.this,route.host,route.port,route.user))checkServer(false);
+            }
+            handler.postDelayed(this,30000);
+        }
+    };
+    private boolean readingHome;
+    private void refreshHomeTransfers(){
+        if(readingHome||serverHomeSelected||!isUiActive())return;readingHome=true;final int generation=uiGeneration;
+        executor.execute(()->{String history="Передач пока нет";QueueEstimate estimate=null;boolean any=false;try{
+            java.util.List<String> rows=new java.util.ArrayList<>();
+            java.util.List<org.json.JSONObject> jobs=new TransferJournal(this).list();any=!jobs.isEmpty();estimate=QueueEstimate.read(this,jobs,TransferForegroundService.state,TransferSpeedStore.queueSpeed());
+            for(org.json.JSONObject job:jobs){
+                String status=job.optString("status");if(!java.util.Arrays.asList("done","failed","cancelled").contains(status))continue;
+                org.json.JSONArray sources=job.getJSONArray("sources");for(int i=0;i<sources.length()&&rows.size()<3;i++){org.json.JSONObject f=sources.getJSONObject(i);rows.add(("done".equals(status)?"✓ ":"failed".equals(status)?"! ":"× ")+f.optString("name")+" · "+(f.optBoolean("directory")?"Папка":ServerTelemetry.bytes(f.optLong("size")))+" · "+("done".equals(status)?("upload".equals(job.optString("action"))?"Отправлено":"Получено"):"failed".equals(status)?"Ошибка":"Отменено"));}if(rows.size()==3)break;
+            }if(!rows.isEmpty())history=android.text.TextUtils.join("\n",rows);
+        }catch(Exception e){history="Журнал временно недоступен";}
+        final String result=history;final QueueEstimate queueEstimate=estimate;final boolean hasEntries=any;handler.post(()->{readingHome=false;if(!isUiActive()||generation!=uiGeneration)return;
+            TransferForegroundService.State state=TransferForegroundService.state;
+            int percent=state.total>0?(int)Math.min(100,state.bytes*100d/state.total):0;String detail=state.active?(state.total>0?percent+"% · "+ServerTelemetry.bytes(state.bytes)+" из "+ServerTelemetry.bytes(state.total):state.text):state.text;
+            ((DashboardLayout)findViewById(R.id.dashboardScroll)).transfers(state.active?TransferForegroundService.currentName:"Передача не выполняется",detail,percent,result);
+            ((DashboardLayout)findViewById(R.id.dashboardScroll)).transferTiming(TransferSpeedStore.queueSpeed(),state.bytes,state.total);
+            if(queueEstimate!=null)((DashboardLayout)findViewById(R.id.dashboardScroll)).queueSummary(queueEstimate,hasEntries);
+        });});
+    }
     private Runnable savedProfileCheck;
     private Object drawerBackCallback; // Avoid resolving the API 33 interface on Android 7–12.
 
@@ -80,7 +107,7 @@ public class MainActivity extends BaseActivity {
 
     private final Runnable autoRefreshRunnable = new Runnable() {
         @Override public void run() {
-            if (isUiActive() && autoRefreshCheck != null && autoRefreshCheck.isChecked() && clientEnabled()) {
+            if (isUiActive() && autoRefreshCheck != null && autoRefreshCheck.isChecked() && clientEnabled() && !serverHomeSelected) {
                 checkServer(false);
                 handler.postDelayed(this, 15_000);
             }
@@ -91,8 +118,11 @@ public class MainActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ConfigMigrator.migrate(this);
+        TransferForegroundService.restore(this);
         if(savedInstanceState!=null)pendingReport=savedInstanceState.getString("pending_report","");
         setContentView(R.layout.activity_main);
+        boolean savedServerRole=getSharedPreferences(EmbeddedServerService.PREFS,0).getBoolean("server_role",false);
+        serverHomeSelected=savedInstanceState!=null?savedInstanceState.getBoolean("server_home",savedServerRole):savedServerRole;
         bindViews();
         liveSpeedPanel = new LiveSpeedPanel(findViewById(R.id.dashboardSpeedChart), findViewById(R.id.dashboardSpeedSummary));
         loadConfig();
@@ -100,16 +130,15 @@ public class MainActivity extends BaseActivity {
         ((Switch)findViewById(R.id.showClientSwitch)).setOnCheckedChangeListener((v,checked)->{
             getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putBoolean("show_client",checked).apply();renderRole();handler.removeCallbacks(autoRefreshRunnable);if(checked && autoRefreshCheck.isChecked())handler.post(autoRefreshRunnable);else if(!checked)cancelNetworkWork();
         });
-        renderRole();
+        refreshLocalServer();
         drawerSections = new DrawerSections(this,
-                new int[]{R.id.drawerSettingsHeader, R.id.drawerWifiHeader,
-                        R.id.drawerAppearanceHeader, R.id.drawerToolsHeader, R.id.drawerVpnHeader},
-                new int[]{R.id.drawerSettingsPane, R.id.drawerWifiPane,
-                        R.id.drawerAppearancePane, R.id.drawerToolsPane, R.id.drawerVpnPane});
+                new int[]{R.id.drawerWifiHeader,
+                        R.id.drawerAppearanceHeader, R.id.drawerToolsHeader},
+                new int[]{R.id.drawerWifiPane,
+                        R.id.drawerAppearancePane, R.id.drawerToolsPane});
         wifiSetup = new WifiSetupController(this);
-        findViewById(R.id.drawerVpnHeader).setOnClickListener(v -> {
-            drawerSections.togglePane(R.id.drawerVpnPane); refreshVpnStatus();
-        });
+        findViewById(R.id.connectionActionsGrid).setBackground(SurfaceStyle.panel(this));findViewById(R.id.connectionActionsGrid).setPadding(0,0,0,0);
+        findViewById(R.id.connectionCheckCard).setBackground(SurfaceStyle.panel(this));
         renderConnectionSummary();
         if (savedInstanceState == null || !savedInstanceState.containsKey(FileAttachments.EXTRA))
             for (Uri uri : FileAttachments.from(getIntent())) FileAttachments.add(attachedFiles, uri);
@@ -117,25 +146,26 @@ public class MainActivity extends BaseActivity {
             ArrayList<Uri> restored = savedInstanceState.getParcelableArrayList(FileAttachments.EXTRA);
             if (restored != null) for (Uri uri : restored) FileAttachments.add(attachedFiles, uri);
         }
+        routeSharedIntent(getIntent(),savedInstanceState==null);
         renderAttachmentEntry();
         StatusBadge.apply(statusText,StatusBadge.Tone.WARNING);
         if(activeHost().isEmpty()) {
-            findViewById(R.id.drawerConnectionPane).setVisibility(View.VISIBLE);
             statusText.setText("НЕ НАСТРОЕНО");statusDetail.setText("Укажи адрес другого устройства в разделе «Адрес и ключ».");
         }
+        if(getIntent().getBooleanExtra("localls.openAppearance",false)){getIntent().removeExtra("localls.openAppearance");handler.post(()->{if(!serverHomeSelected&&clientEnabled()){openToolsDrawer();drawerSections.open(R.id.drawerAppearancePane);}});}
     }
 
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (liveSpeedPanel != null) liveSpeedPanel.start();
+        if (liveSpeedPanel != null && !serverHomeSelected) liveSpeedPanel.start();
         if (wifiSetup != null) wifiSetup.start();
         handler.removeCallbacks(autoRefreshRunnable);
         if (autoRefreshCheck.isChecked()) handler.postDelayed(autoRefreshRunnable, 15000);
+        handler.removeCallbacks(pairedMetricsRefresh);handler.postDelayed(pairedMetricsRefresh,500);
         renderDashboardLatency();
         handler.removeCallbacks(localServerRefresh);handler.post(localServerRefresh);
-        refreshVpnStatus();
         if (firstResume) {
             firstResume = false;
             return;
@@ -149,22 +179,68 @@ public class MainActivity extends BaseActivity {
     private boolean clientEnabled(){return !DeviceRole.serverOnly(this);}
     private void renderRole(){
         var p=getSharedPreferences(EmbeddedServerService.PREFS,0);boolean server=p.getBoolean("server_role",false),show=p.getBoolean("show_client",false);
-        Switch toggle=findViewById(R.id.showClientSwitch);toggle.setVisibility(server?View.VISIBLE:View.GONE);
+        Switch toggle=findViewById(R.id.showClientSwitch);toggle.setVisibility(View.GONE);
         if(toggle.isChecked()!=show)toggle.setChecked(show);
         findViewById(R.id.remoteConnectionCard).setVisibility(server&&!show?View.GONE:View.VISIBLE);
         boolean enabled=clientEnabled();findViewById(R.id.networkButton).setVisibility(enabled?View.VISIBLE:View.GONE);
+        for(int id:new int[]{R.id.checkButton,R.id.filesButton,R.id.attachFilesButton})
+            findViewById(id).setVisibility(enabled?View.VISIBLE:View.GONE);
+        findViewById(R.id.homeClientTab).setVisibility(enabled?View.VISIBLE:View.GONE);
+        if(!enabled && !serverHomeSelected){serverHomeSelected=true;closeDashboardSheet();closeToolsDrawer();cancelNetworkWork();}
+        renderHomeSelection();
         if(lastClientRole==null || lastClientRole!=enabled){lastClientRole=enabled;
             if(getSharedPreferences(ServerConfig.PREFS,0).getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR,false))MonitoringScheduler.setEnabled(this,enabled);
         }
     }
+    private void selectHome(boolean server){
+        if(!server && !clientEnabled())return;
+        closeDashboardSheet();closeToolsDrawer();serverHomeSelected=server;
+        if(server){cancelNetworkWork();handler.removeCallbacks(autoRefreshRunnable);}
+        else if(autoRefreshCheck.isChecked()){handler.removeCallbacks(autoRefreshRunnable);handler.postDelayed(autoRefreshRunnable,15000);}
+        renderHomeSelection();
+    }
+    private void renderHomeSelection(){
+        if(liveSpeedPanel!=null){if(serverHomeSelected)liveSpeedPanel.stop();else if(isUiActive())liveSpeedPanel.start();}
+        if(!serverHomeSelected)((ServerHomeLayout)findViewById(R.id.serverHome)).suspend();
+        findViewById(R.id.serverHome).setVisibility(serverHomeSelected?View.VISIBLE:View.GONE);
+        findViewById(R.id.dashboardScroll).setVisibility(serverHomeSelected?View.GONE:View.VISIBLE);
+        for(int id:new int[]{R.id.homeServerTab,R.id.homeClientTab}){
+            View tab=findViewById(id);boolean selected=(id==R.id.homeServerTab)==serverHomeSelected;
+            tab.setSelected(selected);tab.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                    id==R.id.homeServerTab&&!clientEnabled()?ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscPanel):ThemeCatalog.color(this,selected?com.bitpoint.homeservercontrol.ui.R.attr.hscButton:com.bitpoint.homeservercontrol.ui.R.attr.hscSecondaryButton)));
+            if(id==R.id.homeServerTab){Button title=(Button)tab;title.setText(clientEnabled()||getResources().getConfiguration().fontScale>1.3f?"Сервер":"Сервер\nЭтот телефон");title.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));}
+            IconButtons.dashboardTab((Button)tab);
+        }
+    }
     private void refreshLocalServer() {
         renderRole();
+        ((ServerHomeLayout)findViewById(R.id.serverHome)).refresh();
         ((WifiAddressView)findViewById(R.id.currentWifiAddress)).refresh();
         TextView summary=findViewById(R.id.localServerSummary);
-        summary.setText(EmbeddedServerService.status);
+        summary.setText(EmbeddedServerService.running?"● Сервер работает":
+            EmbeddedServerService.launchPending()?"Запуск сервера…":EmbeddedServerService.status);
+        boolean savedKey=!getSharedPreferences(EmbeddedServerService.PREFS,0).getString("allowed_key","").isEmpty();
+        ((TextView)findViewById(R.id.serverAccessSummary)).setText("Порт "+(EmbeddedServerService.running?EmbeddedServerService.boundPort:getSharedPreferences(EmbeddedServerService.PREFS,0).getInt("port",8022))+" · "+getSharedPreferences(EmbeddedServerService.PREFS,0).getString("user","localls")+(EmbeddedServerService.running&&EmbeddedServerService.waitingForClient?" · Вход закрыт":" · Доступ по ключу"));
         StatusBadge.apply(summary,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
-            EmbeddedServerService.starting || EmbeddedServerService.launchRequested!=0?StatusBadge.Tone.WARNING:
+            EmbeddedServerService.launchPending()?StatusBadge.Tone.WARNING:
             EmbeddedServerService.diagnostic.isEmpty()?StatusBadge.Tone.NEUTRAL:StatusBadge.Tone.ERROR);
+        TextView receive=findViewById(R.id.serverReceiveSummary);
+        receive.setText(ReceiveFolder.label(this));receive.setContentDescription("Папка входящих: "+ReceiveFolder.label(this)+". "+AutoReceive.status);
+        ((Button)findViewById(R.id.serverBackgroundButton)).setText(EmbeddedServerService.running?"Работает в фоне":"Работа в фоне");
+        Button power=findViewById(R.id.serverPowerButton);
+        boolean pending=EmbeddedServerService.launchPending();
+        power.setText(EmbeddedServerService.running?"Остановить":pending?"Запуск…":"Включить");
+        power.setEnabled(Build.VERSION.SDK_INT>=26 && !pending);
+    }
+    private void toggleOwnServer(){
+        if(EmbeddedServerService.running){stopService(new Intent(this,EmbeddedServerService.class));return;}
+        if(Build.VERSION.SDK_INT<26 || EmbeddedServerService.launchPending())return;
+        try{
+            EmbeddedServerService.start(this);
+            if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},REQ_SERVER_NOTIFICATIONS);
+        }catch(RuntimeException error){Toast.makeText(this,EmbeddedServerService.status,Toast.LENGTH_LONG).show();}
+        refreshLocalServer();
     }
 
     private int configSignature() {
@@ -180,6 +256,9 @@ public class MainActivity extends BaseActivity {
     }
 
     private void invalidateConnectionStats() {
+        TextView connectionResult=findViewById(R.id.connectionCheckStatus);
+        connectionResult.setText(R.string.ssh_check_changed);
+        connectionResult.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary));
         StatusBadge.apply(statusText,StatusBadge.Tone.WARNING);
         statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_ab27bd0a2936);
         statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
@@ -187,7 +266,10 @@ public class MainActivity extends BaseActivity {
         lastSeenFingerprint = ""; lastSeenHost = ""; lastSeenPort = -1;
         trustKeyButton.setVisibility(View.GONE);
         fingerprintValue.setVisibility(View.GONE);
-        latencyValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a); diskValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_e1faaf5992f7); uptimeValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_cbe1cb69c8a9);
+        ((DashboardLayout)findViewById(R.id.dashboardScroll)).resetMetrics();
+        batteryValue.setText("—");batteryValue.setContentDescription("Заряд батареи сервера: —");
+        diskValue.setContentDescription("Свободное место сервера: —");
+        latencyValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a); diskValue.setText("—"); uptimeValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_cbe1cb69c8a9);
     }
 
     private void bindViews() {
@@ -214,30 +296,34 @@ public class MainActivity extends BaseActivity {
         logText = findViewById(R.id.logText);
 
         checkButton = findViewById(R.id.checkButton);
+        connectionCheckButton = findViewById(R.id.connectionCheckButton);
         trustKeyButton = findViewById(R.id.trustKeyButton);
     }
 
     private void wireActions() {
+        findViewById(R.id.homeServerTab).setOnClickListener(v->selectHome(true));
+        findViewById(R.id.homeClientTab).setOnClickListener(v->selectHome(false));
+        findViewById(R.id.serverPowerButton).setOnClickListener(v->toggleOwnServer());
+        findViewById(R.id.serverLocalFilesButton).setOnClickListener(v->startActivity(new Intent(this,FilesActivity.class).putExtra("own_server",true)));
+        findViewById(R.id.serverReceiveButton).setOnClickListener(v->startActivity(new Intent(this,EmbeddedServerActivity.class).putExtra("open_receive_folder",true)));
+        findViewById(R.id.serverBackgroundButton).setOnClickListener(v->{try{
+            startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName())));
+        }catch(RuntimeException error){Toast.makeText(this,"Открой настройки Android → LocalLS → Батарея",Toast.LENGTH_LONG).show();}});
         findViewById(R.id.drawerScrim).setOnClickListener(v -> closeToolsDrawer());
         findViewById(R.id.drawerConnectionHeader).setOnClickListener(v -> {
-            View pane=findViewById(R.id.drawerConnectionPane);
-            pane.setVisibility(pane.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);
+            showDashboardSheet(R.id.connectionSheet);
         });
+        findViewById(R.id.connectionCloseButton).setOnClickListener(v->closeDashboardSheet());
+        findViewById(R.id.detailsCloseButton).setOnClickListener(v->closeDashboardSheet());
+        findViewById(R.id.connectionDetailsButton).setOnClickListener(v->showDashboardSheet(R.id.connectionDetailsSheet));
+        findViewById(R.id.scanQrButton).setOnClickListener(v->startActivity(new Intent(this,QrPairingActivity.class)));
+        findViewById(R.id.transferQueueButton).setOnClickListener(v->startActivity(new Intent(this,TransferQueueActivity.class)));
+        findViewById(R.id.serverQrButton).setOnClickListener(v->startActivity(new Intent(this,QrPairingActivity.class).putExtra("server",true)));
+        findViewById(R.id.toolsMenuButton).setOnClickListener(v->openToolsDrawer());
         findViewById(R.id.themeChooserButton).setOnClickListener(v -> chooseTheme());
-        findViewById(R.id.iconShapeButton).setOnClickListener(v -> chooseIconShape());
+        AppearanceSettings.bind(this,findViewById(R.id.appearanceGlassSwitch),findViewById(R.id.appearanceOutlineButton),this::refreshAppearance);
         findViewById(R.id.localServerQuickButton).setOnClickListener(v -> startActivity(new Intent(this,EmbeddedServerActivity.class)));
         findViewById(R.id.appSettingsButton).setOnClickListener(v -> startActivity(new Intent(this,SettingsActivity.class)));
-        findViewById(R.id.drawerVpnSettingsButton).setOnClickListener(v -> startActivity(new Intent(this,NetworkActivity.class).putExtra("expand_vpn",true)));
-        findViewById(R.id.openVpnClientButton).setOnClickListener(v -> openVpnClient());
-        findViewById(R.id.vpnHelpButton).setOnClickListener(v -> showVpnHelp());
-        ((Switch)findViewById(R.id.drawerVpnSwitch)).setOnCheckedChangeListener((button,checked) -> {
-            if(updatingVpnSwitch)return;
-            if(checked && VpnController.state(this)==VpnController.State.OTHER_VPN) {
-                refreshVpnStatus();new AlertDialog.Builder(this).setTitle("Другой VPN уже включён")
-                    .setMessage("Переключиться на Tailscale?").setNegativeButton("Отмена",null)
-                    .setPositiveButton("Переключить",(d,w) -> requestVpn(true)).show();
-            } else requestVpn(checked);
-        });
         findViewById(R.id.sshKeySetupButton).setOnClickListener(v -> {
             if(saveConfig())startActivity(new Intent(this,SecurityActivity.class));
         });
@@ -249,11 +335,11 @@ public class MainActivity extends BaseActivity {
             handler.postDelayed(savedProfileCheck,750);
         });
         checkButton.setOnClickListener(v -> checkServer(true));
+        connectionCheckButton.setOnClickListener(v -> checkServer(true));
         findViewById(R.id.copyButton).setOnClickListener(v -> copyConnection());
         findViewById(R.id.filesButton).setOnClickListener(v -> openFiles(false));
         findViewById(R.id.attachFilesButton).setOnClickListener(v -> openFiles(attachedFiles.isEmpty()));
         findViewById(R.id.networkButton).setOnClickListener(v -> startActivity(new Intent(this,NetworkActivity.class)));
-        findViewById(R.id.settingsButton).setOnClickListener(v -> {openToolsDrawer();drawerSections.open(R.id.drawerSettingsPane);});
         findViewById(R.id.historyButton).setOnClickListener(v -> startActivity(new Intent(this,HistoryActivity.class)));
         findViewById(R.id.diagnosticsButton).setOnClickListener(v -> startActivity(new Intent(this,DiagnosticsActivity.class)));
         findViewById(R.id.exportButton).setOnClickListener(v -> exportDiagnostics());
@@ -378,6 +464,11 @@ public class MainActivity extends BaseActivity {
         }
     }
 
+    private void setCheckButtonsEnabled(boolean enabled) {
+        if(checkButton!=null)checkButton.setEnabled(enabled);
+        if(connectionCheckButton!=null)connectionCheckButton.setEnabled(enabled);
+    }
+
     private void checkServer(boolean userInitiated) {
         if (checking) return;
         final String primaryHost = activeHost();
@@ -386,13 +477,17 @@ public class MainActivity extends BaseActivity {
         final int port = parsePort();
 
         if (!ConnectionEndpoint.validHost(primaryHost) || !ConnectionEndpoint.validUser(user) || port <= 0) {
-            if (userInitiated) Toast.makeText(this, "Проверь активный адрес, порт и пользователя", Toast.LENGTH_SHORT).show();
+            if (userInitiated) {
+                TextView result=findViewById(R.id.connectionCheckStatus);result.setText(R.string.ssh_check_invalid);result.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
+                Toast.makeText(this,R.string.ssh_check_invalid,Toast.LENGTH_SHORT).show();
+            }
             return;
         }
 
         checking = true;
         StatusBadge.apply(statusText,StatusBadge.Tone.WARNING);
-        checkButton.setEnabled(false);
+        setCheckButtonsEnabled(false);
+        TextView checkingStatus=findViewById(R.id.connectionCheckStatus);checkingStatus.setText(R.string.ssh_check_busy);checkingStatus.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
         statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_32dfa9c36e2b);
         statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
         statusDetail.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.server_endpoint_format, primaryHost, port));
@@ -422,7 +517,7 @@ public class MainActivity extends BaseActivity {
             handler.post(() -> {
                 if (!isUiActive() || generation != uiGeneration) return;
                 checking = false;
-                checkButton.setEnabled(true);
+                setCheckButtonsEnabled(true);
                 if (!primaryHost.equals(finalHost)) {
                     appendLog("Основной маршрут недоступен. Использован резервный: " + finalHost + ".");
                 }
@@ -433,13 +528,16 @@ public class MainActivity extends BaseActivity {
     }
 
     private void renderStats(ServerStats stats, String host, int port, String user) {
-        ipValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_a09644a994b3, ("—".equals(stats.ip) ? host : stats.ip)));
+        ((DashboardLayout)findViewById(R.id.dashboardScroll)).metrics(stats);
+        ipValue.setText("—".equals(stats.ip) ? host : stats.ip);
         portValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_ff7a04dd6c26, port));
         userValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_617bb5a0a088, user));
         latencyValue.setText(stats.reachable ? getString(com.bitpoint.homeservercontrol.ui.R.string.status_latency_format, stats.latencyMs) : getString(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a));
-        diskValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_b375486b730b, stats.disk));
+        diskValue.setText(SurfaceStyle.quantity(stats.freeSpace));
+        diskValue.setContentDescription("Свободное место сервера: "+stats.freeSpace);
         uptimeValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_3597244eb434, stats.uptime));
-        batteryValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_3ca1619dfe27, stats.battery));
+        batteryValue.setText(stats.battery);
+        batteryValue.setContentDescription("Заряд батареи сервера: "+stats.battery);
         fingerprintValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_8229b14b80f9, stats.hostFingerprint));
         fingerprintValue.setVisibility(stats.hostFingerprint != null && !"—".equals(stats.hostFingerprint)
                 ? View.VISIBLE : View.GONE);
@@ -454,6 +552,7 @@ public class MainActivity extends BaseActivity {
         lastSeenHost = host;
         lastSeenPort = port;
         trustKeyButton.setVisibility(stats.hostKeyNeedsTrust ? View.VISIBLE : View.GONE);
+        if(stats.hostKeyNeedsTrust)showDashboardSheet(R.id.connectionDetailsSheet);
 
         if (stats.hostKeyMismatch) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_de99b03c323c);
@@ -468,7 +567,8 @@ public class MainActivity extends BaseActivity {
         } else if (stats.authenticated && stats.hostKeyTrusted) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7141047c824d);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess));
-            if (stats.sftpOnly) statusDetail.setText("SFTP работает. Командная оболочка отключена; системные метрики недоступны.");
+            if(stats.telemetryAvailable)statusDetail.setText("Доступ по ключу. Показатели сервера обновлены.");
+            else if (stats.sftpOnly) statusDetail.setText("SFTP работает. Командная оболочка отключена; системные метрики недоступны.");
             else statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_0870869f22e7);
             appendLog("Сервер онлайн. SSH-вход успешен.");
         } else if (stats.reachable) {
@@ -482,6 +582,9 @@ public class MainActivity extends BaseActivity {
             statusDetail.setText(stats.error);
             appendLog(stats.error);
         }
+        TextView connectionResult=findViewById(R.id.connectionCheckStatus);
+        connectionResult.setText(statusText.getText()+"\n"+statusDetail.getText());
+        connectionResult.setTextColor(statusText.getCurrentTextColor());
         StatusBadge.apply(statusText,stats.authenticated && stats.hostKeyTrusted?StatusBadge.Tone.SUCCESS:
             stats.hostKeyMismatch || !stats.reachable?StatusBadge.Tone.ERROR:StatusBadge.Tone.WARNING);
     }
@@ -493,7 +596,7 @@ public class MainActivity extends BaseActivity {
         }
         new AlertDialog.Builder(this)
                 .setTitle("Доверять SSH-ключу?")
-                .setMessage("Fingerprint:\n" + lastSeenFingerprint + "\n\nПодтверждай только если это твой сервер.")
+                .setMessage("Отпечаток ключа:\n" + lastSeenFingerprint + "\n\nПодтверждай только если это твой сервер.")
                 .setNegativeButton("Отмена", null)
                 .setPositiveButton("Доверять", (dialog, which) -> {
                     HostTrustStore.trust(this, lastSeenHost, lastSeenPort, lastSeenFingerprint);
@@ -516,10 +619,13 @@ public class MainActivity extends BaseActivity {
     }
 
     private void renderConnectionSummary() {
+        // Network mode is configured in the existing Network screen. Show the active endpoint here.
+        modeGroup.setVisibility(View.GONE);boolean vpn=vpnModeButton.isChecked();localHostInput.setVisibility(vpn?View.GONE:View.VISIBLE);vpnHostInput.setVisibility(vpn?View.VISIBLE:View.GONE);
+        android.view.ViewGroup connection=findViewById(R.id.drawerConnectionPane);for(int i=0;i<connection.getChildCount();i++){View label=connection.getChildAt(i);if(label.getLabelFor()==R.id.localHostInput)label.setVisibility(vpn?View.GONE:View.VISIBLE);if(label.getLabelFor()==R.id.vpnHostInput){label.setVisibility(vpn?View.VISIBLE:View.GONE);((TextView)label).setText("Адрес сервера");}}
         String host = activeHost();
         int port = parsePort();
         String user = userInput.getText().toString().trim();
-        ipValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_a09644a994b3, (TextUtils.isEmpty(host) ? "—" : host)));
+        ipValue.setText(TextUtils.isEmpty(host) ? "—" : host);
         portValue.setText(port > 0
                 ? getString(com.bitpoint.homeservercontrol.ui.R.string.status_ff7a04dd6c26, port)
                 : getString(com.bitpoint.homeservercontrol.ui.R.string.status_port_unavailable));
@@ -584,22 +690,47 @@ public class MainActivity extends BaseActivity {
                 ? "Отправить файл" : "Вложений: " + attachedFiles.size() + " • Отправить");
     }
 
+    private void routeSharedIntent(Intent intent,boolean fresh){
+        if(!fresh||intent==null||(!Intent.ACTION_SEND.equals(intent.getAction())&&!Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction())))return;
+        ArrayList<Uri> shared=FileAttachments.from(intent);if(shared.isEmpty())return;
+        Intent target=new Intent(this,ShareUploadActivity.class);FileAttachments.put(target,shared);startActivity(target);attachedFiles.clear();
+        // Consume this delivery only after the grant-bearing private Activity was launched.
+        intent.setAction(Intent.ACTION_MAIN);intent.removeExtra(Intent.EXTRA_STREAM);intent.setClipData(null);intent.setData(null);
+    }
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
         for (Uri uri : FileAttachments.from(intent)) FileAttachments.add(attachedFiles, uri);
+        routeSharedIntent(intent,true);
         renderAttachmentEntry();
     }
 
     @Override
     protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean("server_home",serverHomeSelected);
         state.putString("pending_report",pendingReport);
         state.putParcelableArrayList(FileAttachments.EXTRA, new ArrayList<>(attachedFiles));
         super.onSaveInstanceState(state);
     }
 
+    private void showDashboardSheet(int id){
+        if(serverHomeSelected || !clientEnabled())return;
+        if(findViewById(R.id.advancedPanel).getVisibility()==View.VISIBLE)closeToolsDrawer();
+        findViewById(R.id.connectionSheet).setVisibility(id==R.id.connectionSheet?View.VISIBLE:View.GONE);
+        findViewById(R.id.connectionDetailsSheet).setVisibility(id==R.id.connectionDetailsSheet?View.VISIBLE:View.GONE);
+        findViewById(R.id.homeShell).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        if(Build.VERSION.SDK_INT>=33&&drawerBackCallback==null){drawerBackCallback=(android.window.OnBackInvokedCallback)this::closeDashboardSheet;getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,(android.window.OnBackInvokedCallback)drawerBackCallback);}
+    }
+    private void closeDashboardSheet(){
+        findViewById(R.id.connectionSheet).setVisibility(View.GONE);findViewById(R.id.connectionDetailsSheet).setVisibility(View.GONE);
+        findViewById(R.id.homeShell).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        if(Build.VERSION.SDK_INT>=33&&drawerBackCallback!=null){getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback((android.window.OnBackInvokedCallback)drawerBackCallback);drawerBackCallback=null;}
+        android.view.inputmethod.InputMethodManager keyboard=(android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);if(keyboard!=null)keyboard.hideSoftInputFromWindow(findViewById(R.id.dashboardRoot).getWindowToken(),0);
+    }
     private void openToolsDrawer() {
+        if(serverHomeSelected || !clientEnabled())return;
+        closeDashboardSheet();
         View panel = findViewById(R.id.advancedPanel);
         if (panel.getVisibility() == View.VISIBLE) { closeToolsDrawer(); return; }
         View root = findViewById(R.id.dashboardRoot);
@@ -613,7 +744,7 @@ public class MainActivity extends BaseActivity {
         panel.setTranslationX(params.width);
         panel.setVisibility(View.VISIBLE);
         findViewById(R.id.drawerScrim).setVisibility(View.VISIBLE);
-        findViewById(R.id.dashboardScroll).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        findViewById(R.id.homeShell).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         panel.animate().translationX(0).setDuration(220).start();
         if (Build.VERSION.SDK_INT >= 33) {
             drawerBackCallback = (android.window.OnBackInvokedCallback) this::closeToolsDrawer;
@@ -621,7 +752,6 @@ public class MainActivity extends BaseActivity {
                     android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                     (android.window.OnBackInvokedCallback) drawerBackCallback);
         }
-        refreshVpnStatus();
     }
 
     private void closeToolsDrawer() {
@@ -634,8 +764,7 @@ public class MainActivity extends BaseActivity {
         panel.animate().cancel();
         panel.setVisibility(View.GONE);
         findViewById(R.id.drawerScrim).setVisibility(View.GONE);
-        findViewById(R.id.dashboardScroll).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
-        handler.removeCallbacks(vpnRefresh);
+        findViewById(R.id.homeShell).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager)
                 getSystemService(INPUT_METHOD_SERVICE);
         if (keyboard != null) keyboard.hideSoftInputFromWindow(panel.getWindowToken(), 0);
@@ -644,98 +773,19 @@ public class MainActivity extends BaseActivity {
     @Override
     @android.annotation.SuppressLint("GestureBackNavigation") // API 24–32; API 33+ uses the registered callback above.
     public void onBackPressed() {
-        if (findViewById(R.id.advancedPanel).getVisibility() == View.VISIBLE) closeToolsDrawer();
+        if(findViewById(R.id.connectionSheet).getVisibility()==View.VISIBLE||findViewById(R.id.connectionDetailsSheet).getVisibility()==View.VISIBLE)closeDashboardSheet();
+        else if (findViewById(R.id.advancedPanel).getVisibility() == View.VISIBLE) closeToolsDrawer();
         else super.onBackPressed();
     }
 
-    private void chooseIconShape() {
-        new AlertDialog.Builder(this).setTitle("Форма значков функций")
-                .setSingleChoiceItems(IconShapeCatalog.NAMES, IconShapeCatalog.index(this), (dialog, selected) -> {
-                    IconShapeCatalog.select(this, selected);
-                    refreshIconStyle();
-                    dialog.dismiss();
-                }).setNegativeButton("Назад", null).show();
-    }
-
-    private void chooseTheme() {
-        new AlertDialog.Builder(this).setTitle("Цветовая тема")
-                .setSingleChoiceItems(ThemeCatalog.NAMES, ThemeCatalog.index(this), (dialog, selected) -> {
-                    ThemeCatalog.select(this, selected);
-                    dialog.dismiss();
-                    recreate();
-                }).setNegativeButton("Назад", null).show();
-    }
-
-    private void requestVpn(boolean connect) {
-        VpnController.Request result = VpnController.request(this, connect);
-        if (result == VpnController.Request.SENT) {
-            requestedVpn = connect;
-            vpnRequestDeadline = SystemClock.elapsedRealtime() + 20_000;
-            refreshVpnStatus();
-            return;
-        }
-        requestedVpn = null;
-        refreshVpnStatus();
-        new AlertDialog.Builder(this).setTitle("VPN / Tailscale")
-                .setMessage(result == VpnController.Request.NOT_INSTALLED
-                        ? "Установи Tailscale на телефон, серверное устройство и компьютер. Войди в одну сеть и разреши VPN на телефоне. После настройки тумблер сможет включать и выключать подключение."
-                        : "Открой Tailscale и заверши настройку. Эта версия клиента или политика Android не разрешила команду подключения.")
-                .setNegativeButton("Назад", null)
-                .setPositiveButton(result == VpnController.Request.NOT_INSTALLED ? "Скачать" : "Открыть",
-                        (dialog, which) -> openVpnClient()).show();
-    }
-
-    private void refreshVpnStatus() {
-        Switch toggle = findViewById(R.id.drawerVpnSwitch);
-        if (toggle == null) return;
-        handler.removeCallbacks(vpnRefresh);
-        VpnController.State state = VpnController.state(this);
-        boolean connected = state == VpnController.State.TAILSCALE;
-        String message = connected ? "VPN Tailscale включён" : state == VpnController.State.OTHER_VPN
-                ? "Включён другой VPN" : "VPN выключен";
-        if (requestedVpn != null) {
-            if (requestedVpn == connected) requestedVpn = null;
-            else if (SystemClock.elapsedRealtime() >= vpnRequestDeadline) {
-                requestedVpn = null;
-                message = "Открой Tailscale и проверь подключение";
-            } else message = requestedVpn ? "Подключение…" : "Отключение…";
-        }
-        updatingVpnSwitch = true;
-        toggle.setChecked(connected);
-        toggle.setEnabled(requestedVpn == null);
-        updatingVpnSwitch = false;
-        ((TextView) findViewById(R.id.drawerVpnStatus)).setText(message);
-        ((Button) findViewById(R.id.themeChooserButton)).setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_8851ca39fa37, ThemeCatalog.NAMES[ThemeCatalog.index(this)]));
-        if (isUiActive() && ((findViewById(R.id.advancedPanel).getVisibility() == View.VISIBLE
-                && findViewById(R.id.drawerVpnPane).getVisibility() == View.VISIBLE) || requestedVpn != null))
-            handler.postDelayed(vpnRefresh, 1000);
-    }
-
-    private void openVpnClient() {
-        Intent intent = getPackageManager().getLaunchIntentForPackage(VpnController.PACKAGE);
-        if (intent == null) intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://tailscale.com/download/android"));
-        try { startActivity(intent); }
-        catch (android.content.ActivityNotFoundException e) {
-            Toast.makeText(this, "Установи Tailscale из магазина приложений", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void showVpnHelp() {
-        new AlertDialog.Builder(this).setTitle("Общая сеть телефона и ПК")
-                .setMessage("1. Установи Tailscale на серверное устройство, телефон и компьютер.\n\n"
-                        + "2. Войди на устройствах в одну сеть Tailscale и включи их подключения.\n\n"
-                        + "3. Укажи 100.x.x.x или MagicDNS-имя сервера в VPN-профиле; порт 8022 и логин остаются прежними. На ПК используй тот же адрес в SFTP-клиенте.\n\n"
-                        + "4. Дома текущий локальный IP сервера остаётся доступен с обычным Tailscale без exit node. Для доступа из другой сети выбери профиль VPN / Tailscale.\n\n"
-                        + "Если используешь exit node, включи Allow LAN access в настройках Tailscale на каждом устройстве.\n\n"
-                        + "Тумблер управляет VPN этого телефона. Другие устройства подключаются в своих клиентах.")
-                .setPositiveButton("Понятно", null).show();
-    }
+    private void chooseTheme(){AppearanceSettings.chooseTheme(this,this::refreshAppearance);}
+    private void refreshAppearance(){getIntent().putExtra("localls.openAppearance",true);recreate();}
 
     private void exportDiagnostics() {
         StringBuilder report = new StringBuilder();
         String version;
         try{version=getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(Exception e){version="—";}
-        report.append("LocalLS ").append(version).append('\n');
+        report.append("LocalLS ").append(version).append(" / ").append(getString(R.string.ui_build_revision)).append('\n');
         report.append("Создано: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())).append("\n\n");
         report.append("Подключение\n");
         report.append("Режим: ").append(vpnModeButton.isChecked() ? "VPN/Tailscale" : "Local").append("\n");
@@ -783,12 +833,6 @@ public class MainActivity extends BaseActivity {
         });
     }
 
-    private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFICATIONS);
-        }
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -820,10 +864,10 @@ public class MainActivity extends BaseActivity {
         while (recent.size() > 20) recent.remove(0);
         float peak = 0;
         for (Float value : recent) peak = Math.max(peak, value);
-        summary.setText(recent.isEmpty() ? "Нет замеров"
-                : String.format(Locale.getDefault(), "Последний: %.0f мс", recent.get(recent.size() - 1)));
+        summary.setText(recent.isEmpty() ? "—"
+                : String.format(Locale.getDefault(), "%.0f мс", recent.get(recent.size() - 1)));
         while (recent.size() < 20) recent.add(0, Float.NaN);
-        chart.setLabels("мс", "20 замеров");
+        chart.setLabels("мс", "20 проверок");
         chart.setValues(recent, 0, Math.max(10f, peak * 1.2f));
     }
 
@@ -831,7 +875,9 @@ public class MainActivity extends BaseActivity {
         ++uiGeneration;
         if (checkTask != null) checkTask.cancel(true);
         checking = false;
-        if (checkButton != null) checkButton.setEnabled(true);
+        setCheckButtonsEnabled(true);
+        TextView result=findViewById(R.id.connectionCheckStatus);
+        if(result!=null && getString(R.string.ssh_check_busy).contentEquals(result.getText())){result.setText(R.string.ssh_check_ready);result.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary));}
         if (statusText != null && "● ПРОВЕРКА…".contentEquals(statusText.getText())) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_f7ed201ba529);
             statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7fad5c3e34a2);
@@ -840,18 +886,20 @@ public class MainActivity extends BaseActivity {
 
     @Override
     protected void onPause() {
+        ((ServerHomeLayout)findViewById(R.id.serverHome)).suspend();
         if (liveSpeedPanel != null) liveSpeedPanel.stop();
         if (wifiSetup != null) wifiSetup.stop();
         cancelNetworkWork();
         handler.removeCallbacks(autoRefreshRunnable);
         handler.removeCallbacks(localServerRefresh);
+        handler.removeCallbacks(pairedMetricsRefresh);
         if (savedProfileCheck != null) handler.removeCallbacks(savedProfileCheck);
-        handler.removeCallbacks(vpnRefresh);
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
+        ((ServerHomeLayout)findViewById(R.id.serverHome)).close();
         if (wifiSetup != null) wifiSetup.destroy();
         ++secretGeneration;
         if (Build.VERSION.SDK_INT >= 33 && drawerBackCallback != null)

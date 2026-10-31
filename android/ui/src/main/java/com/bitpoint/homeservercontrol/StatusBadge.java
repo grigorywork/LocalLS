@@ -19,11 +19,11 @@ final class StatusBadge {
             default:foreground=ThemeCatalog.color(view.getContext(),com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary);background=ThemeCatalog.color(view.getContext(),com.bitpoint.homeservercontrol.ui.R.attr.hscPanel);
         }
         view.setTextColor(foreground);
-        int token=tone.ordinal()+(dark?10:20);
+        int token=tone.ordinal()+(dark?10:20)+(ThemeCatalog.glass(view.getContext())?100:0);
         if(Integer.valueOf(token).equals(view.getTag(com.bitpoint.homeservercontrol.ui.R.id.statusBadgeStyle)))return;
         view.setTag(com.bitpoint.homeservercontrol.ui.R.id.statusBadgeStyle,token);
         float density=view.getResources().getDisplayMetrics().density;
-        GradientDrawable shape=new GradientDrawable();shape.setColor(background);shape.setCornerRadius(10*density);shape.setStroke(Math.max(1,Math.round(density)),foreground);
+        GradientDrawable shape;if(ThemeCatalog.glass(view.getContext()))shape=(GradientDrawable)SurfaceStyle.panel(view.getContext());else{shape=new GradientDrawable();shape.setColor(background);shape.setCornerRadius(10*density);shape.setStroke(Math.max(1,Math.round(density)),foreground);}
         view.setBackground(shape);view.setTextColor(foreground);view.setTypeface(view.getTypeface(),Typeface.BOLD);
         int padding=Math.round(12*density);view.setPadding(padding,padding,padding,padding);
         view.setAccessibilityLiveRegion(android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE);

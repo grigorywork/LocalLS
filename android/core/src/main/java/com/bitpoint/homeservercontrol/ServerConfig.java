@@ -12,8 +12,6 @@ final class ServerConfig {
     static final String KEY_PASSWORD_CIPHER = "password_cipher";
     static final String KEY_TRUSTED_FINGERPRINT_PREFIX = "trusted_fp_";
 
-    static final String KEY_IPERF_TARGET = "iperf_target";
-
     static final String KEY_AGENT_PORT = "agent_port";
     static final String KEY_SAVE_AGENT_TOKEN = "save_agent_token";
     static final String KEY_AGENT_TOKEN_CIPHER = "agent_token_cipher";

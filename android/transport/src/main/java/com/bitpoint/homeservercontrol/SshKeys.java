@@ -19,6 +19,7 @@ final class SshKeys {
     static final String PUBLIC = "publicKey", PRIVATE = "privateKey", PHRASE = "passphrase";
     private SshKeys() {}
     static boolean keyMode(Context c) { return true; }
+    static boolean hasStoredKey(Context c,String host,int port,String user){return SecurePrefs.containsNamed(c,storageId(c,host,port,user));}
     static SshCredentials credentials(Context c, String host, int port, String user, String password) {
         return keyCredentials(c, host, port, user);
     }
@@ -57,7 +58,7 @@ final class SshKeys {
             JSONObject info = inspect(privateKey, ""); return info.put(PRIVATE, privateKey).put(PHRASE, "");
         } finally { pair.dispose(); }
     }
-    static void save(Context c, String host, int port, String user, JSONObject value) throws Exception {
+    static synchronized void save(Context c, String host, int port, String user, JSONObject value) throws Exception {
         inspect(value.getString(PRIVATE), value.optString(PHRASE));
         SecurePrefs.saveNamed(c, storageId(c,host,port,user), value.toString());
         prefs(c).edit().putLong(REVISION, System.currentTimeMillis()).apply();
@@ -66,10 +67,19 @@ final class SshKeys {
         try { JSONObject obj = new JSONObject(SecurePrefs.loadNamed(c, storageId(c,host,port,user))); return inspect(obj.getString(PRIVATE), obj.optString(PHRASE)); }
         catch (Exception | LinkageError e) { return new JSONObject(); }
     }
-    static void clear(Context c, String host, int port, String user) { SecurePrefs.clearNamed(c, storageId(c,host,port,user)); prefs(c).edit().putLong(REVISION, System.currentTimeMillis()).apply(); }
+    static synchronized void clear(Context c, String host, int port, String user) { SecurePrefs.clearNamed(c, storageId(c,host,port,user)); prefs(c).edit().putLong(REVISION, System.currentTimeMillis()).apply(); }
+    /** Serialize lookup/create against key edits. Never replace an existing or unreadable slot. */
+    static synchronized JSONObject pairingInfo(Context c,String host,int port,String user,String pin)throws Exception{
+        VerifiedCopy.check();JSONObject existing=info(c,host,port,user);VerifiedCopy.check();
+        if(existing.has(PUBLIC))return existing;
+        if(hasStoredKey(c,host,port,user))throw new java.io.IOException("Прежний ключ недоступен. Восстанови его в «Ключ доступа»");
+        recoverRoute(c,host,port,user,pin);existing=info(c,host,port,user);VerifiedCopy.check();if(existing.has(PUBLIC))return existing;
+        if(hasStoredKey(c,host,port,user))throw new java.io.IOException("Прежний ключ недоступен");
+        JSONObject fresh=generate();VerifiedCopy.check();save(c,host,port,user,fresh);return info(c,host,port,user);
+    }
     private static String storageId(Context c,String host,int port,String user){return prefs(c).getString("route_"+keyId(host,port,user),keyId(host,port,user));}
     /** Repair an old lost address binding only for an already trusted server and one unique identity. */
-    static boolean recoverRoute(Context c,String host,int port,String user,String observedPin)throws Exception{
+    static synchronized boolean recoverRoute(Context c,String host,int port,String user,String observedPin)throws Exception{
         if(!ConnectionEndpoint.validHost(host) || !ConnectionEndpoint.validUser(user) || port<1 || port>65535 || observedPin==null || observedPin.isEmpty())return false;
         String targetPin=HostTrustStore.get(c,host,port);
         if(!targetPin.isEmpty() && !targetPin.equals(observedPin))return false;
@@ -85,7 +95,7 @@ final class SshKeys {
         return source!=null && moveRoute(c,source,host,port,user);
     }
     /** Address changes of the same pinned server retain identity; an existing different pin is never replaced. */
-    static boolean moveRoute(Context c,String from,String to,int port,String user)throws Exception{
+    static synchronized boolean moveRoute(Context c,String from,String to,int port,String user)throws Exception{
         if(from==null || from.isEmpty() || from.equals(to))return false;
         String pin=HostTrustStore.get(c,from,port),otherPin=HostTrustStore.get(c,to,port);
         if(pin.isEmpty() || (!otherPin.isEmpty() && !pin.equals(otherPin)))return false;

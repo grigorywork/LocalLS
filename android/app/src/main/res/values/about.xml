@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_title">О приложении</string>
+    <string name="about_name">LocalLS</string>
+    <string name="about_greeting">Привет! Это LocalLS — твои устройства, твои файлы. Подключайся и передавай удобно.</string>
+    <string name="about_author">Автор — MSS9LN</string>
+    <string name="about_version">Версия %1$s · сборка %2$d</string>
+    <string name="about_description">Обмен файлами между устройствами по SSH/SFTP. Подключение по QR-коду, доступ по ключам и очередь передач.</string>
+</resources>

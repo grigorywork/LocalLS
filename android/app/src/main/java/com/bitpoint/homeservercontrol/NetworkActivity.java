@@ -2,188 +2,64 @@ package com.bitpoint.homeservercontrol;
 
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
+import android.os.*;
 import android.text.TextUtils;
-import android.widget.CheckBox;
-import android.widget.EditText;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.*;
+import java.util.concurrent.*;
 
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+/** Finds a server and edits its address without changing a saved route or trusted identity. */
 public class NetworkActivity extends BaseActivity {
-    private EditText localHostInput, vpnHostInput, iperfTargetInput;
-    private RadioGroup modeGroup;
-    private CheckBox autoFallbackCheck;
-    private RadioButton localModeButton, vpnModeButton;
+    private EditText localHostInput;
     private TextView resultText;
-    private final ExecutorService executor = Executors.newFixedThreadPool(2);
-    private final Handler handler = new Handler(Looper.getMainLooper());
-
+    private String loadedMode,loadedHost,loadedUser;
+    private int loadedPort;
+    private final ExecutorService executor=Executors.newFixedThreadPool(2);
+    private final Handler handler=new Handler(Looper.getMainLooper());
     private volatile int requestGeneration;
-    private java.util.concurrent.Future<?> requestTask;
+    private Future<?> requestTask;
     private AlertDialog discoveryDialog;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        ConfigMigrator.migrate(this);
-        setContentView(R.layout.activity_network);
-        localHostInput = findViewById(R.id.networkLocalHostInput);
-        vpnHostInput = findViewById(R.id.networkVpnHostInput);
-        iperfTargetInput = findViewById(R.id.networkIperfTargetInput);
-        modeGroup = findViewById(R.id.networkModeGroup);
-        localModeButton = findViewById(R.id.networkLocalModeButton);
-        vpnModeButton = findViewById(R.id.networkVpnModeButton);
-        resultText = findViewById(R.id.networkResultText);
-        autoFallbackCheck = findViewById(R.id.networkAutoFallbackCheck);
-
-        load();
-        findViewById(R.id.networkVpnHeader).setOnClickListener(v -> {
-            android.view.View pane = findViewById(R.id.networkVpnPane);
-            boolean expanded = pane.getVisibility() != android.view.View.VISIBLE;
-            pane.setVisibility(expanded ? android.view.View.VISIBLE : android.view.View.GONE);
-            v.setSelected(expanded); IconButtons.decorate(v);
-        });
-        if (getIntent().getBooleanExtra("expand_vpn", false)) findViewById(R.id.networkVpnHeader).performClick();
-        modeGroup.setOnCheckedChangeListener((group, id) -> cancelRequest());
-        android.text.TextWatcher watcher = new android.text.TextWatcher() {
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-            public void onTextChanged(CharSequence s, int start, int before, int count) { cancelRequest(); }
-            public void afterTextChanged(android.text.Editable s) { }
-        };
-        localHostInput.addTextChangedListener(watcher);
-        vpnHostInput.addTextChangedListener(watcher);
-        findViewById(R.id.networkBackButton).setOnClickListener(v -> finish());
-        findViewById(R.id.networkSaveButton).setOnClickListener(v -> save());
-        findViewById(R.id.networkTestButton).setOnClickListener(v -> testConnection());
-        findViewById(R.id.networkDiscoverButton).setOnClickListener(v -> discoverLocalServer());
-        findViewById(R.id.tailscaleWizardButton).setOnClickListener(v -> showTailscaleWizard());
-    }
-
-    private void load() {
-        SharedPreferences prefs = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE);
-        localHostInput.setText(prefs.getString(ServerConfig.KEY_LOCAL_HOST, ServerConfig.DEFAULT_LOCAL_HOST));
-        vpnHostInput.setText(prefs.getString(ServerConfig.KEY_VPN_HOST, ServerConfig.DEFAULT_VPN_HOST));
-        iperfTargetInput.setText(prefs.getString(ServerConfig.KEY_IPERF_TARGET, ""));
-        String mode = prefs.getString(ServerConfig.KEY_MODE, ServerConfig.MODE_LOCAL);
-        autoFallbackCheck.setChecked(prefs.getBoolean(ServerConfig.KEY_AUTO_FALLBACK, false));
-        if (ServerConfig.MODE_VPN.equals(mode)) vpnModeButton.setChecked(true);
-        else localModeButton.setChecked(true);
-    }
-
-    private void save() {
-        String local = localHostInput.getText().toString().trim();
-        String vpn = vpnHostInput.getText().toString().trim();
-        String mode = vpnModeButton.isChecked() ? ServerConfig.MODE_VPN : ServerConfig.MODE_LOCAL;
-        localHostInput.setError(null);vpnHostInput.setError(null);
-        boolean invalid=false;
-        if ((!local.isEmpty() || ServerConfig.MODE_LOCAL.equals(mode)) && !ConnectionEndpoint.validHost(local)) {
-            localHostInput.setError("Укажи IP или имя телефона-сервера без порта и пути");invalid=true;
-        }
-        if ((!vpn.isEmpty() || ServerConfig.MODE_VPN.equals(mode)) && !ConnectionEndpoint.validHost(vpn)) {
-            vpnHostInput.setError("Укажи IP или имя сервера в VPN");invalid=true;
-        }
-        if (invalid) {
-            Toast.makeText(this, "Исправь отмеченные адреса", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    @Override protected void onCreate(Bundle state){
+        super.onCreate(state);ConfigMigrator.migrate(this);setContentView(R.layout.activity_network);
+        localHostInput=findViewById(R.id.networkLocalHostInput);resultText=findViewById(R.id.networkResultText);
+        SettingsUi.surface(findViewById(R.id.networkAddressCard));
         SharedPreferences prefs=getSharedPreferences(ServerConfig.PREFS,MODE_PRIVATE);
-        int port=prefs.getInt(ServerConfig.KEY_PORT,ServerConfig.DEFAULT_PORT);
-        String user=prefs.getString(ServerConfig.KEY_USER,ServerConfig.DEFAULT_USER);
-        if (port<1 || port>65535 || !ConnectionEndpoint.validUser(user)) {
-            Toast.makeText(this,"Проверь порт и пользователя в настройках подключения",Toast.LENGTH_LONG).show();return;
-        }
-        boolean moved;
-        try {moved=SshKeys.moveRoute(this,ConnectionSelector.selectedHost(this),ServerConfig.MODE_VPN.equals(mode)?vpn:local,port,user);}
-        catch(Exception e){Toast.makeText(this,"Не удалось сохранить доступ для нового адреса. Старое подключение сохранено.",Toast.LENGTH_LONG).show();return;}
-        prefs.edit()
-                .putString(ServerConfig.KEY_LOCAL_HOST, local)
-                .putString(ServerConfig.KEY_VPN_HOST, vpn)
-                .putString(ServerConfig.KEY_MODE, mode)
-                .putString(ServerConfig.KEY_IPERF_TARGET, iperfTargetInput.getText().toString().trim())
-                .putBoolean(ServerConfig.KEY_AUTO_FALLBACK, autoFallbackCheck.isChecked())
-                .apply();
-        Toast.makeText(this, moved?"Адрес сохранён. Прежний ключ и fingerprint сохранены.":"Сетевые настройки сохранены", Toast.LENGTH_SHORT).show();
-    }
-
-    private void testConnection() {
-        String primary = activeHost();
-        String alternate = alternateHost();
-        int port = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE)
-                .getInt(ServerConfig.KEY_PORT, ServerConfig.DEFAULT_PORT);
-        if (TextUtils.isEmpty(primary)) {
-            Toast.makeText(this, "Укажи адрес", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        cancelRequest();
-        final int generation = requestGeneration;
-        resultText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_29607d83ada3, primary, port));
-        final boolean autoFallback = autoFallbackCheck.isChecked();
-        requestTask = executor.submit(() -> {
-            ProbeResult first = probe(primary, port);
-            StringBuilder result = new StringBuilder();
-            result.append("Основной: ").append(primary).append(" — ").append(first.message);
-
-
-            if (autoFallback && !TextUtils.isEmpty(alternate) && !alternate.equals(primary)) {
-                ProbeResult second = probe(alternate, port);
-                result.append("\nРезервный: ").append(alternate).append(" — ").append(second.message);
-                if (!first.ok && second.ok) {
-
-                    result.append("\nАвтопереход сможет использовать резервный маршрут.");
-                }
-            }
-            final String text = result.toString();
-            handler.post(() -> {
-                if (!isUiActive() || generation != requestGeneration) return;
-                resultText.setText(text);
-            });
+        boolean restored=state!=null&&state.getBoolean("address_editor",false);
+        loadedMode=restored?state.getString("editor_mode",ServerConfig.MODE_LOCAL):prefs.getString(ServerConfig.KEY_MODE,ServerConfig.MODE_LOCAL);
+        loadedHost=restored?state.getString("editor_host",""):ConnectionSelector.selectedHost(this);
+        loadedUser=restored?state.getString("editor_user",ServerConfig.DEFAULT_USER):prefs.getString(ServerConfig.KEY_USER,ServerConfig.DEFAULT_USER);
+        loadedPort=restored?state.getInt("editor_port",ServerConfig.DEFAULT_PORT):prefs.getInt(ServerConfig.KEY_PORT,ServerConfig.DEFAULT_PORT);
+        // A draft and its original endpoint must survive rotation together.
+        // Do not restore a legacy local-only EditText state into the unified address field.
+        localHostInput.setSaveEnabled(false);
+        localHostInput.setText(restored?state.getString("editor_draft",loadedHost):loadedHost);
+        localHostInput.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            public void onTextChanged(CharSequence s,int start,int before,int count){cancelRequest();}
+            public void afterTextChanged(android.text.Editable s){}
         });
+        findViewById(R.id.networkBackButton).setOnClickListener(v->finish());
+        findViewById(R.id.networkSaveButton).setOnClickListener(v->save());
+        findViewById(R.id.networkDiscoverButton).setOnClickListener(v->discoverLocalServer());
     }
-
-    private ProbeResult probe(String host, int port) {
-        long started = System.nanoTime();
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, port), 3500);
-            long ms = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
-            return new ProbeResult(true, "Порт доступен • " + ms + " мс. Вход по ключу проверь кнопкой «Проверить SSH» на главном экране.");
-        } catch (Exception e) {
-            String name = e.getClass().getSimpleName();
-            if ("ConnectException".equals(name)) {
-                return new ProbeResult(false, "соединение отклонено: включи сервер на другом телефоне и проверь его IP и порт " + port);
-            } else if ("SocketTimeoutException".equals(name)) {
-                return new ProbeResult(false, "нет ответа: проверь IP сервера и обмен между устройствами в Wi-Fi/VPN. Гостевая сеть может блокировать соединение.");
-            } else if ("UnknownHostException".equals(name)) {
-                return new ProbeResult(false, "адрес не найден");
-            }
-            return new ProbeResult(false, "нет соединения: " + safe(e));
+    @Override protected void onSaveInstanceState(Bundle state){
+        state.putBoolean("address_editor",true);state.putString("editor_mode",loadedMode);
+        state.putString("editor_host",loadedHost);state.putString("editor_user",loadedUser);state.putInt("editor_port",loadedPort);
+        state.putString("editor_draft",localHostInput.getText().toString());super.onSaveInstanceState(state);
+    }
+    private void save(){
+        String host=localHostInput.getText().toString().trim();localHostInput.setError(null);
+        if(!ConnectionEndpoint.validHost(host)){localHostInput.setError("Укажи IP или имя сервера без порта и пути");return;}
+        SharedPreferences prefs=getSharedPreferences(ServerConfig.PREFS,MODE_PRIVATE);
+        if(!loadedMode.equals(prefs.getString(ServerConfig.KEY_MODE,ServerConfig.MODE_LOCAL))||!loadedHost.equals(ConnectionSelector.selectedHost(this))||loadedPort!=prefs.getInt(ServerConfig.KEY_PORT,ServerConfig.DEFAULT_PORT)||!loadedUser.equals(prefs.getString(ServerConfig.KEY_USER,ServerConfig.DEFAULT_USER))){
+            Toast.makeText(this,"Подключение изменилось. Открой поиск заново.",Toast.LENGTH_LONG).show();return;
         }
-    }
-
-    private String alternateHost() {
-        return vpnModeButton.isChecked()
-                ? localHostInput.getText().toString().trim()
-                : vpnHostInput.getText().toString().trim();
-    }
-
-    private static final class ProbeResult {
-        final boolean ok;
-        final String message;
-        ProbeResult(boolean ok, String message) { this.ok = ok; this.message = message; }
-    }
-
-    private String activeHost() {
-        return vpnModeButton.isChecked()
-                ? vpnHostInput.getText().toString().trim()
-                : localHostInput.getText().toString().trim();
+        if(loadedPort<1||loadedPort>65535||!ConnectionEndpoint.validUser(loadedUser)){Toast.makeText(this,"Проверь порт и пользователя в подключении",Toast.LENGTH_LONG).show();return;}
+        try{SshKeys.moveRoute(this,loadedHost,host,loadedPort,loadedUser);}
+        catch(Exception error){Toast.makeText(this,"Не удалось сохранить доступ. Прежний адрес сохранён.",Toast.LENGTH_LONG).show();return;}
+        // Old alternate profiles remain intact; there is no VPN control or automatic migration.
+        prefs.edit().putString(ServerConfig.MODE_VPN.equals(loadedMode)?ServerConfig.KEY_VPN_HOST:ServerConfig.KEY_LOCAL_HOST,host).apply();
+        loadedHost=host;Toast.makeText(this,"Адрес сохранён",Toast.LENGTH_SHORT).show();
     }
 
     private void discoverLocalServer() {
@@ -209,11 +85,12 @@ public class NetworkActivity extends BaseActivity {
                         .setNegativeButton("Отмена", null);
                 if (candidates.length == 1) {
                     dialog.setMessage("Найден адрес " + candidates[0]
-                                    + ". Использовать его как локальный сервер?")
+                                    + ". Подставить его в поле адреса?")
                             .setPositiveButton("Использовать", (d, which) ->
                                     applyDiscoveredHost(candidates[0], port));
                 } else {
-                    dialog.setMessage("Найдено несколько устройств. Выбери сервер по его адресу.")
+                    // AlertDialog displays either a message or its item list, not both.
+                    dialog.setTitle("Выбери SSH-сервер")
                             .setItems(candidates, (d, which) ->
                                     applyDiscoveredHost(candidates[which], port));
                 }
@@ -225,26 +102,7 @@ public class NetworkActivity extends BaseActivity {
 
     private void applyDiscoveredHost(String host, int port) {
         localHostInput.setText(host);
-        localModeButton.setChecked(true);
         resultText.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_12b30fbc136c, host, port));
-    }
-
-    private void showTailscaleWizard() {
-        new AlertDialog.Builder(this)
-                .setTitle("Мастер Tailscale")
-                .setMessage("1. На сервере и другом устройстве установи Tailscale.\n\n"
-                        + "2. Войди в один Tailscale-аккаунт и включи VPN на обоих устройствах.\n\n"
-                        + "3. На сервере найди адрес вида 100.x.x.x или MagicDNS-имя.\n\n"
-                        + "4. Введи его в поле VPN / Tailscale выше.\n\n"
-                        + "5. Сначала нажми «Проверить SSH-порт». Локальный адрес 192.168.x.x при этом не удаляй — он остаётся запасным домашним маршрутом.\n\n"
-                        + "Важно: не пробрасывай SSH 8022 и агент 8787 напрямую в интернет.")
-                .setPositiveButton("Понятно", null)
-                .show();
-    }
-
-    private static String safe(Exception e) {
-        String m = e.getMessage();
-        return TextUtils.isEmpty(m) ? e.getClass().getSimpleName() : m;
     }
 
     private void cancelRequest() {
@@ -252,7 +110,7 @@ public class NetworkActivity extends BaseActivity {
         if (requestTask != null) requestTask.cancel(true);
         findViewById(R.id.networkDiscoverButton).setEnabled(true);
         if (discoveryDialog != null) discoveryDialog.dismiss();
-        if (resultText.getText().toString().startsWith("Проверяю ") || resultText.getText().toString().startsWith("Ищу устройства"))
+        if (resultText.getText().toString().startsWith("Ищу устройства"))
             resultText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_74ceac806dfb);
     }
     @Override protected void onPause() { cancelRequest(); super.onPause(); }

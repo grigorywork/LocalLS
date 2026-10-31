@@ -8,6 +8,7 @@ final class LocalFileExporter {
         OutputStream open() throws Exception;
         void publish() throws Exception;
         void abort();
+        default InputStream readBack()throws Exception{throw new IOException("Хранилище не разрешает проверку записанной копии");}
     }
     interface Progress { void update(long bytes,long total); }
     static final class Failure extends Exception {

@@ -97,7 +97,8 @@ for p in text_files:
 
 # Required v0.8 features should have concrete source hooks.
 feature_needles={
-    'transfer progress': 'transferProgressBar',
+    # The active file manager creates its progress control in Java, not legacy XML.
+    'transfer progress': 'progress.setProgress',
     'transfer cancellation': 'TransferForegroundService.cancel',
     'mkdir': 'SftpClient.mkdir',
     'rename': 'SftpClient.rename',

@@ -43,10 +43,11 @@ public class RuntimeInstrumentedTest {
                 assertTrue(activity.findViewById(R.id.filesButton).isShown());
                 assertTrue(activity.findViewById(R.id.dashboardSpeedChart).isShown());
                 assertTrue(activity.findViewById(R.id.dashboardLatencyChart).isShown());
-                activity.findViewById(R.id.settingsButton).performClick();
+                activity.findViewById(R.id.toolsMenuButton).performClick();
                 assertEquals(android.view.View.VISIBLE, activity.findViewById(R.id.advancedPanel).getVisibility());
-                activity.findViewById(R.id.settingsButton).performClick();
+                activity.findViewById(R.id.toolsMenuButton).performClick();
                 assertEquals(android.view.View.GONE, activity.findViewById(R.id.advancedPanel).getVisibility());
+                activity.findViewById(R.id.drawerConnectionHeader).performClick();
                 ((EditText) activity.findViewById(R.id.localHostInput)).setText("192.168.1.82");
                 ((EditText) activity.findViewById(R.id.portInput)).setText("8022");
                 ((EditText) activity.findViewById(R.id.userInput)).setText("u0_a606");
@@ -68,21 +69,16 @@ public class RuntimeInstrumentedTest {
     }
 
     @Test
-    public void networkProfilesDoNotOverwriteEachOtherAndFallbackStartsDisabled() {
+    public void networkProfilesDoNotOverwriteEachOtherAndFallbackStartsDisabled(){
         assertFalse(ConnectionSelector.autoFallback(context));
-        try (ActivityScenario<NetworkActivity> scenario = ActivityScenario.launch(NetworkActivity.class)) {
-            scenario.onActivity(activity -> {
-                ((EditText) activity.findViewById(R.id.networkLocalHostInput)).setText("192.168.1.82");
-                ((EditText) activity.findViewById(R.id.networkVpnHostInput)).setText("100.64.0.2");
-                ((RadioButton) activity.findViewById(R.id.networkVpnModeButton)).setChecked(true);
-                activity.findViewById(R.id.networkSaveButton).performClick();
-                assertEquals("100.64.0.2", ConnectionSelector.selectedHost(context));
-                assertEquals("192.168.1.82", ConnectionSelector.alternateHost(context));
-                ((RadioButton) activity.findViewById(R.id.networkLocalModeButton)).setChecked(true);
-                activity.findViewById(R.id.networkSaveButton).performClick();
-                assertEquals("192.168.1.82", ConnectionSelector.selectedHost(context));
-                assertEquals("100.64.0.2", ConnectionSelector.alternateHost(context));
-            });
+        android.content.SharedPreferences p=context.getSharedPreferences(ServerConfig.PREFS,0);
+        p.edit().putString(ServerConfig.KEY_LOCAL_HOST,"192.168.1.82").putString(ServerConfig.KEY_VPN_HOST,"100.64.0.1").putString(ServerConfig.KEY_MODE,ServerConfig.MODE_VPN).commit();
+        try(ActivityScenario<NetworkActivity> scenario=ActivityScenario.launch(NetworkActivity.class)){
+            scenario.onActivity(activity->{((EditText)activity.findViewById(R.id.networkLocalHostInput)).setText("100.64.0.2");activity.findViewById(R.id.networkSaveButton).performClick();assertEquals("100.64.0.2",ConnectionSelector.selectedHost(context));assertEquals("192.168.1.82",ConnectionSelector.alternateHost(context));});
+        }
+        p.edit().putString(ServerConfig.KEY_MODE,ServerConfig.MODE_LOCAL).commit();
+        try(ActivityScenario<NetworkActivity> scenario=ActivityScenario.launch(NetworkActivity.class)){
+            scenario.onActivity(activity->{activity.findViewById(R.id.networkSaveButton).performClick();assertEquals("192.168.1.82",ConnectionSelector.selectedHost(context));assertEquals("100.64.0.2",ConnectionSelector.alternateHost(context));});
         }
     }
 

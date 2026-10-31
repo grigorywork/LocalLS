@@ -35,8 +35,8 @@ public class EmbeddedFilesActivity extends BaseActivity {
             Toast.makeText(this,"Диагностика скопирована без имён файлов и адресов",Toast.LENGTH_LONG).show();
         });
         LinearLayout navigation=new LinearLayout(this);navigation.setOrientation(LinearLayout.HORIZONTAL);layout.addView(navigation);
-        Button up=new Button(this);up.setText("Вверх");navigation.addView(up,new LinearLayout.LayoutParams(0,-2,1));up.setOnClickListener(v->{if(!current.equals(root))current=current.getParentFile();render();});
-        Button refresh=new Button(this);refresh.setText("Обновить");navigation.addView(refresh,new LinearLayout.LayoutParams(0,-2,1));refresh.setOnClickListener(v->render());
+        Button up=new CenteredActionButton(this);up.setText("Выше");up.setContentDescription("Вверх");up.setTag("file_toolbar");navigation.addView(up,new LinearLayout.LayoutParams(0,-2,1));up.setOnClickListener(v->{if(!current.equals(root))current=current.getParentFile();render();});
+        Button refresh=new CenteredActionButton(this);refresh.setText("Обновить");refresh.setTag("file_toolbar");navigation.addView(refresh,new LinearLayout.LayoutParams(0,-2,1));refresh.setOnClickListener(v->render());
         ScrollView controls=new ScrollView(this);controls.addView(layout);outer.addView(controls,new LinearLayout.LayoutParams(-1,0,1));
         list=new ListView(this);outer.addView(list,new LinearLayout.LayoutParams(-1,0,1));
         TextView empty=new TextView(this);empty.setText("Файлов пока нет. Дождись завершения передачи и нажми «Обновить».");outer.addView(empty);list.setEmptyView(empty);
@@ -63,7 +63,9 @@ public class EmbeddedFilesActivity extends BaseActivity {
             if(found!=null)for(File f:found) {try {SharedFolderAccess.within(root,f);if(!TransferPaths.temporary(f.getName()))entries.add(f);}catch(IOException ignored){}}
             entries.sort((a,b)->{if(a.isDirectory()!=b.isDirectory())return a.isDirectory()?-1:1;return a.getName().compareToIgnoreCase(b.getName());});
             ArrayList<String> labels=new ArrayList<>();for(File f:entries)labels.add((f.isDirectory()?"▸ ":"")+f.getName()+(f.isFile()?"\n"+LocalFileExportService.format(f.length()):""));
-            list.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_list_item_1,labels));
+            list.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,labels){
+                @Override public android.view.View getView(int position,android.view.View recycled,android.view.ViewGroup parent){TextView row=(TextView)super.getView(position,recycled,parent);File file=entries.get(position);FileTypeIcons.apply(row,file.getName(),file.isDirectory(),28);return row;}
+            });
             list.setOnItemClickListener((p,v,position,id)->{
                 File chosen=entries.get(position);
                 try {chosen=SharedFolderAccess.within(root,chosen);

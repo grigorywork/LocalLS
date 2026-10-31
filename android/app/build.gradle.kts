@@ -117,11 +117,14 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.github.mwiede:jsch:2.28.7")
     testImplementation("org.robolectric:robolectric:4.17")
     implementation(project(":core"))
     implementation(project(":data"))
     implementation(project(":transport"))
     implementation(project(":ui"))
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation("com.google.zxing:core:3.5.3")
     androidTestImplementation("com.github.mwiede:jsch:2.28.7")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")

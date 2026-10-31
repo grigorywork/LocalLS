@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="compact_import_address">Вставить адрес</string>
+    <string name="compact_copy_sftp">Копировать SFTP</string>
+    <string name="compact_forget_pin">Сбросить доверие к серверу</string>
+</resources>

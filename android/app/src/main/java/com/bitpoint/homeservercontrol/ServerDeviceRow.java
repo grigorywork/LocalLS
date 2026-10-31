@@ -1,0 +1,14 @@
+package com.bitpoint.homeservercontrol;
+import android.content.Context;import android.view.*;import android.widget.*;
+/** Independently ellipsized name keeps connection state visible even for an 80-character device name. */
+final class ServerDeviceRow extends LinearLayout {
+    private final ImageView icon;private final TextView name,state;
+    ServerDeviceRow(Context c){super(c);setGravity(Gravity.CENTER_VERTICAL);setMinimumHeight(dp(48));setPadding(dp(4),dp(4),dp(4),dp(4));setBackground(new ListActionDrawable(c,false,true,48,0));setClickable(true);setFocusable(true);
+        icon=new ImageView(c);addView(icon,new LayoutParams(dp(24),dp(24)));name=new TextView(c);name.setTextSize(14);name.setTextColor(ThemeCatalog.color(c,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));name.setMaxLines(1);name.setEllipsize(android.text.TextUtils.TruncateAt.END);LayoutParams label=new LayoutParams(0,-2,1);label.leftMargin=dp(20);addView(name,label);
+        state=new TextView(c);state.setTextSize(13);state.setPadding(0,0,dp(6),0);state.setMaxLines(1);state.setGravity(Gravity.CENTER_VERTICAL);addView(state,new LayoutParams(-2,-2));ImageView arrow=new ImageView(c);arrow.setImageResource(com.bitpoint.homeservercontrol.ui.R.drawable.ic_action_chevron);arrow.setColorFilter(ThemeCatalog.color(c,com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary));addView(arrow,new LayoutParams(dp(14),dp(14)));setAccessibilityDelegate(new View.AccessibilityDelegate(){@Override public void onInitializeAccessibilityNodeInfo(View host,android.view.accessibility.AccessibilityNodeInfo info){super.onInitializeAccessibilityNodeInfo(host,info);info.setClassName(Button.class.getName());}});
+    }
+    void bind(String title,boolean online){name.setText(title);state.setText(online?"● В сети":"● Не в сети");state.setTextColor(ThemeCatalog.color(getContext(),online?com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess:com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary));String lower=title.toLowerCase(java.util.Locale.ROOT);icon.setImageResource(lower.contains("ноут")||lower.contains("компьют")?com.bitpoint.homeservercontrol.ui.R.drawable.ic_device_laptop:lower.contains("планшет")?com.bitpoint.homeservercontrol.ui.R.drawable.ic_device_tablet:com.bitpoint.homeservercontrol.ui.R.drawable.ic_device_phone);icon.setColorFilter(ThemeCatalog.color(getContext(),com.bitpoint.homeservercontrol.ui.R.attr.hscAccent));setContentDescription(title+". "+state.getText()+". Управление доступом");}
+    void setLast(boolean last){setBackground(new ListActionDrawable(getContext(),false,!last,48,0));}
+    @Override protected void onMeasure(int width,int height){state.getLayoutParams().width=Math.round(View.MeasureSpec.getSize(width)*.48f);super.onMeasure(width,height);}
+    private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
+}

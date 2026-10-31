@@ -43,11 +43,11 @@ public class LocalLSInstrumentedTest {
             scenario.onActivity(activity -> {
                 assertEquals("LocalLS", activity.getApplicationInfo().loadLabel(activity.getPackageManager()).toString());
                 assertNotNull(activity.getApplicationInfo().loadIcon(activity.getPackageManager()));
-                assertFalse(activity.findViewById(R.id.drawerVpnSwitch).isShown());
+                assertEquals(0,activity.getResources().getIdentifier("drawerVpnSwitch","id",activity.getPackageName()));
                 assertEquals(View.GONE, activity.findViewById(R.id.drawerScrim).getVisibility());
             });
             screenshot("localls-main.png");
-            scenario.onActivity(activity -> activity.findViewById(R.id.settingsButton).performClick());
+            scenario.onActivity(activity -> activity.findViewById(R.id.toolsMenuButton).performClick());
             java.util.concurrent.atomic.AtomicBoolean opened = new java.util.concurrent.atomic.AtomicBoolean();
             long deadline = System.currentTimeMillis() + 10000;
             while (!opened.get() && System.currentTimeMillis() < deadline) {
@@ -65,12 +65,12 @@ public class LocalLSInstrumentedTest {
                 assertEquals(root.getWidth() / 2, drawer.getWidth());
                 assertEquals(root.getWidth(), drawer.getRight());
                 assertEquals(0f, drawer.getTranslationX(), 0.1f);
-                assertFalse(activity.findViewById(R.id.drawerVpnSwitch).isShown());
+                assertEquals(0,activity.getResources().getIdentifier("drawerVpnSwitch","id",activity.getPackageName()));
                 assertFalse(activity.findViewById(R.id.themeChooserButton).isShown());
-                activity.findViewById(R.id.drawerVpnHeader).performClick();
-                assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerVpnPane).getVisibility());
                 activity.findViewById(R.id.drawerAppearanceHeader).performClick();
-                assertEquals(View.GONE, activity.findViewById(R.id.drawerVpnPane).getVisibility());
+                assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerAppearancePane).getVisibility());
+                activity.findViewById(R.id.drawerAppearanceHeader).performClick();
+                assertEquals(View.GONE, activity.findViewById(R.id.drawerAppearancePane).getVisibility());
                 assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerAppearancePane).getVisibility());
                 assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerScrim).getVisibility());
             });

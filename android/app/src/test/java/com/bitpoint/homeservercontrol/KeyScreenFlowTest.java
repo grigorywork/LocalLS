@@ -52,7 +52,7 @@ public class KeyScreenFlowTest {
     @Test public void publicKeyExportSurvivesActivityRecreationWhilePickerIsOpen()throws Exception{
         KeyFile target=provider();Bundle saved=new Bundle();
         try(var c=Robolectric.buildActivity(SecurityActivity.class).create()){
-            button(c.get().findViewById(android.R.id.content),"Экспортировать публичный ключ .pub").performClick();await(()->!((String)ReflectionHelpers.getField(c.get(),"exportedPublic")).isEmpty() && !(boolean)ReflectionHelpers.getField(c.get(),"busy"));c.saveInstanceState(saved);
+            button(c.get().findViewById(android.R.id.content),"Экспорт .pub").performClick();await(()->!((String)ReflectionHelpers.getField(c.get(),"exportedPublic")).isEmpty() && !(boolean)ReflectionHelpers.getField(c.get(),"busy"));c.saveInstanceState(saved);
         }
         try(var c=Robolectric.buildActivity(SecurityActivity.class).create(saved)){
             c.get().onActivityResult(72,Activity.RESULT_OK,new Intent().setData(android.net.Uri.parse("content://key.flow/public")));await(()->!(boolean)ReflectionHelpers.getField(c.get(),"busy"));

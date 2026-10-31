@@ -139,9 +139,9 @@ public class TransferRecoveryTest {
     }
     @Test @Config(shadows=PausedHistory.class)
     public void failedFirstJobKeepsRemainingQueueActiveAndRetainsRetry()throws Exception{
-        String first="changed-"+System.nanoTime()+".bin",second="next-"+System.nanoTime()+".bin";source(first,new byte[]{1,3});source(second,new byte[]{2});provider.hold=true;
+        String first="changed-"+System.nanoTime()+".bin",second="next-"+System.nanoTime()+".bin";source(first,new byte[]{1});source(second,new byte[]{2});provider.hold=true;
         var c=Robolectric.buildService(TransferForegroundService.class).create();try{
-            c.get().onStartCommand(save(first,1),0,1);assertTrue(provider.entered.await(5,TimeUnit.SECONDS));c.get().onStartCommand(save(second,1),0,2);provider.release.countDown();
+            c.get().onStartCommand(save(first,1),0,1);assertTrue(provider.entered.await(5,TimeUnit.SECONDS));source(first,new byte[]{1,3});c.get().onStartCommand(save(second,1),0,2);provider.release.countDown();
             assertTrue(PausedHistory.entered.await(5,TimeUnit.SECONDS));assertTrue("Pending copies were hidden after failure",TransferForegroundService.state.active);assertTrue(TransferForegroundService.state.error);assertEquals(1,TransferForegroundService.state.queued);
             PausedHistory.release.countDown();drained(c.get());assertFalse(TransferForegroundService.state.active);assertTrue(TransferForegroundService.canRetry());assertFalse(new File(provider.root,first).exists());assertArrayEquals(new byte[]{2},Files.readAllBytes(new File(provider.root,second).toPath()));
         }finally{provider.release.countDown();PausedHistory.release.countDown();c.destroy();}

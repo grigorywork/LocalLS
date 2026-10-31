@@ -13,18 +13,19 @@ public final class CenteredActionButton extends Button {
     private Drawable tileIcon;
     public CenteredActionButton(Context c,AttributeSet a) {super(c,a);}
     public CenteredActionButton(Context c) {super(c);}
-    void setTileIcon(Drawable icon) {tileIcon=icon;setCompoundDrawables(null,null,null,null);requestLayout();invalidate();}
+    void setTileIcon(Drawable icon) {if(tileIcon==icon)return;tileIcon=icon;setCompoundDrawables(null,null,null,null);requestLayout();invalidate();}
+    void tintTileIcon(android.content.res.ColorStateList color){if(tileIcon!=null){tileIcon.setTintList(color);invalidate();}}
     boolean hasTileIcon() {return tileIcon!=null;}
     RectF contentBounds() {
         Layout layout=getLayout();if(tileIcon==null || layout==null)return new RectF();
-        float height=tileIcon.getBounds().height()+getCompoundDrawablePadding()+layout.getHeight();
+        float height=tileIcon.getBounds().height()+(getText().length()==0?0:getCompoundDrawablePadding()+layout.getHeight());
         float top=getPaddingTop()+(getHeight()-getPaddingTop()-getPaddingBottom()-height)/2f;
         return new RectF(getPaddingLeft(),top,getWidth()-getPaddingRight(),top+height);
     }
     @Override protected void onMeasure(int width,int height) {
         super.onMeasure(width,height);
         if(tileIcon!=null && getLayout()!=null) {
-            int wanted=tileIcon.getBounds().height()+getCompoundDrawablePadding()+getLayout().getHeight()+getPaddingTop()+getPaddingBottom();
+            int wanted=tileIcon.getBounds().height()+(getText().length()==0?0:getCompoundDrawablePadding()+getLayout().getHeight())+getPaddingTop()+getPaddingBottom();
             setMeasuredDimension(getMeasuredWidthAndState(),resolveSizeAndState(Math.max(wanted,getMeasuredHeight()),height,0));
         }
     }
@@ -33,6 +34,7 @@ public final class CenteredActionButton extends Button {
         RectF bounds=contentBounds();int saved=canvas.save();
         tileIcon.setState(getDrawableState());
         canvas.translate((getWidth()-tileIcon.getBounds().width())/2f,bounds.top);tileIcon.draw(canvas);canvas.restoreToCount(saved);
+        if(getText().length()==0)return;
         saved=canvas.save();
         canvas.translate((getWidth()-getLayout().getWidth())/2f,bounds.top+tileIcon.getBounds().height()+getCompoundDrawablePadding());
         getPaint().setColor(getCurrentTextColor());getPaint().drawableState=getDrawableState();getLayout().draw(canvas);canvas.restoreToCount(saved);

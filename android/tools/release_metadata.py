@@ -13,7 +13,7 @@ def load_metadata(path=None):
         if key in values:
             raise ValueError('Duplicate release metadata')
         values[key] = value
-    if not re.fullmatch(r'\d+\.\d+\.\d+', values['versionName']):
+    if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', values['versionName']):
         raise ValueError('Invalid Android version')
     values['versionCode'] = int(values['versionCode'])
     values['previousVersionCode'] = int(values['previousVersionCode'])

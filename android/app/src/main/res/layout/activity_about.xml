@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="?attr/hscBackground">
+    <com.bitpoint.homeservercontrol.SettingsColumn android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <Button android:id="@id/settingsBackButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:text="@string/about_title" />
+        <LinearLayout android:id="@+id/aboutCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/about_name" android:textColor="?attr/hscTextPrimary" android:textSize="28sp" android:textStyle="bold" />
+            <TextView android:id="@+id/aboutVersion" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textColor="?attr/hscTextSecondary" android:textSize="14sp" />
+            <TextView android:id="@+id/aboutAuthor" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/about_author" android:textColor="?attr/hscAccent" android:textSize="18sp" android:textStyle="bold" />
+            <TextView android:id="@+id/aboutGreeting" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/about_greeting" android:textColor="?attr/hscTextPrimary" android:textSize="16sp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/about_description" android:textColor="?attr/hscTextSecondary" android:textSize="14sp" />
+        </LinearLayout>
+    </com.bitpoint.homeservercontrol.SettingsColumn>
+</ScrollView>

@@ -13,16 +13,18 @@ import android.widget.Toast;
 public abstract class BaseActivity extends Activity {
     private static final int REQUEST_LOCAL_NETWORK = 7301;
     private static final int REQUEST_TRAY_NOTIFICATION = 7302;
-    private int appliedTheme;
-    private int appliedIconShape;
+    private int appliedTheme,appliedAppearance;
     private boolean screenActive;
 
     @Override
     protected void onCreate(Bundle state) {
         appliedTheme = ThemeCatalog.style(this);
-        appliedIconShape = IconShapeCatalog.index(this);
-        setTheme(appliedTheme);
+        setTheme(appliedTheme);ThemeCatalog.applyOverlays(this);appliedAppearance=ThemeCatalog.signature(this);
         super.onCreate(state);
+        if(ThemeCatalog.index(this)==4&&Build.VERSION.SDK_INT>=26){
+            getWindow().setNavigationBarColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));
+            View decor=getWindow().getDecorView();decor.setSystemUiVisibility(decor.getSystemUiVisibility()|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        }
         if (Build.VERSION.SDK_INT >= 37
                 && checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -34,16 +36,16 @@ public abstract class BaseActivity extends Activity {
     protected void onResume() {
         super.onResume();
         screenActive = true;
-        if (appliedIconShape != IconShapeCatalog.index(this)) refreshIconStyle();
+        polishControls();
         NotificationHelper.clearTray(this);
-        if (appliedTheme != ThemeCatalog.style(this) && canRecreateForTheme()) recreate();
+        if (appliedAppearance != ThemeCatalog.signature(this) && canRecreateForTheme()) recreate();
     }
 
     @Override protected void onPause() { screenActive=false;super.onPause(); }
     protected boolean isUiActive() { return screenActive && !isFinishing() && !isDestroyed(); }
-    protected void refreshIconStyle() {
-        appliedIconShape=IconShapeCatalog.index(this);
-        IconButtons.decorate(findViewById(android.R.id.content));
+    protected final void polishControls(){
+        View root=findViewById(android.R.id.content);
+        CompactActions.arrange(root);IconButtons.decorate(root);ThemeCatalog.surfaces(root);
     }
 
     protected boolean canRecreateForTheme() { return true; }
@@ -78,7 +80,7 @@ public abstract class BaseActivity extends Activity {
     }
 
     private void configureContentView() {
-        IconButtons.decorate(findViewById(android.R.id.content));
+        polishControls();
         if (Build.VERSION.SDK_INT >= 35) {
             View content = findViewById(android.R.id.content);
             content.setOnApplyWindowInsetsListener((view, insets) -> {

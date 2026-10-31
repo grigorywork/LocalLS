@@ -20,6 +20,7 @@ import org.robolectric.util.ReflectionHelpers;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
@@ -27,9 +28,16 @@ import static org.junit.Assert.*;
 public class FilePaneFlowTest {
     public static class LoadingDocuments extends LastModIntegrationTest.Documents {
         volatile boolean loading,partial;volatile String failure;volatile int deletes;
+        volatile String heldChildListing;
+        final CountDownLatch childListingEntered=new CountDownLatch(1),releaseChildListing=new CountDownLatch(1);
         final java.util.concurrent.atomic.AtomicInteger listings=new java.util.concurrent.atomic.AtomicInteger();
         @Override public Cursor queryChildDocuments(String id,String[] columns,String sort)throws FileNotFoundException{
             listings.incrementAndGet();
+            if(id.equals(heldChildListing)){
+                childListingEntered.countDown();
+                try{if(!releaseChildListing.await(8,TimeUnit.SECONDS))throw new FileNotFoundException("Controlled listing was not released");}
+                catch(InterruptedException error){Thread.currentThread().interrupt();throw new FileNotFoundException("Controlled listing interrupted");}
+            }
             if(!loading && failure==null)return super.queryChildDocuments(id,columns,sort);
             Cursor data=partial?super.queryChildDocuments(id,columns,sort):cursor(columns,Collections.emptyList());return new CursorWrapper(data){@Override public Bundle getExtras(){Bundle extras=new Bundle();extras.putBoolean(DocumentsContract.EXTRA_LOADING,loading);if(failure!=null)extras.putString(DocumentsContract.EXTRA_ERROR,failure);return extras;}};
         }
@@ -91,10 +99,20 @@ public class FilePaneFlowTest {
         }
         try(var c=Robolectric.buildActivity(FilesActivity.class,new Intent(app,FilesActivity.class).putExtra("own_server",true)).create(saved)){
             c.get().onActivityResult(504,Activity.RESULT_OK,new Intent().setData(phoneTree).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));
-            Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());
+            TransferDialogDriver.confirm(app);Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());
             ArrayList<Bundle> sources=job.getParcelableArrayListExtra("sources");assertEquals(1,sources.size());assertEquals(DocumentFiles.root(phoneTree).toString(),sources.get(0).getString("path"));
             assertEquals("share",job.getBundleExtra("destination").getString("kind"));assertEquals(autoTree.toString(),ReceiveFolder.selected(app));
         }
+    }
+    @Test public void preflightConfirmationRemainsBoundedWhenUiContinuouslyPostsMessages()throws Exception{
+        android.os.Handler handler=new android.os.Handler(Looper.getMainLooper());Runnable[] recurring=new Runnable[1];recurring[0]=()->handler.post(recurring[0]);
+        try(var screen=screen()){
+            FilesActivity a=screen.get();ReflectionHelpers.callInstanceMethod(a,"pickTree",ReflectionHelpers.ClassParameter.from(int.class,504));
+            a.onActivityResult(504,Activity.RESULT_OK,new Intent().setData(phoneTree).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));
+            handler.post(recurring[0]);try{TransferDialogDriver.confirm(app);}finally{handler.removeCallbacks(recurring[0]);}
+            Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());
+            assertEquals(DocumentFiles.root(phoneTree).toString(),job.<Bundle>getParcelableArrayListExtra("sources").get(0).getString("path"));assertEquals(autoTree.toString(),ReceiveFolder.selected(app));
+        }finally{handler.removeCallbacks(recurring[0]);}
     }
     private LoadingDocuments loadingProvider(){
         LoadingDocuments replacement=new LoadingDocuments();replacement.root=provider.root;ProviderInfo info=new ProviderInfo();info.authority="loading.documents."+UUID.randomUUID().toString().replace("-","");info.name=LoadingDocuments.class.getName();info.packageName=app.getPackageName();info.applicationInfo=app.getApplicationInfo();info.exported=true;info.grantUriPermissions=true;info.readPermission=android.Manifest.permission.MANAGE_DOCUMENTS;info.writePermission=android.Manifest.permission.MANAGE_DOCUMENTS;replacement.attachInfo(app,info);ShadowContentResolver.registerProviderInternal(info.authority,replacement);Shadows.shadowOf(app.getPackageManager()).addOrUpdateProvider(info);android.content.pm.ResolveInfo resolved=new android.content.pm.ResolveInfo();resolved.providerInfo=info;Shadows.shadowOf(app.getPackageManager()).addResolveInfoForIntent(new Intent(DocumentsContract.PROVIDER_INTERFACE),resolved);phoneTree=DocumentsContract.buildTreeDocumentUri(info.authority,"root/Phone");return replacement;
@@ -108,16 +126,43 @@ public class FilePaneFlowTest {
         try{DocumentFiles.children(app,DocumentFiles.root(phoneTree));fail("Provider error was accepted as an empty folder");}catch(IOException expected){assertFalse(expected.getMessage().contains("private-provider-details"));}
     }
     @Test public void deleteCannotTreatLoadingCloudFolderAsEmpty()throws Exception{
-        LoadingDocuments replacement=loadingProvider();File child=new File(provider.root,"Phone/Inside/keep.bin");
+        LoadingDocuments replacement=loadingProvider();
+        File child=new File(provider.root,"Phone/Inside/keep.bin");
         try(var c=screen()){
-            FilesActivity a=c.get();choose(a);await(()->(boolean)ReflectionHelpers.getField(a,"phoneReady"));
+            FilesActivity a=c.get();
+            choose(a);
+            await(()->(boolean)ReflectionHelpers.getField(a,"phoneReady"));
             FileNodes.Node node=new FileNodes.Node("doc",DocumentsContract.buildDocumentUriUsingTree(phoneTree,"root/Phone/Inside").toString(),"Inside",true,0);
             assertTrue("Controlled provider must be recognised as a DocumentsProvider",DocumentsContract.isDocumentUri(a,Uri.parse(node.path)));
-            ReflectionHelpers.callInstanceMethod(a,"remove",ReflectionHelpers.ClassParameter.from(FileNodes.Node.class,node),ReflectionHelpers.ClassParameter.from(boolean.class,true));AlertDialog control=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();control.getButton(AlertDialog.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();
-            java.util.concurrent.ExecutorService worker=ReflectionHelpers.getField(a,"browse");worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();assertEquals("Control delete of a fully listed empty folder must reach provider",1,replacement.deletes);assertFalse(child.getParentFile().exists());assertTrue(child.getParentFile().mkdir());Files.write(child.toPath(),new byte[]{7});replacement.loading=true;int queried=replacement.listings.get();
-            ReflectionHelpers.callInstanceMethod(a,"remove",ReflectionHelpers.ClassParameter.from(FileNodes.Node.class,node),ReflectionHelpers.ClassParameter.from(boolean.class,true));AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();
-            worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();
-            assertTrue("Removal did not query the controlled provider",replacement.listings.get()>queried);assertEquals("Delete was delegated to a cloud provider without a complete empty listing",1,replacement.deletes);assertArrayEquals(new byte[]{7},Files.readAllBytes(child.toPath()));
+            ReflectionHelpers.callInstanceMethod(a,"remove",ReflectionHelpers.ClassParameter.from(FileNodes.Node.class,node),ReflectionHelpers.ClassParameter.from(boolean.class,true));
+            AlertDialog control=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+            control.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+            // A marker submitted to the two-worker browse pool can finish before deletion.
+            await(()->replacement.deletes==1 && !child.getParentFile().exists());
+            assertEquals("Control delete of a fully listed empty folder must reach provider",1,replacement.deletes);
+            assertFalse(child.getParentFile().exists());
+            assertTrue(child.getParentFile().mkdir());
+            Files.write(child.toPath(),new byte[]{7});
+            replacement.loading=true;
+            replacement.heldChildListing="root/Phone/Inside";
+            int queried=replacement.listings.get();
+            org.robolectric.shadows.ShadowToast.reset();
+            try{
+                ReflectionHelpers.callInstanceMethod(a,"remove",ReflectionHelpers.ClassParameter.from(FileNodes.Node.class,node),ReflectionHelpers.ClassParameter.from(boolean.class,true));
+                AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+                Shadows.shadowOf(Looper.getMainLooper()).idle();
+                assertTrue("Removal did not enter the target folder listing",replacement.childListingEntered.await(5,TimeUnit.SECONDS));
+                assertEquals("Delete reached the provider before its listing completed",1,replacement.deletes);
+                replacement.releaseChildListing.countDown();
+                // The error callback is posted after the real operation rejects EXTRA_LOADING.
+                String rejected="Операция не выполнена. Дождись загрузки папки и проверь доступ, имя и наличие файлов.";
+                await(()->replacement.deletes>1 || org.robolectric.shadows.ShadowToast.showedToast(rejected));
+                assertTrue("Removal did not query the controlled provider",replacement.listings.get()>queried);
+                assertEquals("Delete was delegated to a cloud provider without a complete empty listing",1,replacement.deletes);
+                assertArrayEquals(new byte[]{7},Files.readAllBytes(child.toPath()));
+                assertTrue("Loading folder rejection was not reported",org.robolectric.shadows.ShadowToast.showedToast(rejected));
+            }finally{replacement.releaseChildListing.countDown();}
         }
     }
     @Test public void nullDownloadsCursorIsAnAccessFailureInsteadOfEmptySuccess()throws Exception{
@@ -140,7 +185,7 @@ public class FilePaneFlowTest {
         try(var c=screen()){
             FilesActivity a=c.get();choose(a);String chosen=current(a).path;
             a.onActivityResult(505,Activity.RESULT_OK,new Intent().setData(autoTree).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));assertEquals(chosen,current(a).path);assertEquals(phoneTree.toString(),app.getSharedPreferences(EmbeddedServerService.PREFS,0).getString(FileNodes.PHONE_TREE,""));assertEquals(autoTree.toString(),ReceiveFolder.selected(app));
-            ReflectionHelpers.callInstanceMethod(a,"pickTree",ReflectionHelpers.ClassParameter.from(int.class,504));a.onActivityResult(504,Activity.RESULT_OK,new Intent().setData(autoTree).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());assertEquals(DocumentFiles.root(autoTree).toString(),job.<Bundle>getParcelableArrayListExtra("sources").get(0).getString("path"));
+            ReflectionHelpers.callInstanceMethod(a,"pickTree",ReflectionHelpers.ClassParameter.from(int.class,504));a.onActivityResult(504,Activity.RESULT_OK,new Intent().setData(autoTree).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));TransferDialogDriver.confirm(app);Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());assertEquals(DocumentFiles.root(autoTree).toString(),job.<Bundle>getParcelableArrayListExtra("sources").get(0).getString("path"));
         }
     }
     private EditText input(View view){if(view instanceof EditText)return (EditText)view;if(view instanceof ViewGroup){ViewGroup g=(ViewGroup)view;for(int i=0;i<g.getChildCount();i++){EditText result=input(g.getChildAt(i));if(result!=null)return result;}}return null;}
@@ -193,7 +238,7 @@ public class FilePaneFlowTest {
         try(var c=screen()){
             FilesActivity a=c.get();choose(a);await(()->(boolean)ReflectionHelpers.getField(a,"phoneReady") && (boolean)ReflectionHelpers.getField(a,"remoteReady"));
             ReflectionHelpers.callInstanceMethod(a,"phoneMenu");AlertDialog menu=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();menu.getListView().performItemClick(null,1,1);
-            ReflectionHelpers.callInstanceMethod(a,"sendSelection");Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());assertEquals(2,job.getParcelableArrayListExtra("sources").size());assertEquals("share",job.getBundleExtra("destination").getString("kind"));assertEquals("",job.getBundleExtra("destination").getString("path"));
+            ReflectionHelpers.callInstanceMethod(a,"sendSelection");TransferDialogDriver.confirm(app);Intent job=Shadows.shadowOf(RuntimeEnvironment.getApplication()).getNextStartedService();assertNotNull(job);assertEquals(TransferForegroundService.IMPORT,job.getAction());assertEquals(2,job.getParcelableArrayListExtra("sources").size());assertEquals("share",job.getBundleExtra("destination").getString("kind"));assertEquals("",job.getBundleExtra("destination").getString("path"));
         }
     }
 

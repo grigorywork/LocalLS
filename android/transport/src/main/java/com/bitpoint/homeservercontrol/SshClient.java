@@ -75,9 +75,12 @@ final class SshClient {
             session = buildSession(jsch, host, port, user, credential, trustedFingerprint);
             session.connect(5000);
             stats.authenticated = true;
+            ServerTelemetry telemetry=readTelemetry(session);
+            if(telemetry!=null){telemetry.apply(stats);stats.sftpOnly=true;stats.sshd="SFTP без командной оболочки";return stats;}
             stats.uptime = clean(execute(session, "uptime", 6000));
             stats.disk = parseDisk(clean(execute(session,
                     "df -h \"$HOME/storage/shared\" 2>/dev/null | tail -n 1", 6000)));
+            java.util.regex.Matcher free=java.util.regex.Pattern.compile("свободно ([^ •]+)").matcher(stats.disk);if(free.find())stats.freeSpace=free.group(1);
             stats.ip = parseIp(clean(execute(session,
                     "ip addr show wlan0 2>/dev/null | grep 'inet ' | head -n 1", 6000)));
 
@@ -148,6 +151,24 @@ final class SshClient {
             if (session != null && session.isConnected()) session.disconnect();
         }
         return result;
+    }
+
+    static ServerTelemetry readTelemetry(Session session){ServerTelemetry data=readTelemetry(session,"localls-status-v3");if(data==null)data=readTelemetry(session,"localls-status-v2");return data==null?readTelemetry(session,ServerTelemetry.SUBSYSTEM):data;}
+    static DeviceKind readDeviceKind(Session session){ServerTelemetry data=readTelemetry(session,"localls-status-v3");return data==null?DeviceKind.UNKNOWN:data.deviceKind;}
+    private static ServerTelemetry readTelemetry(Session session,String subsystem){
+        com.jcraft.jsch.ChannelSubsystem channel=null;
+        try{
+            channel=(com.jcraft.jsch.ChannelSubsystem)session.openChannel("subsystem");
+            channel.setSubsystem(subsystem);channel.setWantReply(true);
+            java.io.InputStream input=channel.getInputStream();channel.connect(2500);
+            java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();long until=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(3);
+            while(System.nanoTime()<until){
+                while(input.available()>0){int b=input.read();if(b<0)break;if(bytes.size()>=256)return null;bytes.write(b);}
+                if(channel.isClosed() && input.available()==0)return channel.getExitStatus()==0?ServerTelemetry.decode(bytes.toString("US-ASCII")):null;
+                Thread.sleep(5);
+            }
+        }catch(Exception ignored){}finally{if(channel!=null)channel.disconnect();}
+        return null;
     }
 
     private static Session buildSession(JSch jsch, String host, int port, String user, SshCredentials credential,

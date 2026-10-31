@@ -11,7 +11,8 @@ import java.util.List;
 public final class WifiAddressView extends LinearLayout {
     private final TextView value;
     private List<String> shown=Collections.emptyList();
-    private boolean rendered;
+    private boolean rendered,compact;
+    void compact(){compact=true;rendered=false;value.setTextSize(23);value.setPadding(0,0,0,0);value.setIncludeFontPadding(false);value.setMaxLines(1);value.setEllipsize(android.text.TextUtils.TruncateAt.END);value.setTypeface(null,android.graphics.Typeface.BOLD);refresh();}
 
     public WifiAddressView(Context context){this(context,null);}
     public WifiAddressView(Context context,AttributeSet attrs){
@@ -26,6 +27,6 @@ public final class WifiAddressView extends LinearLayout {
         if(rendered && shown.equals(now))return;
         shown=now;rendered=true;
         String addresses=now.isEmpty()?getContext().getString(R.string.current_wifi_ip_missing):android.text.TextUtils.join(", ",now);
-        value.setText(getContext().getString(R.string.current_wifi_ip_value,addresses));
+        value.setText(compact?addresses:getContext().getString(R.string.current_wifi_ip_value,addresses));
     }
 }

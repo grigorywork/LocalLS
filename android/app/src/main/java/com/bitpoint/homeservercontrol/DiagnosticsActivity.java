@@ -76,7 +76,7 @@ public class DiagnosticsActivity extends BaseActivity {
     private String appVersion() {
         try {
             PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
-            return info.versionName == null ? "—" : info.versionName;
+            return info.versionName == null ? "—" : info.versionName+" / "+getString(R.string.ui_build_revision);
         } catch (Exception e) {
             return "—";
         }

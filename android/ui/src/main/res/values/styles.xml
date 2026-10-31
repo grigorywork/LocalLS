@@ -13,6 +13,7 @@
         <item name="hscTextPrimary">@color/text_primary</item>
         <item name="hscTextSecondary">@color/text_secondary</item>
         <item name="hscAccent">@color/accent</item>
+        <item name="hscIllustrationAccent">@color/accent</item>
         <item name="hscButton">@color/purple_button</item>
         <item name="hscSecondaryButton">@color/purple_secondary</item>
         <item name="hscStroke">@color/stroke</item>
@@ -36,17 +37,22 @@
         <item name="android:background">@drawable/button_purple_secondary</item>
     </style>
     <style name="Theme.LocalLS.Ocean" parent="Theme.HomeServerControl">
-        <item name="hscBackground">#0D1725</item>
-        <item name="hscPanel">#15263A</item>
-        <item name="hscAccent">#8CC7FF</item>
-        <item name="hscButton">#2465B2</item>
-        <item name="hscSecondaryButton">#203C5B</item>
-        <item name="hscStroke">#35506C</item>
+        <item name="hscBackground">#071B2B</item>
+        <item name="hscPanel">#0B2538</item>
+        <item name="hscTextPrimary">#EAF3FA</item>
+        <item name="hscTextSecondary">#A7BBCD</item>
+        <item name="hscAccent">#79C8FF</item>
+        <item name="hscIllustrationAccent">#A383F5</item>
+        <item name="hscButton">#2374D1</item>
+        <item name="hscSecondaryButton">#12354F</item>
+        <item name="hscStroke">#294B64</item>
+        <item name="hscSuccess">#51E58A</item>
     </style>
     <style name="Theme.LocalLS.Emerald" parent="Theme.HomeServerControl">
         <item name="hscBackground">#0E1916</item>
         <item name="hscPanel">#182A23</item>
         <item name="hscAccent">#7BDFC0</item>
+        <item name="hscIllustrationAccent">#7BDFC0</item>
         <item name="hscButton">#227C60</item>
         <item name="hscSecondaryButton">#25483D</item>
         <item name="hscStroke">#345A4D</item>
@@ -55,23 +61,56 @@
         <item name="hscBackground">#1C1510</item>
         <item name="hscPanel">#30231A</item>
         <item name="hscAccent">#FFD08A</item>
+        <item name="hscIllustrationAccent">#FFD08A</item>
         <item name="hscButton">#97520D</item>
         <item name="hscSecondaryButton">#56381E</item>
         <item name="hscStroke">#6C4A2A</item>
     </style>
     <style name="Theme.LocalLS.Light" parent="Theme.HomeServerControl">
-        <item name="hscBackground">#F4F1F8</item>
+        <item name="hscBackground">#F3F4F6</item>
         <item name="hscPanel">#FFFFFF</item>
-        <item name="hscTextPrimary">#211A2B</item>
-        <item name="hscTextSecondary">#655A75</item>
+        <item name="hscTextPrimary">#20242B</item>
+        <item name="hscTextSecondary">#59616D</item>
         <item name="hscAccent">#7540C7</item>
+        <item name="hscIllustrationAccent">#7540C7</item>
         <item name="hscButton">#7540C7</item>
         <item name="hscSecondaryButton">#644086</item>
-        <item name="hscStroke">#D6CCE1</item>
+        <item name="hscStroke">#D1D5DB</item>
         <item name="hscSuccess">#176E42</item>
         <item name="hscWarning">#855300</item>
         <item name="hscError">#B12637</item>
+        <item name="android:textColorPrimary">#20242B</item><item name="android:textColorSecondary">#59616D</item><item name="android:colorBackground">#F3F4F6</item>
+        <item name="android:statusBarColor">#F3F4F6</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">#211B2A</item>
     </style>
+    <style name="Theme.LocalLS.Ruby" parent="Theme.HomeServerControl">
+        <item name="hscBackground">#160C10</item><item name="hscPanel">#28161D</item>
+        <item name="hscAccent">#FF7D92</item><item name="hscIllustrationAccent">#FF7D92</item>
+        <item name="hscButton">#C52C4A</item><item name="hscSecondaryButton">#482330</item><item name="hscStroke">#69404C</item>
+    </style>
+    <style name="Theme.LocalLS.Turquoise" parent="Theme.HomeServerControl">
+        <item name="hscBackground">#061A1D</item><item name="hscPanel">#102C30</item>
+        <item name="hscAccent">#65E1E8</item><item name="hscIllustrationAccent">#65E1E8</item>
+        <item name="hscButton">#087D89</item><item name="hscSecondaryButton">#1B454C</item><item name="hscStroke">#31626A</item>
+    </style>
+    <style name="Theme.LocalLS.Silver" parent="Theme.HomeServerControl">
+        <item name="hscBackground">#111318</item><item name="hscPanel">#22262F</item>
+        <item name="hscAccent">#D1DBED</item><item name="hscIllustrationAccent">#D1DBED</item>
+        <item name="hscButton">#566176</item><item name="hscSecondaryButton">#353D4D</item><item name="hscStroke">#626D80</item>
+    </style>
+    <style name="ThemeOverlay.LocalLS.Glass" parent="">
+        <item name="hscBackground">#000000</item><item name="hscPanel">#B8141820</item>
+        <item name="hscTextPrimary">#F5F7FA</item><item name="hscTextSecondary">#B3BBC7</item><item name="hscStroke">#687484</item>
+        <item name="hscSecondaryButton">#98252B37</item><item name="hscSuccess">#51E58A</item>
+        <item name="android:windowLightStatusBar">false</item><item name="android:statusBarColor">#000000</item><item name="android:navigationBarColor">#000000</item>
+        <item name="android:colorBackground">#000000</item><item name="android:textColorPrimary">#F5F7FA</item><item name="android:textColorSecondary">#B3BBC7</item>
+    </style>
+    <style name="ThemeOverlay.LocalLS.LightGlass" parent="">
+        <item name="hscBackground">#F3F4F6</item><item name="hscPanel">#CCFFFFFF</item>
+        <item name="hscTextPrimary">#20242B</item><item name="hscTextSecondary">#59616D</item><item name="hscStroke">#CAD0D8</item>
+        <item name="hscSecondaryButton">#CCFFFFFF</item><item name="hscSuccess">#176E42</item>
+        <item name="android:windowLightStatusBar">true</item><item name="android:statusBarColor">#F3F4F6</item><item name="android:navigationBarColor">#211B2A</item>
+    </style>
+    <style name="ThemeOverlay.LocalLS.LightOutline" parent=""><item name="hscStroke">#BDC5D2</item></style>
 </resources>

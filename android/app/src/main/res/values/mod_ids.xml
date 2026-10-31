@@ -1,3 +1,9 @@
 <resources>
     <item name="phoneFileList" type="id" />
+    <item name="transferStatusText" type="id" />
+    <item name="remoteFileList" type="id" />
+    <item name="appearanceGlassSwitch" type="id" />
+    <item name="appearanceOutlineButton" type="id" />
+    <item name="clientStatusRibbon" type="id" />
+    <item name="serverStatusRibbon" type="id" />
 </resources>

@@ -33,7 +33,7 @@ public class EmbeddedServerScreenTest {
             assertTrue(((android.widget.TextView)a.findViewById(R.id.currentWifiIpValue)).getText().toString().contains("192.0.2.10"));
             assertTrue(info.contains("8022"));assertTrue(info.contains("localls"));
             assertFalse(EmbeddedServerService.running);
-            findButton(a.findViewById(android.R.id.content),"Скопировать данные подключения").performClick();
+            findButton(a.findViewById(android.R.id.content),"Копировать адрес").performClick();
             var clipboard=(android.content.ClipboardManager)a.getSystemService(Context.CLIPBOARD_SERVICE);
             assertTrue(clipboard.getPrimaryClip().getItemAt(0).getText().toString().contains("192.0.2.10"));
         }
@@ -75,7 +75,9 @@ public class EmbeddedServerScreenTest {
     @Test public void serverScreenDoesNotOpenTermuxOrStartListeningOnCreation() {
         try(var controller=Robolectric.buildActivity(EmbeddedServerActivity.class).create()) {
             EmbeddedServerActivity a=controller.get();assertNotNull(findButton(a.findViewById(android.R.id.content),"Включить сервер"));
-            assertNotNull(findButton(a.findViewById(android.R.id.content),"Файлы · телефон и мой сервер"));
+            assertNull(findButton(a.findViewById(android.R.id.content),"Файлы · телефон и мой сервер"));
+            assertNull(findButton(a.findViewById(android.R.id.content),"Настройки фоновой работы"));
+            assertNotNull(findButton(a.findViewById(android.R.id.content),"QR-подключение по ключу"));
             assertFalse(EmbeddedServerService.running);
         }
     }

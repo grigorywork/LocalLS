@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp" android:height="128dp" android:viewportWidth="128" android:viewportHeight="128">
+    <!-- Orbit is behind the shield, as in the approved hidden-QR illustration. -->
+    <path android:pathData="M23,75 C3,98 11,122 44,113 C74,105 112,76 122,49 C129,28 114,18 98,27"
+        android:fillColor="#00000000" android:strokeColor="?attr/hscAccent" android:strokeAlpha="0.78" android:strokeWidth="1.1" android:strokeLineCap="round" />
+    <path android:pathData="M30,32 L64,16 L98,32"
+        android:fillColor="#00000000" android:strokeColor="?attr/hscAccent" android:strokeAlpha="0.46" android:strokeWidth="1.5" android:strokeLineJoin="round" />
+    <path android:pathData="M64,29 Q49,39 30,43 L32,67 C34,86 47,101 64,111 C82,100 94,85 96,67 L98,43 Q79,39 64,29 Z"
+        android:fillColor="?attr/hscPanel" android:strokeColor="?attr/hscAccent" android:strokeWidth="2.5" android:strokeLineJoin="round" />
+    <path android:pathData="M64,36 Q52,44 37,48 L39,67 C41,84 51,96 64,104 C78,96 88,83 90,67 L92,48 Q77,44 64,36 Z"
+        android:fillColor="#00000000" android:strokeColor="?attr/hscAccent" android:strokeAlpha="0.32" android:strokeWidth="1.1" android:strokeLineJoin="round" />
+    <!-- Key bounds now share the shield center (64,70) in the 128-unit viewport. -->
+    <group android:translateX="-0.75" android:translateY="-2">
+    <path android:pathData="M73,54 A7.5,7.5 0,1 0,73,69 A7.5,7.5 0,1 0,73,54 M67.5,67 L49,86 M53,82 L57,86 M49,86 L53,90"
+        android:fillColor="#00000000" android:strokeColor="?attr/hscTextPrimary" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+    <path android:pathData="M23,75 m-3,0 a3,3 0,1 0,6 0 a3,3 0,1 0,-6 0"
+        android:fillColor="?attr/hscAccent" />
+    <path android:pathData="M113,28 m-3.6,0 a3.6,3.6 0,1 0,7.2 0 a3.6,3.6 0,1 0,-7.2 0 M37,115 m-3.2,0 a3.2,3.2 0,1 0,6.4 0 a3.2,3.2 0,1 0,-6.4 0"
+        android:fillColor="?attr/hscIllustrationAccent" />
+</vector>

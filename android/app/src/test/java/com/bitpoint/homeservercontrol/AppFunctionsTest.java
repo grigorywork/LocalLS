@@ -76,8 +76,8 @@ public class AppFunctionsTest {
     @Test public void appearanceChangesPersistWithoutChangingConnectionOrTrust(){
         HostTrustStore.trust(app,"192.0.2.44",8022,"SHA256:keep");
         try(var c=Robolectric.buildActivity(MainActivity.class).create()){
-            c.get().findViewById(R.id.iconShapeButton).performClick();AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();dialog.getListView().performItemClick(null,1,1);
-            c.get().findViewById(R.id.themeChooserButton).performClick();dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();dialog.getListView().performItemClick(null,1,1);
+            IconShapeCatalog.select(app,1);assertEquals("Removed shape control",0,c.get().getResources().getIdentifier("iconShapeButton","id",app.getPackageName()));
+            c.get().findViewById(R.id.themeChooserButton).performClick();AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();dialog.getListView().performItemClick(null,1,1);
         }
         try(var c=Robolectric.buildActivity(MainActivity.class).create()){assertEquals(1,ThemeCatalog.index(app));assertEquals(1,IconShapeCatalog.index(app));assertEquals("192.0.2.44",ConnectionSelector.selectedHost(app));assertEquals("SHA256:keep",HostTrustStore.get(app,"192.0.2.44",8022));}
     }
@@ -98,13 +98,14 @@ public class AppFunctionsTest {
         }
     }
     @Test public void networkPortCheckDistinguishesOpenPortFromAuthenticatedSsh()throws Exception{
-        try(java.net.ServerSocket listener=new java.net.ServerSocket()){
-            listener.bind(new java.net.InetSocketAddress("127.0.0.2",0));prefs.edit().putString(ServerConfig.KEY_LOCAL_HOST,"127.0.0.2").putInt(ServerConfig.KEY_PORT,listener.getLocalPort()).commit();
-            try(var c=Robolectric.buildActivity(NetworkActivity.class).create().start().resume()){
-                c.get().findViewById(R.id.networkTestButton).performClick();TextView result=c.get().findViewById(R.id.networkResultText);await(()->result.getText().toString().contains("Порт доступен"));assertTrue(result.getText().toString().contains("Вход по ключу проверь"));
-                listener.close();c.get().findViewById(R.id.networkTestButton).performClick();await(()->result.getText().toString().contains("соединение отклонено"));
-            }
+        // The duplicate TCP probe has been removed. Discovery must not claim SSH authentication.
+        prefs.edit().putString(ServerConfig.KEY_LOCAL_HOST,"192.0.2.44").commit();
+        try(var c=Robolectric.buildActivity(NetworkActivity.class).create().start().resume()){
+            assertEquals(0,c.get().getResources().getIdentifier("networkTestButton","id",c.get().getPackageName()));
+            assertEquals("192.0.2.44",((EditText)c.get().findViewById(R.id.networkLocalHostInput)).getText().toString());
+            assertFalse(((TextView)c.get().findViewById(R.id.networkResultText)).getText().toString().contains("SSH подтверждён"));
         }
+        try(var c=Robolectric.buildActivity(MainActivity.class).create()){assertNotNull(c.get().findViewById(R.id.connectionCheckButton));}
     }
 
 }

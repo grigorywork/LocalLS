@@ -59,7 +59,7 @@ public class SecurityActivity extends BaseActivity {
                 .setNegativeButton("Отмена", null).setPositiveButton("Удалить", (d,w) -> task(() -> { SshKeys.clear(this, host, port, user); return "Локальный ключ удалён"; })).show());
         content=basic;
         more.setOnClickListener(v -> advanced.setVisibility(advanced.getVisibility()==android.view.View.VISIBLE?android.view.View.GONE:android.view.View.VISIBLE));
-        result = text(""); button("Назад", this::finish); refresh();
+        result = text(""); button("Назад", this::finish);polishControls();refresh();
     }
     private void saveKey(JSONObject key) throws Exception {
         SshKeys.save(this,host,port,user,key);

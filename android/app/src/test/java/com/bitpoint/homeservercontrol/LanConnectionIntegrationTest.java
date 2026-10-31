@@ -102,9 +102,9 @@ public class LanConnectionIntegrationTest {
     }
     @Test public void networkEditorCanSaveValidVpnWithoutInventingLocalAddress(){
         profile("192.0.2.5",8022);
+        app.getSharedPreferences(ServerConfig.PREFS,0).edit().putString(ServerConfig.KEY_MODE,ServerConfig.MODE_VPN).putString(ServerConfig.KEY_VPN_HOST,"100.64.0.7").putString(ServerConfig.KEY_LOCAL_HOST,"").commit();
         try(var c=Robolectric.buildActivity(NetworkActivity.class).create()){
-            ((RadioButton)c.get().findViewById(R.id.networkVpnModeButton)).setChecked(true);
-            endpoint(c.get(),R.id.networkLocalHostInput,"");endpoint(c.get(),R.id.networkVpnHostInput,"100.64.0.8");
+            endpoint(c.get(),R.id.networkLocalHostInput,"100.64.0.8");
             c.get().findViewById(R.id.networkSaveButton).performClick();assertEquals("100.64.0.8",ConnectionSelector.selectedHost(app));
         }
     }

@@ -1,0 +1,6 @@
+<resources>
+    <item name="serverQrToggle" type="id"/><item name="serverPanelBattery" type="id"/><item name="serverPanelSpace" type="id"/>
+    <item name="serverPanelDevices" type="id"/><item name="serverPanelReceipt" type="id"/><item name="serverPanelQrCaption" type="id"/>
+    <item name="serverClientEnabledCheck" type="id"/>
+    <item name="serverPanelDeviceCount" type="id"/>
+</resources>

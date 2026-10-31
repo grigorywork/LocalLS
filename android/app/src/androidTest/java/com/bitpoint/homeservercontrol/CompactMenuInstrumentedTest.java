@@ -31,20 +31,23 @@ public class CompactMenuInstrumentedTest {
     @Test public void sectionsKeepOnlySelectedPanelAndButtonsRemainCompact() {
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             scenario.onActivity(activity -> {
-                activity.findViewById(R.id.settingsButton).performClick();
-                assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerSettingsPane).getVisibility());
+                activity.findViewById(R.id.toolsMenuButton).performClick();
+                assertEquals(0,activity.getResources().getIdentifier("drawerSettingsHeader","id",activity.getPackageName()));
                 activity.findViewById(R.id.drawerWifiHeader).performClick();
-                assertEquals(View.GONE, activity.findViewById(R.id.drawerSettingsPane).getVisibility());
                 assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerWifiPane).getVisibility());
-                activity.findViewById(R.id.drawerVpnHeader).performClick();
+                activity.findViewById(R.id.drawerAppearanceHeader).performClick();
                 assertEquals(View.GONE, activity.findViewById(R.id.drawerWifiPane).getVisibility());
-                assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerVpnPane).getVisibility());
-                activity.findViewById(R.id.drawerVpnHeader).performClick();
-                assertEquals(View.GONE, activity.findViewById(R.id.drawerVpnPane).getVisibility());
-                for (int id : new int[]{R.id.checkButton, R.id.drawerVpnHeader,
-                        R.id.wifiConnectButton}) {
-                    Button button = activity.findViewById(id);
-                    assertTrue(button.getLayoutParams().height >= Math.round(48 * activity.getResources().getDisplayMetrics().density));
+                assertEquals(View.VISIBLE, activity.findViewById(R.id.drawerAppearancePane).getVisibility());
+                activity.findViewById(R.id.drawerAppearanceHeader).performClick();
+                assertEquals(View.GONE, activity.findViewById(R.id.drawerAppearancePane).getVisibility());
+                activity.findViewById(R.id.drawerWifiHeader).performClick();
+            });
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            scenario.onActivity(activity -> {
+                assertTrue(activity.findViewById(R.id.wifiConnectButton).isShown());
+                for (int id : new int[]{R.id.checkButton, R.id.drawerAppearanceHeader, R.id.wifiConnectButton}) {
+                    Button button=activity.findViewById(id);
+                    assertTrue(button.getText()+" touch target",button.getHeight()>=Math.round(48*activity.getResources().getDisplayMetrics().density));
                 }
             });
         }
@@ -61,12 +64,13 @@ public class CompactMenuInstrumentedTest {
         }
     }
     @Test public void iconShapePersistsAndChangesFunctionGlyphs() {
-        IconShapeCatalog.select(context, 2);
+        context.getSharedPreferences(ServerConfig.PREFS,0).edit().putInt("icon_shape",2).commit();
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             scenario.onActivity(activity -> assertTrue(((CenteredActionButton)activity.findViewById(R.id.checkButton)).hasTileIcon()));
             scenario.recreate();
             scenario.onActivity(activity -> {
-                assertEquals(2, IconShapeCatalog.index(activity));
+                assertEquals(2,activity.getSharedPreferences(ServerConfig.PREFS,0).getInt("icon_shape",0));
+                assertEquals(0,activity.getResources().getIdentifier("iconShapeButton","id",activity.getPackageName()));
                 assertTrue(((CenteredActionButton)activity.findViewById(R.id.checkButton)).hasTileIcon());
             });
         }
@@ -78,7 +82,7 @@ public class CompactMenuInstrumentedTest {
         assertEquals("", WifiSetupController.validationError("home", "", true));
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             scenario.onActivity(activity -> {
-                activity.findViewById(R.id.settingsButton).performClick();
+                activity.findViewById(R.id.toolsMenuButton).performClick();
                 activity.findViewById(R.id.drawerWifiHeader).performClick();
                 EditText name=activity.findViewById(R.id.wifiSsidInput), password=activity.findViewById(R.id.wifiPasswordInput);
                 name.setText("home"); password.setText("short");
@@ -92,29 +96,16 @@ public class CompactMenuInstrumentedTest {
         }
     }
     @Test public void obsoleteNetworkProbeCannotOverwriteNewAddress() throws Exception {
-        Bundle args = InstrumentationRegistry.getArguments();
-        try (ActivityScenario<NetworkActivity> scenario = ActivityScenario.launch(NetworkActivity.class)) {
-            scenario.onActivity(activity -> {
-                ((EditText)activity.findViewById(R.id.networkLocalHostInput)).setText("192.0.2.1");
-                activity.findViewById(R.id.networkTestButton).performClick();
-                context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE).edit()
-                        .putInt(ServerConfig.KEY_PORT, Integer.parseInt(args.getString("fixturePort"))).commit();
-                ((EditText)activity.findViewById(R.id.networkLocalHostInput)).setText(args.getString("fixtureHost"));
-                activity.findViewById(R.id.networkTestButton).performClick();
-            });
-            AtomicBoolean done = new AtomicBoolean();
-            long deadline=System.currentTimeMillis()+15000;
-            while (!done.get() && System.currentTimeMillis()<deadline) {
-                scenario.onActivity(activity -> done.set(((TextView)activity.findViewById(R.id.networkResultText))
-                        .getText().toString().contains("SSH-порт доступен")));
-                if (!done.get()) Thread.sleep(100);
-            }
-            assertTrue("Current request must complete without waiting for old timeout", done.get());
-            Thread.sleep(4500);
-            scenario.onActivity(activity -> {
-                String result=((TextView)activity.findViewById(R.id.networkResultText)).getText().toString();
-                assertTrue(result.contains(args.getString("fixtureHost")));
-                assertFalse(result.contains("192.0.2.1"));
+        try (ActivityScenario<NetworkActivity> scenario=ActivityScenario.launch(NetworkActivity.class)){
+            scenario.onActivity(activity->{
+                try{
+                    java.util.concurrent.CompletableFuture<Void> pending=new java.util.concurrent.CompletableFuture<>();
+                    java.lang.reflect.Field task=NetworkActivity.class.getDeclaredField("requestTask");task.setAccessible(true);task.set(activity,pending);
+                    ((TextView)activity.findViewById(R.id.networkResultText)).setText("Ищу устройства…");
+                    ((EditText)activity.findViewById(R.id.networkLocalHostInput)).setText("192.0.2.99");
+                    assertTrue("Address edits cancel obsolete discovery",pending.isCancelled());
+                    assertFalse(((TextView)activity.findViewById(R.id.networkResultText)).getText().toString().startsWith("Ищу устройства"));
+                }catch(ReflectiveOperationException e){throw new AssertionError(e);}
             });
         }
     }

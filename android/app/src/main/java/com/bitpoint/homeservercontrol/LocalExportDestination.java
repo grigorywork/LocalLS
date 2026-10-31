@@ -13,16 +13,20 @@ final class LocalExportDestination implements LocalFileExporter.Destination {
     private final String name,mime,parent;
     private Uri uri;
     private final boolean downloads;
+    private boolean fallbackWrite;
     LocalExportDestination(Context context,String name,String mime,Uri selected) {
         this(context,name,mime,selected,"");
     }
     LocalExportDestination(Context context,String name,String mime,Uri selected,String parent) {
+        this(context,name,mime,selected,parent,selected==null);
+    }
+    LocalExportDestination(Context context,String name,String mime,Uri selected,String parent,boolean ownedDownload) {
         this.parent=TransferPaths.relative(parent);
         resolver=context.getApplicationContext().getContentResolver();this.name=name;this.mime=mime;
-        uri=selected;downloads=selected==null;
+        uri=selected;downloads=ownedDownload;
     }
     @Override public OutputStream open() throws Exception {
-        if(downloads) {
+        if(downloads && uri==null) {
             if(Build.VERSION.SDK_INT<29)throw new UnsupportedOperationException();
             ContentValues values=new ContentValues();values.put(MediaStore.MediaColumns.DISPLAY_NAME,name);
             values.put(MediaStore.MediaColumns.MIME_TYPE,mime);
@@ -34,6 +38,7 @@ final class LocalExportDestination implements LocalFileExporter.Destination {
         if(uri==null || !"content".equals(uri.getScheme()))throw new IllegalArgumentException("Expected content URI");
         try {return resolver.openOutputStream(uri,"wt");}
         catch(IllegalArgumentException | UnsupportedOperationException unsupported) {
+            fallbackWrite=true;
             return resolver.openOutputStream(uri,"w");
         }
     }
@@ -47,5 +52,9 @@ final class LocalExportDestination implements LocalFileExporter.Destination {
         // SAF providers can return existing documents: never delete a selected user document.
         if(downloads && uri!=null)try{resolver.delete(uri,null,null);}catch(Exception ignored) { }
     }
+    @Override public InputStream readBack()throws Exception{InputStream in=resolver.openInputStream(uri);if(in==null)throw new IOException("Нет доступа к проверке копии");return in;}
+    void rename(String value)throws Exception{ContentValues values=new ContentValues();values.put(MediaStore.MediaColumns.DISPLAY_NAME,TransferPaths.name(value));if(resolver.update(uri,values,null,null)!=1)throw new IOException("Не удалось назначить имя копии");}
     String location() { return downloads?"Загрузки / LocalLS":"Выбранная папка"; }
+    Uri uri(){return uri;}
+    boolean requiresReadBack(){return fallbackWrite;}
 }

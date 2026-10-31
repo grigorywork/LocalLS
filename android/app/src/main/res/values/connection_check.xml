@@ -1,0 +1,10 @@
+<resources>
+    <string name="ssh_check_button">Проверить SSH</string>
+    <string name="ssh_check_ready">Проверка соединения по ключу</string>
+    <string name="ssh_check_busy">Проверяем SSH и ключ сервера…</string>
+    <string name="ssh_check_changed">Параметры изменены. Проверь SSH ещё раз.</string>
+    <string name="ssh_check_invalid">Проверь адрес сервера, порт и имя пользователя</string>
+    <string name="home_action">Главная</string>
+    <string name="home_check_description">Главная. Проверить сервер</string>
+    <string name="qr_login">Вход по QR-коду</string>
+</resources>

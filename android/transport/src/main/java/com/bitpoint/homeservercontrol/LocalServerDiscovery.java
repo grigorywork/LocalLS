@@ -135,13 +135,21 @@ final class LocalServerDiscovery {
         @Override public String call() {
             try (Socket socket = new Socket()) {
                 socket.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT_MS);
-                socket.setSoTimeout(350);
                 InputStream in = socket.getInputStream();
-                byte[] banner = new byte[48];
-                int n = in.read(banner);
-                if (n <= 0) return null;
-                String greeting = new String(banner, 0, n, StandardCharsets.US_ASCII);
-                return greeting.startsWith("SSH-") ? host : null;
+                byte[] prefix = new byte[4];
+                int used = 0;
+                long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(350);
+                // TCP may split even "SSH-" across reads. Keep one overall deadline
+                // so a peer sending one byte at a time cannot extend the probe.
+                while (used < prefix.length) {
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining <= 0) return null;
+                    socket.setSoTimeout((int)Math.max(1, TimeUnit.NANOSECONDS.toMillis(remaining)));
+                    int n = in.read(prefix, used, prefix.length - used);
+                    if (n < 0) return null;
+                    used += n;
+                }
+                return "SSH-".equals(new String(prefix, StandardCharsets.US_ASCII)) ? host : null;
             } catch (Exception ignored) {
                 return null;
             }

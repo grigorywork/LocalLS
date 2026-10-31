@@ -11,6 +11,9 @@ import java.util.*;
 /** A file reference, never a byte array. Local roots are scoped, granted documents or app Downloads. */
 final class FileNodes {
     static final String PHONE_TREE="phone_folder_tree";
+    static final String BROWSE_TREE="phone_browse_tree",BROWSE_NAME="phone_browse_name";
+    static final String PHONE_NAME="phone_folder_name";
+    static final String PHONE_READ_ONLY="phone_folder_read_only";
     static final class Node implements FileListQuery.Entry {
         final String kind,path,name;final boolean directory;final long size;
         Node(String k,String p,String n,boolean d,long s){kind=k;path=p;name=n;directory=d;size=s;}
@@ -26,7 +29,13 @@ final class FileNodes {
         var p=c.getSharedPreferences(EmbeddedServerService.PREFS,0);
         if(!p.contains(PHONE_TREE))p.edit().putString(PHONE_TREE,ReceiveFolder.selected(c)).apply();
         String tree=p.getString(PHONE_TREE,"");
-        return tree.isEmpty()?downloadsRoot():new Node("doc",DocumentFiles.root(Uri.parse(tree)).toString(),"Папка телефона",true,0);
+        return tree.isEmpty()?downloadsRoot():new Node("doc",DocumentFiles.root(Uri.parse(tree)).toString(),p.getString(PHONE_NAME,"Папка телефона"),true,0);
+    }
+    static Node browseRoot(Context c){
+        var p=c.getSharedPreferences(EmbeddedServerService.PREFS,0);
+        if(!p.contains(BROWSE_TREE))return phoneRoot(c);
+        String tree=p.getString(BROWSE_TREE,"");
+        return tree.isEmpty()?downloadsRoot():new Node("doc",DocumentFiles.root(Uri.parse(tree)).toString(),p.getString(BROWSE_NAME,"Папка телефона"),true,0);
     }
     static Node document(Context c,Uri uri)throws IOException{DocumentFiles.Entry e=DocumentFiles.info(c,uri);return new Node("doc",uri.toString(),e.name,e.directory,e.size);}
     static List<Node> children(Context c,Node folder)throws Exception {
@@ -38,7 +47,7 @@ final class FileNodes {
             File[] found=dir.listFiles();if(found==null)throw new IOException("Папка удалена или недоступна");
             for(File f:found){try{SharedFolderAccess.within(root,f);String relative=folder.path.isEmpty()?f.getName():folder.path+"/"+f.getName();
                 if(!TransferPaths.temporary(relative))out.add(new Node("share",relative,TransferPaths.name(f.getName()),f.isDirectory(),f.length()));}catch(IOException ignored){}}
-        }else if("doc".equals(folder.kind))for(DocumentFiles.Entry e:DocumentFiles.children(c,Uri.parse(folder.path)))out.add(new Node("doc",e.uri.toString(),e.name,e.directory,e.size));
+        }else if("doc".equals(folder.kind))for(DocumentFiles.Entry e:DocumentFiles.children(c,Uri.parse(folder.path))){if(!TransferPaths.temporary(e.name))out.add(new Node("doc",e.uri.toString(),e.name,e.directory,e.size));}
         else if("downloads".equals(folder.kind)){
             if(Build.VERSION.SDK_INT<29)return out;
             String base=Environment.DIRECTORY_DOWNLOADS+"/LocalLS/"+folder.path;
@@ -49,7 +58,7 @@ final class FileNodes {
                     String parent=x.getString(2);if(parent==null || !parent.startsWith(base))continue;
                     String tail=parent.substring(base.length());
                     if(!tail.isEmpty()){String name=TransferPaths.name(tail.split("/")[0]);if(directories.add(name))out.add(new Node("downloads",folder.path+name+"/",name,true,0));}
-                    else out.add(new Node("doc",ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI,x.getLong(0)).toString(),TransferPaths.name(x.getString(1)),false,x.getLong(3)));
+                    else if(!TransferPaths.temporary(x.getString(1)))out.add(new Node("doc",ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI,x.getLong(0)).toString(),TransferPaths.name(x.getString(1)),false,x.getLong(3)));
                 }
             }
         }else throw new IOException("Неизвестная папка");
@@ -60,6 +69,7 @@ final class FileNodes {
         if(n.directory)throw new IOException("Нужен файл");
         InputStream in;
         if("share".equals(n.kind)){File root=EmbeddedServerService.share(c);in=new FileInputStream(SharedFolderAccess.within(root,new File(root,TransferPaths.relative(n.path))));}
+        else if("outbox".equals(n.kind))in=new FileInputStream(ShareOutbox.file(c,n.path));
         else if("doc".equals(n.kind))in=c.getContentResolver().openInputStream(Uri.parse(n.path));
         else throw new IOException("Неизвестный файл");
         if(in==null)throw new IOException("Нет доступа к файлу");return in;

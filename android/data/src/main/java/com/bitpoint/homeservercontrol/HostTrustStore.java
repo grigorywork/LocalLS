@@ -10,12 +10,21 @@ final class HostTrustStore {
         return prefs(context).getString(key(host, port), "");
     }
 
-    static void trust(Context context, String host, int port, String fingerprint) {
+    static synchronized void trust(Context context, String host, int port, String fingerprint) {
         prefs(context).edit().putString(key(host, port), fingerprint).apply();
     }
 
-    static void clear(Context context, String host, int port) {
+    static synchronized void clear(Context context, String host, int port) {
         prefs(context).edit().remove(key(host, port)).apply();
+    }
+    /** Compare and commit public QR fields together; a delayed task cannot replace newer trust. */
+    static synchronized void pair(Context c,String host,int port,String user,String fingerprint)throws java.io.IOException{
+        if(!ConnectionEndpoint.validHost(host)||!ConnectionEndpoint.validUser(user)||port<1||port>65535
+                ||fingerprint==null||!fingerprint.matches("SHA256:[A-Za-z0-9+/]{43}"))throw new java.io.IOException("Неверное подключение QR");
+        String previous=get(c,host,port);if(!previous.isEmpty()&&!previous.equals(fingerprint))throw new java.io.IOException("Ключ сервера изменился. Подключение заблокировано");
+        if(!prefs(c).edit().putString(key(host,port),fingerprint).putString(ServerConfig.KEY_LOCAL_HOST,host)
+                .putInt(ServerConfig.KEY_PORT,port).putString(ServerConfig.KEY_USER,user).putString(ServerConfig.KEY_MODE,ServerConfig.MODE_LOCAL)
+                .remove(ServerConfig.KEY_LAST_WORKING_HOST).commit())throw new java.io.IOException("Не удалось сохранить подключение");
     }
 
     /** Local trusted addresses only; never probes or discovers network devices. */
