@@ -40,5 +40,6 @@ final class QueueEstimate {
         long sent=id.equals(state.requestId)&&key.equals(state.sourceKey)?Math.max(0,Math.min(size,state.bytes)):0;
         try{sum.bytes=Math.addExact(sum.bytes,size-sent);}catch(ArithmeticException e){sum.known=false;}
     }
+    static String countLabel(int count){int last=count%10,hundred=count%100;return count+" "+(hundred>=11&&hundred<=14?"заданий":last==1?"задание":last>=2&&last<=4?"задания":"заданий");}
     String volume(){if(!known&&remaining==0)return "Объём уточняется";return (known?"Осталось ":"Не менее ")+ServerTelemetry.bytes(remaining);}
 }

@@ -13,5 +13,7 @@
 
 [Короткая инструкция](https://github.com/grigorywork/LocalLS/blob/986f4402f38b8d75bb922b790c9df6ca8df991b4/android/app/src/main/assets/phone-setup.txt) · [Android](android/README.md) · [Сохранённые выпуски](https://github.com/grigorywork/LocalLS/releases)
 
-Актуальный Android APK: [LocalLS 1.39](downloads/LocalLS-1.39-code61-queue-eta-20261031.apk). [Очередь и проверки](downloads/localls-android-1.39-queue-audit-20261031/README.md).
-Windows: [LocalLS 1.41 — клиент и сервер, без подписи Windows](downloads/LocalLS-1.41-Windows-x64-Setup-unsigned-eta-throughput-20261030.exe). [Короткая инструкция Windows](desktop/README.md) · [Время очереди, скорость и проверки](downloads/localls-windows-1.41-eta-throughput-audit-20261030/README.md). Fedora — следующий этап.
+Актуальный Android APK: [LocalLS 1.40](downloads/LocalLS-1.40-code62-queue-count-20261102.apk). [Проверки](downloads/localls-android-1.40-fedora-1.41-audit-20261102/README.md).
+Windows: [LocalLS 1.41 — клиент и сервер, без подписи Windows](downloads/LocalLS-1.41-Windows-x64-Setup-unsigned-eta-throughput-20261030.exe). [Короткая инструкция Windows](desktop/README.md) · [Время очереди, скорость и проверки](downloads/localls-windows-1.41-eta-throughput-audit-20261030/README.md).
+
+Fedora x86_64: [LocalLS 1.41 — клиент и встроенный сервер](downloads/LocalLS-1.41.0-Fedora-x86_64-20261102.rpm). [Инструкция](linux/README.md) · [Скриншоты и проверки](downloads/localls-android-1.40-fedora-1.41-audit-20261102/README.md). RPM без подписи издателя.
