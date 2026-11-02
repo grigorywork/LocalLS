@@ -1,6 +1,6 @@
 {
   "name": "localls-fedora",
-  "version": "1.41.0",
+  "version": "1.42.0",
   "description": "LocalLS — Fedora SSH/SFTP client and built-in QR server",
   "author": "MSS9LN",
   "license": "UNLICENSED",

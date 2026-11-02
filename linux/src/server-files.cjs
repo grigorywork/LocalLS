@@ -22,7 +22,12 @@ class SharedFiles {
     for (const part of remote.split('/')) {
       if (!part || part === '.') continue;
       if (part === '..') { if (--depth < 0) throw new Error('SHARE_DENIED'); }
-      else { safeDownloadName(part,'win32'); depth++; }
+      else {
+        // Keep the portable share policy, but classify incompatible POSIX names
+        // like other denied entries so OPENDIR can still list their siblings.
+        try { safeDownloadName(part,'win32'); } catch { throw new Error('SHARE_DENIED'); }
+        depth++;
+      }
     }
     const canonical = path.posix.resolve('/', remote || '.');
     const parts = canonical.split('/').filter(Boolean);

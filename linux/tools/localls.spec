@@ -3,7 +3,7 @@
 %global __strip /bin/true
 %global _binary_payload w9.xzdio
 Name: localls
-Version: 1.41.0
+Version: 1.42.0
 Release: 1
 Summary: LocalLS SSH/SFTP client and built-in QR server
 License: LicenseRef-Proprietary
@@ -42,5 +42,8 @@ install -D -m 0644 icon.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/lo
 /usr/share/icons/hicolor/256x256/apps/localls.png
 
 %changelog
+* Mon Nov 02 2026 MSS9LN <localls-archive@localhost> - 1.42.0-1
+- Keep valid shared files visible beside incompatible POSIX names.
+
 * Mon Nov 02 2026 MSS9LN <localls-archive@localhost> - 1.41.0-1
 - Built-in QR server and current LocalLS interface; no system SSH management.
