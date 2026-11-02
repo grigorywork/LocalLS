@@ -1,0 +1,29 @@
+[
+  {
+    "label": "Android-1.40",
+    "source": "/workspace/LocalLS/android/app/build/ui-previews/queue-1.39-20261031/home-411x890.png",
+    "shared": "/workspace/shared/LocalLS-Android-1.40-overview-20261102.png",
+    "bytes": 69103,
+    "sha256": "613035da48d36bdcf7edc72dfee8e518e1360d00a00aa9a6d4eb37c1c3de77a8",
+    "captureAt": "2026-11-02T12:42:34.573739+00:00",
+    "provenance": "Fresh Android1.40 compiled widgets via nativeRobolectric;test data"
+  },
+  {
+    "label": "Windows-1.41",
+    "source": "/workspace/scratch/localls-windows-1.41-eta-throughput-20261030/packaged-ui/previews/LocalLS-overview.png",
+    "shared": "/workspace/shared/LocalLS-Windows-1.41-overview-20261102.png",
+    "bytes": 94695,
+    "sha256": "28ab04376873de475452889d3cd77d9485964b502f10c9d122f78c9e7d5c7e51",
+    "captureAt": "2026-10-30T12:17:52.202652+00:00",
+    "provenance": "Exact packaged Windows1.41 ASAR loaded in Linux Electron;not physical Windows"
+  },
+  {
+    "label": "Fedora-1.42",
+    "source": "/workspace/shared/LocalLS-Fedora-1.42-server.png",
+    "shared": "/workspace/shared/LocalLS-Fedora-1.42-overview-20261102.png",
+    "bytes": 115037,
+    "sha256": "ec87fe42f286ba81b64b336f7ae54c13e7ad6793b97343e7854e147d4e8d971c",
+    "captureAt": "2026-11-02T12:58:21+00:00",
+    "provenance": "Installed Fedora1.42 RPM in Fedora44/X11 test container"
+  }
+]
