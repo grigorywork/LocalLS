@@ -17,3 +17,5 @@
 Windows: [LocalLS 1.41 — клиент и сервер, без подписи Windows](downloads/LocalLS-1.41-Windows-x64-Setup-unsigned-eta-throughput-20261030.exe). [Короткая инструкция Windows](desktop/README.md) · [Время очереди, скорость и проверки](downloads/localls-windows-1.41-eta-throughput-audit-20261030/README.md).
 
 Fedora x86_64: [LocalLS 1.42 — клиент и встроенный сервер](downloads/LocalLS-1.42.0-Fedora-x86_64-audit-20261102.rpm). [Инструкция](linux/README.md) · [Исправление, скриншоты и аудит](downloads/localls-fedora-1.42-audit-20261102/README.md). RPM без подписи издателя.
+
+Debian13 amd64: [LocalLS1.42 — DEB](downloads/LocalLS-1.42.0-Debian13-amd64.deb). [Инструкция](linux/DEBIAN.md) · [Скриншоты и проверки](downloads/localls-debian-1.42-audit-20261102/README.md). Пакет без подписи издателя.

@@ -1,0 +1,1 @@
+dcab005e19136279090e6cb6154e454a50966fd5e31d8805d49b4afe9c0eec9a  LocalLS-1.42.0-Debian13-amd64.deb
