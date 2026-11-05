@@ -1,0 +1,287 @@
+{
+  "at": "2026-11-05T12:14:56.988124+00:00",
+  "windowStart": "2026-11-05T09:57:23+00:00",
+  "deadline": "2026-11-05T11:57:23+00:00",
+  "endedAt": "2026-11-05T12:14:45.089036+00:00",
+  "automatedActiveSeconds": 3501.161111604999,
+  "interruptions": [
+    {
+      "from": 1793873746.1666644,
+      "to": 1793877179.1942759,
+      "kind": "manual_review"
+    },
+    {
+      "from": 1793878395.7785928,
+      "to": 1793879435.543078,
+      "kind": "manual_review"
+    }
+  ],
+  "continuousAutomatedTesting": false,
+  "stages": [
+    {
+      "scenario": "android-full",
+      "run": "/workspace/scratch/audit-2h-20261105-001-android-full",
+      "startedAt": "2026-11-05T10:01:07.177938+00:00",
+      "finishedAt": "2026-11-05T10:15:46.165873+00:00",
+      "final": false,
+      "result": {
+        "at": "2026-11-05T10:15:37.586265+00:00",
+        "status": "passed",
+        "jvm": {
+          "tests": 481,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "previous481IdsPreserved": true,
+        "functionMatrix": 102,
+        "pythonTests": 19,
+        "lint": {
+          "debug": {
+            "Warning": 161
+          },
+          "release": {
+            "Warning": 161
+          }
+        },
+        "androidSourceChanged": false,
+        "physicalDevices": false,
+        "runtime": "JVM/native Robolectric and isolated loopback",
+        "newApkIssued": false,
+        "stages": [
+          {
+            "name": "versions",
+            "exitCode": 0,
+            "seconds": 0.02
+          },
+          {
+            "name": "project-audit",
+            "exitCode": 0,
+            "seconds": 0.17
+          },
+          {
+            "name": "architecture-audit",
+            "exitCode": 0,
+            "seconds": 0.26
+          },
+          {
+            "name": "python-tests",
+            "exitCode": 0,
+            "seconds": 1.97
+          },
+          {
+            "name": "gradle-full",
+            "exitCode": 0,
+            "seconds": 862.47
+          }
+        ]
+      }
+    },
+    {
+      "scenario": "interop-idle",
+      "run": "/workspace/scratch/audit-2h-20261105-002-interop-idle",
+      "startedAt": "2026-11-05T11:13:03.155893+00:00",
+      "finishedAt": "2026-11-05T11:33:15.777746+00:00",
+      "final": false,
+      "result": {
+        "idleSeconds": 1200,
+        "bytesEachDirection": 8388608,
+        "runtime": "actual Android Java transport and Linux Node over loopback;not phone Doze"
+      }
+    },
+    {
+      "scenario": "windows-node",
+      "run": "/workspace/scratch/audit-2h-20261105-003-windows-node",
+      "startedAt": "2026-11-05T11:50:39.299991+00:00",
+      "finishedAt": "2026-11-05T11:51:46.190156+00:00",
+      "final": false,
+      "result": {
+        "tests": 95,
+        "failures": 0,
+        "runtime": "Node on Linux;not physical Windows"
+      }
+    },
+    {
+      "scenario": "linux-node",
+      "run": "/workspace/scratch/audit-2h-20261105-004-linux-node",
+      "startedAt": "2026-11-05T11:51:48.015587+00:00",
+      "finishedAt": "2026-11-05T11:52:24.974421+00:00",
+      "final": false,
+      "result": {
+        "tests": 91,
+        "failures": 0,
+        "runtime": "Debian13 Node"
+      }
+    },
+    {
+      "scenario": "fedora-node",
+      "run": "/workspace/scratch/audit-2h-20261105-005-fedora-node",
+      "startedAt": "2026-11-05T11:52:27.083786+00:00",
+      "finishedAt": "2026-11-05T11:53:03.921218+00:00",
+      "final": false,
+      "result": {
+        "tests": 91,
+        "failures": 0,
+        "runtime": "Fedora44 Node"
+      }
+    },
+    {
+      "scenario": "debian-gui",
+      "run": "/workspace/scratch/audit-2h-20261105-006-debian-gui",
+      "startedAt": "2026-11-05T11:53:05.900774+00:00",
+      "finishedAt": "2026-11-05T11:54:27.936033+00:00",
+      "final": false,
+      "result": {
+        "scenarios": 9,
+        "runtime": "installed Debian13 DEB;X11/Openbox/libsecret;not physical desktop"
+      }
+    },
+    {
+      "scenario": "fedora-gui",
+      "run": "/workspace/scratch/audit-2h-20261105-007-fedora-gui",
+      "startedAt": "2026-11-05T11:54:29.696376+00:00",
+      "finishedAt": "2026-11-05T11:55:51.909955+00:00",
+      "final": false,
+      "result": {
+        "scenarios": 9,
+        "runtime": "installed Fedora44 RPM;X11/Openbox/libsecret;not physical desktop"
+      }
+    },
+    {
+      "scenario": "windows-node",
+      "run": "/workspace/scratch/audit-2h-20261105-008-windows-node",
+      "startedAt": "2026-11-05T11:55:54.161496+00:00",
+      "finishedAt": "2026-11-05T11:57:01.135200+00:00",
+      "final": false,
+      "result": {
+        "tests": 95,
+        "failures": 0,
+        "runtime": "Node on Linux;not physical Windows"
+      }
+    },
+    {
+      "scenario": "windows-node",
+      "run": "/workspace/scratch/audit-2h-20261105-009-windows-node",
+      "startedAt": "2026-11-05T11:57:03.255998+00:00",
+      "finishedAt": "2026-11-05T11:58:10.206453+00:00",
+      "final": false,
+      "result": {
+        "tests": 95,
+        "failures": 0,
+        "runtime": "Node on Linux;not physical Windows"
+      }
+    },
+    {
+      "scenario": "android-full",
+      "run": "/workspace/scratch/audit-2h-20261105-010-android-full",
+      "startedAt": "2026-11-05T11:58:12.194838+00:00",
+      "finishedAt": "2026-11-05T12:14:45.088205+00:00",
+      "final": true,
+      "result": {
+        "at": "2026-11-05T12:14:37.872866+00:00",
+        "status": "passed",
+        "jvm": {
+          "tests": 481,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "previous481IdsPreserved": true,
+        "functionMatrix": 102,
+        "pythonTests": 19,
+        "lint": {
+          "debug": {
+            "Warning": 161
+          },
+          "release": {
+            "Warning": 161
+          }
+        },
+        "androidSourceChanged": false,
+        "physicalDevices": false,
+        "runtime": "JVM/native Robolectric and isolated loopback",
+        "newApkIssued": false,
+        "stages": [
+          {
+            "name": "versions",
+            "exitCode": 0,
+            "seconds": 0.04
+          },
+          {
+            "name": "project-audit",
+            "exitCode": 0,
+            "seconds": 0.2
+          },
+          {
+            "name": "architecture-audit",
+            "exitCode": 0,
+            "seconds": 0.45
+          },
+          {
+            "name": "python-tests",
+            "exitCode": 0,
+            "seconds": 2.46
+          },
+          {
+            "name": "gradle-full",
+            "exitCode": 0,
+            "seconds": 980.88
+          }
+        ]
+      }
+    }
+  ],
+  "files": [
+    {
+      "label": "Windows1.42",
+      "path": "/workspace/shared/LocalLS-1.42-Windows-x64-Setup-unsigned-audit-20261105.exe",
+      "name": "LocalLS-1.42-Windows-x64-Setup-unsigned-audit-20261105.exe",
+      "sha256": "0ab80838d703d4e40ef22ae5584eddd2bd72463c76c6a493a6fa2cc3181feb02",
+      "bytes": 95749268,
+      "publisherSigned": false
+    },
+    {
+      "label": "Fedora1.43",
+      "path": "/workspace/shared/LocalLS-1.43.0-Fedora-x86_64-audit-20261105.rpm",
+      "name": "LocalLS-1.43.0-Fedora-x86_64-audit-20261105.rpm",
+      "sha256": "3288c7e0b74994b6d20fdbd2892506e12dc6c9d0f2c8edfa8ca94f4a56e9b5ab",
+      "bytes": 88658957,
+      "publisherSigned": false
+    },
+    {
+      "label": "Debian1.43",
+      "path": "/workspace/shared/LocalLS-1.43.0-Debian13-amd64.deb",
+      "name": "LocalLS-1.43.0-Debian13-amd64.deb",
+      "sha256": "714e78dc0e1bb179f95275009ec4e01155e65c75920b4073ea19c0cecf0bede3",
+      "bytes": 91891852,
+      "publisherSigned": false
+    }
+  ],
+  "android": {
+    "apk": "/workspace/shared/LocalLS-1.40-code62-queue-count-20261102.apk",
+    "bytes": 2325448,
+    "sha256": "f2a03081848e268c4800e78d5c2b9bc71b4c759b7ddba0e45b84575416903723",
+    "package": "com.bitpoint.homeservercontrol",
+    "versionName": "1.40",
+    "versionCode": 62,
+    "minSdk": 24,
+    "targetSdk": 37,
+    "certificateSha256": [
+      "a2230c3032135def93cd5e8224ca3e26ad8e98f294b5e372a33b1e468caa221a"
+    ],
+    "compatibleWithPublishedSigner": true,
+    "updateFrom": "/workspace/shared/LocalLS-1.39-code61-queue-eta-20261031.apk",
+    "updateCompatibilityVerified": true,
+    "initialRelease": false,
+    "manifest": "valid",
+    "signature": "verified for API 24\u201336",
+    "zipAlignment": "valid",
+    "signatureDetails": "Verifies\nVerified using v1 scheme (JAR signing): false\nVerified using v2 scheme (APK Signature Scheme v2): true\nVerified using v3 scheme (APK Signature Scheme v3): false\nVerified using v3.1 scheme (APK Signature Scheme v3.1): false\nVerified using v4 scheme (APK Signature Scheme v4): false\nVerified for SourceStamp: false\nNumber of signers: 1\nSigner #1 certificate DN: CN=LocalLS Release, O=LocalLS\nSigner #1 certificate SHA-256 digest: a2230c3032135def93cd5e8224ca3e26ad8e98f294b5e372a33b1e468caa221a\nSigner #1 certificate SHA-1 digest: 18cc2cb911c2884eb0f74ac367f8fadeeb77bb84\nSigner #1 certificate MD5 digest: 02ef76ac98d2c2c3dfad19de3f64eba8\nSigner #1 key algorithm: RSA\nSigner #1 key size (bits): 3072\nSigner #1 public key SHA-256 digest: 7d6bbb799e17a7b9e82931852c067fb966be197e345e866b88c414b9f620ad1c\nSigner #1 public key SHA-1 digest: cb840f40b2f92185a110740f9562962027896609\nSigner #1 public key MD5 digest: e96129b79b8d999e4ece6d110f636882"
+  },
+  "fixes": [
+    "Late local-folder listing overwrote a newly chosen root (Windows/Linux)",
+    "Windows parent-folder navigation returned drive-relative C: instead of absolute C:\\"
+  ],
+  "physicalDevices": false,
+  "oldArtifactsAndReleaseRefsPreserved": true
+}

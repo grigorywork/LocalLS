@@ -1,4 +1,4 @@
-# LocalLS Windows 1.41 — MSS9LN
+# LocalLS Windows 1.42 — MSS9LN
 
 Клиент и сервер SSH/SFTP для Windows 10/11 x64.
 

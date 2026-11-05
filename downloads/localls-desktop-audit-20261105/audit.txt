@@ -1,0 +1,11 @@
+LocalLS — MSS9LN. Audit 2026-11-05.
+Window 2026-11-05T09:57:23+00:00–2026-11-05T11:57:23+00:00; final checks ended 2026-11-05T12:14:45.089036+00:00.
+Automated active seconds: 3501.2. Manual/unverified intervals: [{"from": 1793873746.1666644, "to": 1793877179.1942759, "kind": "manual_review"}, {"from": 1793878395.7785928, "to": 1793879435.543078, "kind": "manual_review"}].
+No continuous automated-testing claim. Final full check may finish after the fixed deadline.
+Resolved build/QA issues (not app fixes): temporary Fedora2GiB tmpfs ENOSPC from duplicated packaging intermediates; Docker archive visibility of tmpfs output; earlier strict launch/output-target checks. Failure logs retained, assertions unchanged.
+Fixes: delayed old local-folder listing no longer overwrites selected new root; Windows parent navigation retains absolute drive root.
+Android unchanged 1.40/code62. Full runs: 2, each 481 JVM +19 Python, matrix102; all original481 IDs retained. Lint0errors/fatal/unusedresources,161 warnings.
+Windows95 Node, Debian91 Node, Fedora91 Node; installed Debian/Fedora9 GUI scenarios each; exact Windows ASAR8 GUI scenarios in LinuxElectron. Actual20-minute SSH idle then8MiB each direction with byte comparison, preview/reconnect.
+Stages: 10. Details in completion.json. Original tests/assertions retained.
+Android old signer preserved: a2230c3032135def93cd5e8224ca3e26ad8e98f294b5e372a33b1e468caa221a. No new APK built. Windows/Fedora/Debian publisher signatures absent.
+Limits: JVM/nativeRobolectric and loopback are not physical Android/Doze; LinuxElectron does not verify physical Windows/DWM/DPAPI/EXE installation. Fedora44/Debian13 containers use X11/Openbox/gnome-libsecret, not physical GNOME/Wayland/KDE/AppArmor.

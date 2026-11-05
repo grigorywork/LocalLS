@@ -1,0 +1,3 @@
+0ab80838d703d4e40ef22ae5584eddd2bd72463c76c6a493a6fa2cc3181feb02  LocalLS-1.42-Windows-x64-Setup-unsigned-audit-20261105.exe
+3288c7e0b74994b6d20fdbd2892506e12dc6c9d0f2c8edfa8ca94f4a56e9b5ab  LocalLS-1.43.0-Fedora-x86_64-audit-20261105.rpm
+714e78dc0e1bb179f95275009ec4e01155e65c75920b4073ea19c0cecf0bede3  LocalLS-1.43.0-Debian13-amd64.deb
