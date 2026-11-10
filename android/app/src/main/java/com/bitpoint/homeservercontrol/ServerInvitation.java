@@ -4,8 +4,8 @@ import android.content.Context;
 final class ServerInvitation {
     private static QrPairing current;
     static synchronized QrPairing get(Context c,QrPairing preferred)throws Exception{
-        if(!EmbeddedServerService.running)throw new IllegalStateException("Сначала включи сервер");
-        var addresses=LocalServerAddresses.current(c);if(addresses.isEmpty())throw new IllegalStateException("Подключи телефон к Wi-Fi");
+        if(!EmbeddedServerService.running)throw new IllegalStateException(AppText.tr("Сначала включи сервер"));
+        var addresses=LocalServerAddresses.current(c);if(addresses.isEmpty())throw new IllegalStateException(AppText.tr("Подключи телефон к Wi-Fi"));
         String user=c.getSharedPreferences(EmbeddedServerService.PREFS,0).getString("user","localls");
         if(!valid(current,addresses,user))current=valid(preferred,addresses,user)?preferred:QrPairing.invite(addresses.get(0),EmbeddedServerService.boundPort,user,EmbeddedServerService.fingerprint,System.currentTimeMillis());
         EmbeddedServerService.beginQrPairing(current);return current;

@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-10T21:04:18.635870+00:00",
+  "event": "long-background-GREEN",
+  "actualIdleMs": 1200000,
+  "observedScreenshotIntervalSeconds": 1201.0,
+  "sameSshIdentity": true,
+  "powerApiBlockerHeld": true,
+  "actualSftpBytesAfterIdle": 65536,
+  "sourceRuntime": "Linux Electron/Debian container; not physical sleep/Android Doze",
+  "logLabelNote": "Final generic PASS description still says35s; explicit runtime interval and screenshot timestamps confirm20minutes"
+}

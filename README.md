@@ -1,21 +1,33 @@
-# LocalLS
+# LocalLS — MSS9LN
 
-Обмен файлами между телефоном, планшетом и ПК по SSH/SFTP. Автор — **MSS9LN**.
+Обмен файлами по SSH/SFTP между Android, Windows, Fedora и Debian.
 
-## Как подключиться
+- [Android 1.41/code63](downloads/LocalLS-1.41-code63-background-language-20261110.apk)
+- [Windows 1.43 x64](downloads/LocalLS-1.43-Windows-x64-Setup-unsigned-background-language-20261110.exe)
+- [Fedora 1.44 x86_64](downloads/LocalLS-1.44.0-Fedora-x86_64-background-language-20261110.rpm)
+- [Debian 13 / 1.44 amd64](downloads/LocalLS-1.44.0-Debian13-amd64-background-language-20261110.deb)
 
-1. Подключи устройства к одному Wi-Fi.
-2. На сервере включи LocalLS и покажи QR.
-3. На другом устройстве отсканируй QR или открой его из файла. Сверь код и разреши доступ на сервере.
-4. Открой «Файлы», выбери файлы или папки и направление копирования.
+[Проверки и скриншоты / Tests and screenshots](downloads/localls-background-language-20261110/README.md)
 
-Прогресс и повтор — в «Очереди». Обновляй приложение поверх установленного, чтобы сохранить ключи и настройки.
 
-[Короткая инструкция](https://github.com/grigorywork/LocalLS/blob/986f4402f38b8d75bb922b790c9df6ca8df991b4/android/app/src/main/assets/phone-setup.txt) · [Android](android/README.md) · [Сохранённые выпуски](https://github.com/grigorywork/LocalLS/releases)
+1. Подключи устройства к одной сети. На сервере включи LocalLS и покажи QR-код.
+2. На другом устройстве считай QR-код или открой его из файла. Сверь код и разреши доступ на сервере.
+3. Открой «Файлы», выбери папки и направление передачи. Прогресс, время, отмена и повтор — в «Очереди».
 
-Актуальный Android APK: [LocalLS 1.40](downloads/LocalLS-1.40-code62-queue-count-20261102.apk). [Проверки](downloads/localls-android-1.40-fedora-1.41-audit-20261102/README.md).
-Windows: [LocalLS 1.42 — клиент и сервер, без подписи Windows](downloads/LocalLS-1.42-Windows-x64-Setup-unsigned-audit-20261105.exe). [Короткая инструкция Windows](desktop/README.md) · [Время очереди, скорость и проверки](downloads/localls-desktop-audit-20261105/README.md).
+Входящие сохраняются в выбранную папку сервера; её путь виден на вкладке «Сервер». До **10** разрешённых устройств. На Android разреши работу без ограничений батареи. На ПК крестик оставляет сервер в фоне; «Выйти» останавливает его. Настоящий сон или выключение компьютера прерывает сеть.
 
-Fedora x86_64: [LocalLS 1.43 — клиент и встроенный сервер](downloads/LocalLS-1.43.0-Fedora-x86_64-audit-20261105.rpm). [Инструкция](linux/README.md) · [Исправление, скриншоты и аудит](downloads/localls-desktop-audit-20261105/README.md). RPM без подписи издателя.
+Язык, цвет, светлый фон и матовые панели выбираются отдельно в настройках. Обновляй поверх прежней установки, сохраняя ключи и настройки.
 
-Debian13 amd64: [LocalLS1.43 — DEB](downloads/LocalLS-1.43.0-Debian13-amd64.deb). [Инструкция](linux/DEBIAN.md) · [Скриншоты и проверки](downloads/localls-desktop-audit-20261105/README.md). Пакет без подписи издателя.
+[Android](android/README.md) · [Windows](desktop/README.md) · [Fedora / Debian](linux/README.md)
+
+---
+
+SSH/SFTP file sharing across Android, Windows, Fedora and Debian.
+
+1. Use the same network. Start LocalLS on the server and show its QR code.
+2. Scan or open the QR image on the other device, compare the code and approve access on the server.
+3. In **Files**, choose folders and a transfer direction. **Queue** shows progress, time, cancel and retry.
+
+Uploads go to the server folder shown on its Server screen. Up to **10** approved devices. Allow unrestricted battery use on Android. Closing a PC window keeps the server running; Quit stops it. A suspended or powered-off computer cannot serve files.
+
+Language, accent, light background and matte panels are separate settings. Install updates over the previous version to retain keys and settings.

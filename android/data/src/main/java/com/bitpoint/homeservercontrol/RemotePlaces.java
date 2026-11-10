@@ -21,11 +21,11 @@ final class RemotePlaces {
     ArrayList<String> favorites() { return new ArrayList<>(new TreeSet<>(prefs.getStringSet(key+"_favorites", java.util.Collections.emptySet()))); }
     void add(String path) {
         validate(path); TreeSet<String> set=new TreeSet<>(favorites());
-        if(set.size()>=20 && !set.contains(path)) throw new IllegalArgumentException("Можно сохранить до 20 папок");
+        if(set.size()>=20 && !set.contains(path)) throw new IllegalArgumentException(AppText.tr("Можно сохранить до 20 папок"));
         set.add(path); prefs.edit().putStringSet(key+"_favorites",set).apply();
     }
     void remove(String path) { TreeSet<String> set=new TreeSet<>(favorites());set.remove(path);prefs.edit().putStringSet(key+"_favorites",set).apply(); }
     private static void validate(String path) {
-        if(path==null || !path.startsWith("/") || path.length()>4096 || path.matches("(?s).*[\\x00-\\x1f\\x7f].*")) throw new IllegalArgumentException("Нужен проверенный абсолютный путь");
+        if(path==null || !path.startsWith("/") || path.length()>4096 || path.matches("(?s).*[\\x00-\\x1f\\x7f].*")) throw new IllegalArgumentException(AppText.tr("Нужен проверенный абсолютный путь"));
     }
 }

@@ -23,6 +23,6 @@ final class TransferCapacity {
             }
         }catch(Exception ignored){}return -1;
     }
-    static void require(long bytes,long free)throws IOException{if(bytes<0)throw new IOException("Слишком большой объём передачи");if(free>=0&&bytes>free)throw new IOException("Недостаточно места: нужно "+LocalFileExportService.format(bytes)+", доступно "+LocalFileExportService.format(free));}
-    static String describe(long bytes,boolean unknown,long free){return "Выбрано: "+(unknown?"не менее ":"")+LocalFileExportService.format(bytes)+(unknown?"; часть размеров недоступна":"")+"\nСвободно в назначении: "+(free<0?"не сообщается хранилищем":LocalFileExportService.format(free));}
+    static void require(long bytes,long free)throws IOException{if(bytes<0)throw new IOException(AppText.tr("Слишком большой объём передачи"));if(free>=0&&bytes>free)throw new IOException(AppText.tr("Недостаточно места: нужно ")+LocalFileExportService.format(bytes)+AppText.tr(", доступно ")+LocalFileExportService.format(free));}
+    static String describe(long bytes,boolean unknown,long free){return AppText.tr("Выбрано: ")+(unknown?AppText.tr("не менее "):"")+LocalFileExportService.format(bytes)+(unknown?AppText.tr("; часть размеров недоступна"):"")+AppText.tr("\nСвободно в назначении: ")+(free<0?AppText.tr("не сообщается хранилищем"):LocalFileExportService.format(free));}
 }

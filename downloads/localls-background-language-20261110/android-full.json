@@ -1,0 +1,49 @@
+{
+  "at": "2026-11-10T20:57:30.810744+00:00",
+  "jvm": {
+    "tests": 495,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "previous481IdsPreserved": true,
+  "functionMatrixReferences": 102,
+  "pythonTests": 19,
+  "lint": {
+    "debug": {
+      "Warning": 104
+    },
+    "release": {
+      "Warning": 104
+    }
+  },
+  "runtime": "JVM/native Robolectric and isolated loopback",
+  "physicalDevices": false,
+  "stages": [
+    {
+      "name": "versions",
+      "exitCode": 0,
+      "seconds": 0.02
+    },
+    {
+      "name": "project-audit",
+      "exitCode": 0,
+      "seconds": 0.16
+    },
+    {
+      "name": "architecture-audit",
+      "exitCode": 0,
+      "seconds": 0.35
+    },
+    {
+      "name": "python-tests",
+      "exitCode": 0,
+      "seconds": 2.87
+    },
+    {
+      "name": "gradle-full",
+      "exitCode": 0,
+      "seconds": 874.65
+    }
+  ]
+}

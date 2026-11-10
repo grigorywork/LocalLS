@@ -18,7 +18,7 @@ fs.renameSync(path.join(app,'electron'),path.join(app,'localls'));fs.chmodSync(p
 fs.rmSync(path.join(app,'resources/default_app.asar'),{force:true});asar.extractAll(input,work);
 const metadata={...release,platform:'debian'};fs.writeFileSync(path.join(work,'release.json'),JSON.stringify(metadata,null,2)+'\n');
 // Preserve the common application identity and schema; only distro-facing labels differ.
-for(const rel of ['src/core.cjs','src/main.cjs','src/index.html','src/renderer.js']){const p=path.join(work,rel);fs.writeFileSync(p,fs.readFileSync(p,'utf8').replaceAll('Fedora','Debian'));}
+for(const rel of ['src/core.cjs','src/main.cjs','src/index.html','src/renderer.js','src/strings.json','src/i18n.js']){const p=path.join(work,rel);fs.writeFileSync(p,fs.readFileSync(p,'utf8').replaceAll('Fedora','Debian'));}
 const packaged=JSON.parse(fs.readFileSync(path.join(work,'package.json')));packaged.description='LocalLS — Debian SSH/SFTP client and built-in QR server';fs.writeFileSync(path.join(work,'package.json'),JSON.stringify(packaged,null,2)+'\n');
 (async()=>{
  await asar.createPackage(work,path.join(app,'resources/app.asar'));

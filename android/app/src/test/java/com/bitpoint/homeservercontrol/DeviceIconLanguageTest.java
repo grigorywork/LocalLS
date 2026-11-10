@@ -1,0 +1,6 @@
+package com.bitpoint.homeservercontrol;
+import org.junit.*;import org.junit.runner.RunWith;import org.robolectric.*;import org.robolectric.annotation.Config;import android.content.*;import android.widget.*;import static org.junit.Assert.*;
+@RunWith(RobolectricTestRunner.class) @Config(sdk=30)
+public class DeviceIconLanguageTest {
+ @Test public void namesAndDeviceIconsStayConsistentAcrossLanguages(){Context app=RuntimeEnvironment.getApplication();try{for(String language:new String[]{"ru","en"}){AppLanguage.select(app,language);Context c=new android.view.ContextThemeWrapper(AppLanguage.apply(app),com.bitpoint.homeservercontrol.ui.R.style.Theme_HomeServerControl);for(String name:new String[]{"Ноутбук","Laptop","Компьютер","Computer","Планшет","Tablet"}){ServerDeviceRow row=new ServerDeviceRow(c);row.bind(name,true);assertEquals(name,((TextView)row.getChildAt(1)).getText().toString());int expected=name.equals("Планшет")||name.equals("Tablet")?com.bitpoint.homeservercontrol.ui.R.drawable.ic_device_tablet:com.bitpoint.homeservercontrol.ui.R.drawable.ic_device_laptop;assertEquals(name+" / "+language,expected,Shadows.shadowOf(((ImageView)row.getChildAt(0)).getDrawable()).getCreatedFromResId());}}}finally{AppLanguage.select(app,"ru");}}
+}

@@ -24,7 +24,7 @@ final class ConnectionEndpoint {
             if (!validHost(host) || !validUser(user) || port < 1 || port > 65535) throw new Exception();
             return new ConnectionEndpoint(host, user, port);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Нужен адрес вида ssh://user@192.168.1.82:8022, без пароля и пути");
+            throw new IllegalArgumentException(AppText.tr("Нужен адрес вида ssh://user@192.168.1.82:8022, без пароля и пути"));
         }
     }
     static boolean validUser(String user) {

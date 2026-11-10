@@ -65,16 +65,16 @@ final class TermuxSetup {
     static byte[] readHomeFile(Context context, Uri tree, String relativePath, int limit) throws Exception {
         if (!hasFolderAccess(context, tree) || relativePath == null || relativePath.isEmpty()
                 || relativePath.startsWith("/") || relativePath.contains("\\") || limit < 1 || limit > 65536)
-            throw new java.io.IOException("Недоступен файл Termux");
+            throw new java.io.IOException(AppText.tr("Недоступен файл Termux"));
         for (String part : relativePath.split("/", -1))
-            if (part.isEmpty() || part.equals(".") || part.equals("..")) throw new java.io.IOException("Неверный путь");
+            if (part.isEmpty() || part.equals(".") || part.equals("..")) throw new java.io.IOException(AppText.tr("Неверный путь"));
         Uri document = DocumentsContract.buildDocumentUriUsingTree(tree, HOME + "/" + relativePath);
         try (InputStream in = context.getContentResolver().openInputStream(document)) {
             if (in == null) throw new java.io.IOException();
             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
             byte[] block = new byte[2048]; int count;
             while ((count = in.read(block)) != -1) {
-                if (out.size() + count > limit) throw new java.io.IOException("Файл слишком большой");
+                if (out.size() + count > limit) throw new java.io.IOException(AppText.tr("Файл слишком большой"));
                 out.write(block, 0, count);
             }
             return out.toByteArray();
@@ -143,7 +143,7 @@ final class TermuxSetup {
     static void configure(Context context, Uri tree, char[] password) throws Exception {
         if (!"com.termux.documents".equals(tree.getAuthority())
                 || !HOME.equals(DocumentsContract.getTreeDocumentId(tree))) {
-            throw new IllegalArgumentException("Выбери корневую папку Termux, а не её подпапку.");
+            throw new IllegalArgumentException(AppText.tr("Выбери корневую папку Termux, а не её подпапку."));
         }
         Uri root = DocumentsContract.buildDocumentUriUsingTree(tree, HOME);
         Uri dir = child(context, tree, root, ".termux", true);
@@ -167,10 +167,10 @@ final class TermuxSetup {
             byte[] block = new byte[4096]; int count;
             while ((count = stream.read(block)) != -1) {
                 buffer.write(block, 0, count);
-                if (buffer.size() > 65536) throw new IllegalArgumentException("Слишком большой файл настроек Termux.");
+                if (buffer.size() > 65536) throw new IllegalArgumentException(AppText.tr("Слишком большой файл настроек Termux."));
             }
             byte[] data = buffer.toByteArray();
-            if (data.length > 65536) throw new IllegalArgumentException("Слишком большой файл настроек Termux.");
+            if (data.length > 65536) throw new IllegalArgumentException(AppText.tr("Слишком большой файл настроек Termux."));
             return new String(data, StandardCharsets.UTF_8);
         }
     }
@@ -202,7 +202,7 @@ final class TermuxSetup {
                 .remove("last_termux_error").remove("last_exit_code")
                 .remove("prepared_session")
                 .putString("pending", nonce).putLong("pending_at", System.currentTimeMillis())
-                .putString("status", "Подготовка OpenSSH…").apply();
+                .putString("status", AppText.tr("Подготовка OpenSSH…")).apply();
         Intent result = new Intent(context, TermuxResultReceiver.class).setAction("localls.setup." + nonce);
         int flags = PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_CANCEL_CURRENT;
         if (Build.VERSION.SDK_INT >= 31) flags |= PendingIntent.FLAG_MUTABLE;
@@ -214,7 +214,7 @@ final class TermuxSetup {
                 .putExtra("com.termux.RUN_COMMAND_WORKDIR", HOME)
                 .putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
                 .putExtra("com.termux.RUN_COMMAND_BACKGROUND_CUSTOM_LOG_LEVEL", "0")
-                .putExtra("com.termux.RUN_COMMAND_COMMAND_LABEL", "LocalLS: подготовка сервера")
+                .putExtra("com.termux.RUN_COMMAND_COMMAND_LABEL", AppText.tr("LocalLS: подготовка сервера"))
                 .putExtra("com.termux.RUN_COMMAND_PENDING_INTENT", callback);
         try {
             if (context.startService(command) == null) throw new IllegalStateException();
@@ -222,8 +222,8 @@ final class TermuxSetup {
         catch (RuntimeException e) {
             callback.cancel();
             String message = e instanceof SecurityException
-                    ? "Android запретил RUN_COMMAND. Разреши выполнение команд Termux в настройках LocalLS → Разрешения и повтори."
-                    : "Не удалось запустить RUN_COMMAND. Открой Termux, дождись подготовки среды, вернись в LocalLS и повтори.";
+                    ? AppText.tr("Android запретил RUN_COMMAND. Разреши выполнение команд Termux в настройках LocalLS → Разрешения и повтори.")
+                    : AppText.tr("Не удалось запустить RUN_COMMAND. Открой Termux, дождись подготовки среды, вернись в LocalLS и повтори.");
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("pending")
                     .putString("status", message).apply();
         }

@@ -20,9 +20,12 @@ final class ThemeCatalog {
     static boolean lightOutline(Context c){return c.getSharedPreferences(ServerConfig.PREFS,0).getBoolean(OUTLINE_KEY,false);}
     static void glass(Context c,boolean enabled){c.getSharedPreferences(ServerConfig.PREFS,0).edit().putBoolean(GLASS_KEY,enabled).apply();}
     static void lightOutline(Context c,boolean enabled){c.getSharedPreferences(ServerConfig.PREFS,0).edit().putBoolean(OUTLINE_KEY,enabled).apply();}
-    static boolean lightGlass(Context c){return glass(c)&&index(c)==4;}
-    static int signature(Context c){return style(c)*31+(glass(c)?2:0)+(lightOutline(c)?1:0);}
-    static void applyOverlays(Context c){if(glass(c))c.getTheme().applyStyle(lightGlass(c)?R.style.ThemeOverlay_LocalLS_LightGlass:R.style.ThemeOverlay_LocalLS_Glass,true);if(lightOutline(c))c.getTheme().applyStyle(R.style.ThemeOverlay_LocalLS_LightOutline,true);}
+    static final String LIGHT_KEY="appearance_light";
+    static boolean light(Context c){return c.getSharedPreferences(ServerConfig.PREFS,0).getBoolean(LIGHT_KEY,index(c)==4);}
+    static void light(Context c,boolean enabled){c.getSharedPreferences(ServerConfig.PREFS,0).edit().putBoolean(LIGHT_KEY,enabled).apply();}
+    static boolean lightGlass(Context c){return glass(c)&&light(c);}
+    static int signature(Context c){return style(c)*31+(glass(c)?2:0)+(lightOutline(c)?1:0)+(light(c)?4:0)+("en".equals(AppText.language())?8:0);}
+    static void applyOverlays(Context c){if(light(c)){c.getTheme().applyStyle(R.style.Theme_LocalLS_Light,true);int i=index(c);if(i!=4)c.getTheme().applyStyle(new int[]{R.style.LightAccentPurple,R.style.LightAccentOcean,R.style.LightAccentEmerald,R.style.LightAccentAmber,R.style.LightAccentPurple,R.style.LightAccentRuby,R.style.LightAccentTurquoise,R.style.LightAccentSilver}[i],true);}if(glass(c))c.getTheme().applyStyle(lightGlass(c)?R.style.ThemeOverlay_LocalLS_LightGlass:R.style.ThemeOverlay_LocalLS_Glass,true);if(lightOutline(c))c.getTheme().applyStyle(R.style.ThemeOverlay_LocalLS_LightOutline,true);}
     static void surfaces(android.view.View v){
         Context c=v.getContext();if(!glass(c)&&!lightOutline(c))return;
         if(v instanceof android.view.ViewGroup){
@@ -39,7 +42,7 @@ final class ThemeCatalog {
         return 0;
     }
 
-    static int style(Context context) { return STYLES[index(context)]; }
+    static int style(Context context) { return STYLES[index(context)==4?0:index(context)]; }
 
     static void select(Context context, int index) {
         if (index < 0 || index >= IDS.length) return;

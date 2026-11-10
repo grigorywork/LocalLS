@@ -27,10 +27,10 @@ public class HistoryActivity extends BaseActivity {
 
         findViewById(R.id.historyBackButton).setOnClickListener(v -> finish());
         findViewById(R.id.historyClearButton).setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("Очистить графики?")
-                .setMessage("Будет удалена только локальная история мониторинга в приложении.")
-                .setNegativeButton("Отмена", null)
-                .setPositiveButton("Очистить", (d, w) -> {
+                .setTitle(AppText.tr("Очистить графики?"))
+                .setMessage(AppText.tr("Будет удалена только локальная история мониторинга в приложении."))
+                .setNegativeButton(AppText.tr("Отмена"), null)
+                .setPositiveButton(AppText.tr("Очистить"), (d, w) -> {
                     MetricHistoryStore.clear(this);
                     render();
                 })
@@ -62,9 +62,9 @@ public class HistoryActivity extends BaseActivity {
         speedChart.setValues(speed, 0f, Float.NaN);
 
         availabilitySummary.setText(summary(availability, "%", true));
-        latencySummary.setText(summary(latency, " мс", false));
+        latencySummary.setText(summary(latency, AppText.tr(" мс"), false));
         diskSummary.setText(summary(disk, "%", false));
-        speedSummary.setText(summary(speed, " Мбит/с", false));
+        speedSummary.setText(summary(speed, AppText.tr(" Мбит/с"), false));
     }
 
     private String summary(List<Float> values, String suffix, boolean averageOnly) {
@@ -77,9 +77,9 @@ public class HistoryActivity extends BaseActivity {
             sum += v;
             count++;
         }
-        if (count == 0) return "Нет данных";
+        if (count == 0) return AppText.tr("Нет данных");
         float avg = sum / count;
-        if (averageOnly) return String.format(Locale.getDefault(), "Среднее: %.0f%s • точек: %d", avg, suffix, count);
-        return String.format(Locale.getDefault(), "Мин: %.1f%s • среднее: %.1f%s • макс: %.1f%s", min, suffix, avg, suffix, max, suffix);
+        if (averageOnly) return String.format(Locale.getDefault(), AppText.tr("Среднее: %.0f%s • точек: %d"), avg, suffix, count);
+        return String.format(Locale.getDefault(), AppText.tr("Мин: %.1f%s • среднее: %.1f%s • макс: %.1f%s"), min, suffix, avg, suffix, max, suffix);
     }
 }

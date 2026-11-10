@@ -25,27 +25,27 @@ public class EmbeddedFilesActivity extends BaseActivity {
         int gap=Math.round(16*getResources().getDisplayMetrics().density);
         LinearLayout outer=new LinearLayout(this);outer.setOrientation(LinearLayout.VERTICAL);outer.setPadding(gap,gap,gap,gap);
         title=new TextView(this);title.setTextSize(18);layout.addView(title);
-        TextView help=new TextView(this);help.setText("Это принятые файлы внутри LocalLS. Нажми на файл и выбери сохранение в «Загрузки» или другую папку. Исходный файл останется здесь.");layout.addView(help);
+        TextView help=new TextView(this);help.setText(AppText.tr("Это принятые файлы внутри LocalLS. Нажми на файл и выбери сохранение в «Загрузки» или другую папку. Исходный файл останется здесь."));layout.addView(help);
         status=new TextView(this);status.setTextSize(16);layout.addView(status);
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10000);layout.addView(progress);
-        diagnostics=new Button(this);diagnostics.setText("Скопировать ошибку сохранения");layout.addView(diagnostics);
+        diagnostics=new Button(this);diagnostics.setText(AppText.tr("Скопировать ошибку сохранения"));layout.addView(diagnostics);
         diagnostics.setOnClickListener(v -> {
             String report=LocalFileExportService.state.diagnostic;
             ((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("LocalLS export",report));
-            Toast.makeText(this,"Диагностика скопирована без имён файлов и адресов",Toast.LENGTH_LONG).show();
+            Toast.makeText(this,AppText.tr("Диагностика скопирована без имён файлов и адресов"),Toast.LENGTH_LONG).show();
         });
         LinearLayout navigation=new LinearLayout(this);navigation.setOrientation(LinearLayout.HORIZONTAL);layout.addView(navigation);
-        Button up=new CenteredActionButton(this);up.setText("Выше");up.setContentDescription("Вверх");up.setTag("file_toolbar");navigation.addView(up,new LinearLayout.LayoutParams(0,-2,1));up.setOnClickListener(v->{if(!current.equals(root))current=current.getParentFile();render();});
-        Button refresh=new CenteredActionButton(this);refresh.setText("Обновить");refresh.setTag("file_toolbar");navigation.addView(refresh,new LinearLayout.LayoutParams(0,-2,1));refresh.setOnClickListener(v->render());
+        Button up=new CenteredActionButton(this);up.setText(AppText.tr("Выше"));up.setContentDescription(AppText.tr("Вверх"));up.setTag("file_toolbar");navigation.addView(up,new LinearLayout.LayoutParams(0,-2,1));up.setOnClickListener(v->{if(!current.equals(root))current=current.getParentFile();render();});
+        Button refresh=new CenteredActionButton(this);refresh.setText(AppText.tr("Обновить"));refresh.setTag("file_toolbar");navigation.addView(refresh,new LinearLayout.LayoutParams(0,-2,1));refresh.setOnClickListener(v->render());
         ScrollView controls=new ScrollView(this);controls.addView(layout);outer.addView(controls,new LinearLayout.LayoutParams(-1,0,1));
         list=new ListView(this);outer.addView(list,new LinearLayout.LayoutParams(-1,0,1));
-        TextView empty=new TextView(this);empty.setText("Файлов пока нет. Дождись завершения передачи и нажми «Обновить».");outer.addView(empty);list.setEmptyView(empty);
+        TextView empty=new TextView(this);empty.setText(AppText.tr("Файлов пока нет. Дождись завершения передачи и нажми «Обновить»."));outer.addView(empty);list.setEmptyView(empty);
         LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);outer.addView(actions);
-        Button downloads=new Button(this);downloads.setText("Открыть «Загрузки»");actions.addView(downloads,new LinearLayout.LayoutParams(0,-2,1));downloads.setOnClickListener(v -> {
+        Button downloads=new Button(this);downloads.setText(AppText.tr("Открыть «Загрузки»"));actions.addView(downloads,new LinearLayout.LayoutParams(0,-2,1));downloads.setOnClickListener(v -> {
             try{startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS));}
-            catch(Exception error){Toast.makeText(this,"Открой системные «Файлы → Загрузки → LocalLS»",Toast.LENGTH_LONG).show();}
+            catch(Exception error){Toast.makeText(this,AppText.tr("Открой системные «Файлы → Загрузки → LocalLS»"),Toast.LENGTH_LONG).show();}
         });
-        Button back=new Button(this);back.setText("Назад");actions.addView(back,new LinearLayout.LayoutParams(0,-2,1));back.setOnClickListener(v->finish());setContentView(outer);render();renderStatus();
+        Button back=new Button(this);back.setText(AppText.tr("Назад"));actions.addView(back,new LinearLayout.LayoutParams(0,-2,1));back.setOnClickListener(v->finish());setContentView(outer);render();renderStatus();
     }
     private void renderStatus() {
         LocalFileExportService.State value=LocalFileExportService.state;
@@ -58,7 +58,7 @@ public class EmbeddedFilesActivity extends BaseActivity {
     private void render() {
         try {
             current=SharedFolderAccess.within(root,current);if(!current.isDirectory())current=root;
-            title.setText("Принятые файлы: /"+root.toURI().relativize(current.toURI()).getPath());
+            title.setText(AppText.tr("Принятые файлы: /")+root.toURI().relativize(current.toURI()).getPath());
             File[] found=current.listFiles();ArrayList<File> entries=new ArrayList<>();
             if(found!=null)for(File f:found) {try {SharedFolderAccess.within(root,f);if(!TransferPaths.temporary(f.getName()))entries.add(f);}catch(IOException ignored){}}
             entries.sort((a,b)->{if(a.isDirectory()!=b.isDirectory())return a.isDirectory()?-1:1;return a.getName().compareToIgnoreCase(b.getName());});
@@ -71,17 +71,17 @@ public class EmbeddedFilesActivity extends BaseActivity {
                 try {chosen=SharedFolderAccess.within(root,chosen);
                     if(chosen.isDirectory()){current=chosen;render();return;}
                     final String relative=root.toURI().relativize(chosen.toURI()).getPath();
-                    if(Build.VERSION.SDK_INT>=29)new AlertDialog.Builder(this).setTitle("Сохранить файл на телефон")
-                        .setItems(new String[]{"В «Загрузки → LocalLS»","Выбрать другое место"},(dialog,which) -> {if(which==0)export(relative,null,0);else chooseLocation(relative);}).show();
+                    if(Build.VERSION.SDK_INT>=29)new AlertDialog.Builder(this).setTitle(AppText.tr("Сохранить файл на телефон"))
+                        .setItems(new String[]{AppText.tr("В «Загрузки → LocalLS»"),AppText.tr("Выбрать другое место")},(dialog,which) -> {if(which==0)export(relative,null,0);else chooseLocation(relative);}).show();
                     else chooseLocation(relative);
-                }catch(Exception error){Toast.makeText(this,"Файл недоступен. Обнови список.",Toast.LENGTH_LONG).show();}
+                }catch(Exception error){Toast.makeText(this,AppText.tr("Файл недоступен. Обнови список."),Toast.LENGTH_LONG).show();}
             });
-        }catch(IOException error){current=root;Toast.makeText(this,"Папка недоступна",Toast.LENGTH_LONG).show();}
+        }catch(IOException error){current=root;Toast.makeText(this,AppText.tr("Папка недоступна"),Toast.LENGTH_LONG).show();}
     }
     private void chooseLocation(String relative) {
         try {pending=relative;Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/octet-stream");
             intent.putExtra(Intent.EXTRA_TITLE,new File(relative).getName());startActivityForResult(intent,913);
-        }catch(Exception error){Toast.makeText(this,"Не удалось открыть выбор места сохранения",Toast.LENGTH_LONG).show();}
+        }catch(Exception error){Toast.makeText(this,AppText.tr("Не удалось открыть выбор места сохранения"),Toast.LENGTH_LONG).show();}
     }
     private void export(String relative,android.net.Uri destination,int flags) {
         try{LocalFileExportService.start(this,relative,destination,flags);}

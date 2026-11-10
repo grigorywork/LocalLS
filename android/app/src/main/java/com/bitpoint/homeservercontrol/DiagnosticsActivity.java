@@ -24,7 +24,7 @@ public class DiagnosticsActivity extends BaseActivity {
         findViewById(R.id.diagnosticsClearTransfersButton).setOnClickListener(v -> {
             TransferLogStore.clear(this);
             refresh();
-            Toast.makeText(this, "История передач очищена", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.tr("История передач очищена"), Toast.LENGTH_SHORT).show();
         });
         findViewById(R.id.diagnosticsBackButton).setOnClickListener(v -> finish());
         refresh();
@@ -40,32 +40,32 @@ public class DiagnosticsActivity extends BaseActivity {
         String last = prefs.getString(ServerConfig.KEY_LAST_WORKING_HOST, "");
 
         StringBuilder report = new StringBuilder();
-        report.append("LocalLS — ДИАГНОСТИКА\n\n");
-        report.append("Версия приложения: ").append(appVersion()).append('\n');
+        report.append(AppText.tr("LocalLS — ДИАГНОСТИКА\n\n"));
+        report.append(AppText.tr("Версия приложения: ")).append(appVersion()).append('\n');
         report.append("Android: ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
-        report.append("Устройство: ").append(DeviceProfile.summary(this)).append('\n');
-        report.append("Схема настроек: ").append(prefs.getInt(ServerConfig.KEY_CONFIG_VERSION, 0))
+        report.append(AppText.tr("Устройство: ")).append(DeviceProfile.summary(this)).append('\n');
+        report.append(AppText.tr("Схема настроек: ")).append(prefs.getInt(ServerConfig.KEY_CONFIG_VERSION, 0))
                 .append('/').append(ConfigMigrator.CURRENT_VERSION).append("\n\n");
 
-        report.append("Режим: ").append(ServerConfig.MODE_VPN.equals(mode) ? "VPN / Tailscale" : "локальный Wi‑Fi").append('\n');
-        report.append("Локальный хост: ").append(safe(local)).append('\n');
-        report.append("VPN-хост: ").append(safe(vpn)).append('\n');
-        report.append("Активный хост: ").append(safe(ConnectionSelector.selectedHost(this))).append('\n');
-        report.append("Автопереход: ").append(auto ? "включён" : "выключен").append('\n');
-        report.append("Последний рабочий хост: ").append(safe(last)).append('\n');
-        report.append("SSH-порт: ").append(port).append('\n');
-        report.append("Пользователь: ").append(safe(prefs.getString(ServerConfig.KEY_USER, ServerConfig.DEFAULT_USER))).append("\n\n");
+        report.append(AppText.tr("Режим: ")).append(ServerConfig.MODE_VPN.equals(mode) ? "VPN / Tailscale" : AppText.tr("локальный Wi‑Fi")).append('\n');
+        report.append(AppText.tr("Локальный хост: ")).append(safe(local)).append('\n');
+        report.append(AppText.tr("VPN-хост: ")).append(safe(vpn)).append('\n');
+        report.append(AppText.tr("Активный хост: ")).append(safe(ConnectionSelector.selectedHost(this))).append('\n');
+        report.append(AppText.tr("Автопереход: ")).append(auto ? AppText.tr("включён") : AppText.tr("выключен")).append('\n');
+        report.append(AppText.tr("Последний рабочий хост: ")).append(safe(last)).append('\n');
+        report.append(AppText.tr("SSH-порт: ")).append(port).append('\n');
+        report.append(AppText.tr("Пользователь: ")).append(safe(prefs.getString(ServerConfig.KEY_USER, ServerConfig.DEFAULT_USER))).append("\n\n");
 
-        report.append("SSH/SFTP: только ключ; парольный вход клиента отключён\n");
-        report.append("Токен агента сохранён в Keystore: ")
-                .append(prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false) ? "да" : "нет").append('\n');
-        report.append("Low-RAM профиль: ").append(DeviceProfile.isLowRam(this) ? "да" : "нет").append('\n');
-        report.append("Фоновый мониторинг: ")
-                .append(prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false) ? "включён" : "выключен").append('\n');
-        report.append("Fingerprint Local: ").append(hasFingerprint(local, port) ? "сохранён" : "нет").append('\n');
-        report.append("Fingerprint VPN: ").append(hasFingerprint(vpn, port) ? "сохранён" : "нет").append("\n\n");
+        report.append(AppText.tr("SSH/SFTP: только ключ; парольный вход клиента отключён\n"));
+        report.append(AppText.tr("Токен агента сохранён в Keystore: "))
+                .append(prefs.getBoolean(ServerConfig.KEY_SAVE_AGENT_TOKEN, false) ? AppText.tr("да") : AppText.tr("нет")).append('\n');
+        report.append(AppText.tr("Low-RAM профиль: ")).append(DeviceProfile.isLowRam(this) ? AppText.tr("да") : AppText.tr("нет")).append('\n');
+        report.append(AppText.tr("Фоновый мониторинг: "))
+                .append(prefs.getBoolean(ServerConfig.KEY_BACKGROUND_MONITOR, false) ? AppText.tr("включён") : AppText.tr("выключен")).append('\n');
+        report.append("Fingerprint Local: ").append(hasFingerprint(local, port) ? AppText.tr("сохранён") : AppText.tr("нет")).append('\n');
+        report.append("Fingerprint VPN: ").append(hasFingerprint(vpn, port) ? AppText.tr("сохранён") : AppText.tr("нет")).append("\n\n");
 
-        report.append("ПОСЛЕДНИЕ ПЕРЕДАЧИ\n").append(TransferLogStore.render(this));
+        report.append(AppText.tr("ПОСЛЕДНИЕ ПЕРЕДАЧИ\n")).append(TransferLogStore.render(this));
         diagnosticsText.setText(report.toString());
     }
 
@@ -85,7 +85,7 @@ public class DiagnosticsActivity extends BaseActivity {
     private void copy() {
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS diagnostics", diagnosticsText.getText()));
-        Toast.makeText(this, "Диагностика скопирована без паролей и токенов", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, AppText.tr("Диагностика скопирована без паролей и токенов"), Toast.LENGTH_SHORT).show();
     }
 
     private static String safe(String value) {

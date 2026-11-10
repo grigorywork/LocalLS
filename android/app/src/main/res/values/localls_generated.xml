@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+  <string name="localls_0d84d0051f90" formatted="false">Отправить файл</string>
+  <string name="localls_122f71765026" formatted="false">Меню</string>
+  <string name="localls_28c524784ed7" formatted="false">Фоновая проверка</string>
+  <string name="localls_2a5c42af7c00" formatted="false">Пользователь</string>
+  <string name="localls_2be7c693036e" formatted="false">На главный экран</string>
+  <string name="localls_377626743c94" formatted="false">Отправлять сразу</string>
+  <string name="localls_3cf59b0c6183" formatted="false">Состояние и ключ сервера</string>
+  <string name="localls_3f5f9c7a0f9f" formatted="false">Файлы раздачи</string>
+  <string name="localls_4289b1713783" formatted="false">Адрес сервера</string>
+  <string name="localls_5a03382f1926" formatted="false">Сервер</string>
+  <string name="localls_5db79bc970f8" formatted="false">Доступ по ключу</string>
+  <string name="localls_8159d13a5a04" formatted="false">Обводка</string>
+  <string name="localls_87e4c8ecfa27" formatted="false">Папка приёма</string>
+  <string name="localls_93cd1ec35325" formatted="false">Настройки сервера</string>
+  <string name="localls_985b5e0f2ccf" formatted="false">Настройки</string>
+  <string name="localls_9b566f3da964" formatted="false">Включить сервер</string>
+  <string name="localls_9c3a16fa921c" formatted="false">Работа в фоне</string>
+  <string name="localls_ab71afb97f2e" formatted="false">Подключение</string>
+  <string name="localls_afb10c96d259" formatted="false">Из меню «Поделиться» — на сервер без подтверждения.</string>
+  <string name="localls_b490cf27c8e3" formatted="false">Свободно: —</string>
+  <string name="localls_bec74772d533" formatted="false">Доступ и QR</string>
+  <string name="localls_cb297d129add" formatted="false">Очередь</string>
+  <string name="localls_d142a40639da" formatted="false">Подключаться к другому серверу</string>
+  <string name="localls_d3257f0c9ba3" formatted="false">Сохранить настройки</string>
+  <string name="localls_d515d5d76f4d" formatted="false">Отправка файлов</string>
+  <string name="localls_daf5bde5218d" formatted="false">Доступ и параметры</string>
+  <string name="localls_e0fac208485b" formatted="false">Эффект стекла</string>
+  <string name="localls_e9e79c7f611f" formatted="false">Новые файлы → Загрузки / LocalLS</string>
+  <string name="localls_ece958000e02" formatted="false">Порт SSH</string>
+  <string name="localls_fa94134662a0" formatted="false">Назад на главный экран</string>
+  <string name="localls_fea894343e80" formatted="false">Этот телефон — сервер</string>
+</resources>

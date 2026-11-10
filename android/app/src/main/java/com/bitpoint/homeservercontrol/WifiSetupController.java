@@ -34,7 +34,7 @@ final class WifiSetupController {
     private final CheckBox open;
     private final TextView status;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private String notice = "Настройка Wi-Fi этого телефона. Подключение подтверждает Android.";
+    private String notice = AppText.tr("Настройка Wi-Fi этого телефона. Подключение подтверждает Android.");
     private boolean running;
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
@@ -60,9 +60,9 @@ final class WifiSetupController {
     }
     static String validationError(String name, String secret, boolean isOpen) {
         if (name.isEmpty() || name.getBytes(StandardCharsets.UTF_8).length > 32 || name.indexOf('\0') >= 0)
-            return "Имя Wi-Fi: от 1 до 32 байт.";
+            return AppText.tr("Имя Wi-Fi: от 1 до 32 байт.");
         if (!isOpen && (secret.length() < 8 || secret.length() > 63 || !secret.matches("[ -~]+")))
-            return "Пароль WPA2: 8–63 печатных латинских символа. Для открытой сети отметь «Сеть без пароля».";
+            return AppText.tr("Пароль WPA2: 8–63 печатных латинских символа. Для открытой сети отметь «Сеть без пароля».");
         return "";
     }
     private void connect() {
@@ -71,12 +71,12 @@ final class WifiSetupController {
         String error = validationError(name, secret, open.isChecked());
         if (!error.isEmpty()) { notice = error; updateStatus(); return; }
         if (Build.VERSION.SDK_INT < 29) {
-            notice = "На этой версии Android добавь сеть в системных настройках Wi-Fi.";
+            notice = AppText.tr("На этой версии Android добавь сеть в системных настройках Wi-Fi.");
             password.setText(""); openSettings(); return;
         }
         if (Build.VERSION.SDK_INT == 29 && activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            notice = "Android 10 требует разрешение местоположения для сетевой рекомендации.";
+            notice = AppText.tr("Android 10 требует разрешение местоположения для сетевой рекомендации.");
             updateStatus();
             activity.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION);
             return;
@@ -94,7 +94,7 @@ final class WifiSetupController {
                     if (candidate.activityInfo != null && candidate.activityInfo.exported) { target = candidate; break; }
                 }
                 if (target == null) {
-                    notice = "Системное добавление сети недоступно. Открой настройки Wi-Fi.";
+                    notice = AppText.tr("Системное добавление сети недоступно. Открой настройки Wi-Fi.");
                     password.setText(""); updateStatus(); return;
                 }
                 intent.setComponent(new ComponentName(target.activityInfo.packageName, target.activityInfo.name));
@@ -102,42 +102,42 @@ final class WifiSetupController {
                 networks.add(suggestion);
                 intent.putParcelableArrayListExtra(Settings.EXTRA_WIFI_NETWORK_LIST, networks);
                 activity.startActivityForResult(intent, ADD_NETWORK);
-                notice = "Подтверди сохранение сети в Android. Текущий IP будет показан после подключения.";
+                notice = AppText.tr("Подтверди сохранение сети в Android. Текущий IP будет показан после подключения.");
             } else {
                 WifiManager wifi = (WifiManager) activity.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                 int result = wifi.addNetworkSuggestions(Collections.singletonList(suggestion));
                 if (result == WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS
                         || result == WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE) {
-                    notice = "Сеть рекомендована Android. Разреши рекомендацию LocalLS в уведомлении Android; "
-                            + "подключение выбирает система. Если сеть не меняется, выбери её в настройках Wi-Fi.";
+                    notice = AppText.tr("Сеть рекомендована Android. Разреши рекомендацию LocalLS в уведомлении Android; ")
+                            + AppText.tr("подключение выбирает система. Если сеть не меняется, выбери её в настройках Wi-Fi.");
                 } else if (result == WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED) {
-                    notice = "Android запретил сетевые рекомендации LocalLS. Разреши их в системных настройках.";
-                } else notice = "Android не принял сетевую рекомендацию. Используй системные настройки Wi-Fi.";
+                    notice = AppText.tr("Android запретил сетевые рекомендации LocalLS. Разреши их в системных настройках.");
+                } else notice = AppText.tr("Android не принял сетевую рекомендацию. Используй системные настройки Wi-Fi.");
             }
         } catch (RuntimeException e) {
             // Never display framework exception messages: some vendors include SSID/passphrase.
-            notice = "Не удалось передать сеть Android. Проверь разрешения и системные настройки Wi-Fi.";
+            notice = AppText.tr("Не удалось передать сеть Android. Проверь разрешения и системные настройки Wi-Fi.");
         } finally { password.setText(""); }
         updateStatus();
     }
     void onPermissionResult(int[] grants) {
         if (grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED) connect();
-        else { password.setText(""); notice = "Разрешение не выдано. Подключись через настройки Wi-Fi."; updateStatus(); }
+        else { password.setText(""); notice = AppText.tr("Разрешение не выдано. Подключись через настройки Wi-Fi."); updateStatus(); }
     }
     void onAddResult(int result) {
-        notice = result == Activity.RESULT_OK ? "Android обработал сеть. Фактическое подключение и IP — ниже."
-                : "Добавление сети отменено или не завершено.";
+        notice = result == Activity.RESULT_OK ? AppText.tr("Android обработал сеть. Фактическое подключение и IP — ниже.")
+                : AppText.tr("Добавление сети отменено или не завершено.");
         updateStatus();
     }
     private void openSettings() {
         try { activity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS)); }
-        catch (RuntimeException e) { notice = "Открой Wi-Fi в системных настройках телефона."; updateStatus(); }
+        catch (RuntimeException e) { notice = AppText.tr("Открой Wi-Fi в системных настройках телефона."); updateStatus(); }
     }
     void start() { if (!running) { running = true; handler.post(refresh); } }
     void stop() { running = false; handler.removeCallbacks(refresh); }
     void destroy() { stop(); password.setText(""); }
     private void updateStatus() {
-        String current = "Wi-Fi не подключён";
+        String current = AppText.tr("Wi-Fi не подключён");
         try {
             ConnectivityManager manager = (ConnectivityManager) activity.getSystemService(Context.CONNECTIVITY_SERVICE);
             for (Network network : manager.getAllNetworks()) {
@@ -145,15 +145,15 @@ final class WifiSetupController {
                 if (capabilities == null || !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
                         || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue;
                 LinkProperties properties = manager.getLinkProperties(network);
-                current = "Wi-Fi подключён";
+                current = AppText.tr("Wi-Fi подключён");
                 if (properties != null) for (LinkAddress address : properties.getLinkAddresses())
                     if (address.getAddress() instanceof Inet4Address) {
                         current += " • IP: " + address.getAddress().getHostAddress(); break;
                     }
                 break;
             }
-        } catch (RuntimeException e) { current = "Статус Wi-Fi недоступен"; }
-        String text = notice + "\n\n" + current + "\nSSH использует текущую сеть Android; после смены сети адрес сервера может измениться.";
+        } catch (RuntimeException e) { current = AppText.tr("Статус Wi-Fi недоступен"); }
+        String text = notice + "\n\n" + current + AppText.tr("\nSSH использует текущую сеть Android; после смены сети адрес сервера может измениться.");
         if (!text.contentEquals(status.getText())) status.setText(text);
     }
 }

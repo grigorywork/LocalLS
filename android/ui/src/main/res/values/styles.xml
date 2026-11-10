@@ -113,4 +113,11 @@
         <item name="android:windowLightStatusBar">true</item><item name="android:statusBarColor">#F3F4F6</item><item name="android:navigationBarColor">#211B2A</item>
     </style>
     <style name="ThemeOverlay.LocalLS.LightOutline" parent=""><item name="hscStroke">#BDC5D2</item></style>
+<style name="LightAccentPurple" parent=""><item name="hscAccent">#7540C7</item><item name="hscIllustrationAccent">#7540C7</item><item name="hscButton">#7540C7</item><item name="hscSecondaryButton">#E9EDF2</item><item name="android:colorAccent">#7540C7</item></style>
+<style name="LightAccentOcean" parent=""><item name="hscAccent">#166AAB</item><item name="hscIllustrationAccent">#166AAB</item><item name="hscButton">#166AAB</item><item name="hscSecondaryButton">#E9EDF2</item><item name="android:colorAccent">#166AAB</item></style>
+<style name="LightAccentEmerald" parent=""><item name="hscAccent">#137454</item><item name="hscIllustrationAccent">#137454</item><item name="hscButton">#137454</item><item name="hscSecondaryButton">#E9EDF2</item><item name="android:colorAccent">#137454</item></style>
+<style name="LightAccentAmber" parent=""><item name="hscAccent">#895300</item><item name="hscIllustrationAccent">#895300</item><item name="hscButton">#895300</item><item name="hscSecondaryButton">#E9EDF2</item><item name="android:colorAccent">#895300</item></style>
+<style name="LightAccentRuby" parent=""><item name="hscAccent">#B32849</item><item name="hscIllustrationAccent">#B32849</item><item name="hscButton">#B32849</item><item name="hscSecondaryButton">#E9EDF2</item><item name="android:colorAccent">#B32849</item></style>
+<style name="LightAccentTurquoise" parent=""><item name="hscAccent">#00747B</item><item name="hscIllustrationAccent">#00747B</item><item name="hscButton">#00747B</item><item name="hscSecondaryButton">#E9EDF2</item><item name="android:colorAccent">#00747B</item></style>
+<style name="LightAccentSilver" parent=""><item name="hscAccent">#4E6077</item><item name="hscIllustrationAccent">#4E6077</item><item name="hscButton">#4E6077</item><item name="hscSecondaryButton">#E9EDF2</item><item name="android:colorAccent">#4E6077</item></style>
 </resources>

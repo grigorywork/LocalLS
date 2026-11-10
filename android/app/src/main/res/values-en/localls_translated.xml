@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+  <string name="about_author" formatted="false">Author: MSS9LN</string>
+  <string name="about_description" formatted="false">Exchange of files between SSH/SFTP devices. Connecting to QR code, key access and transfer queue.</string>
+  <string name="about_greeting" formatted="false">It\'s LocalLS -- your devices, your files.</string>
+  <string name="about_title" formatted="false">About</string>
+  <string name="about_version" formatted="false">Version %1$s · build %2$d</string>
+  <string name="compact_copy_sftp" formatted="false">Copy SFTP</string>
+  <string name="compact_forget_pin" formatted="false">Forget server trust</string>
+  <string name="compact_import_address" formatted="false">Insert Address</string>
+  <string name="current_wifi_ip_missing" formatted="false">No address</string>
+  <string name="current_wifi_ip_value" formatted="false">Current Wi-Fi IP: %1$s</string>
+  <string name="home_action" formatted="false">Home</string>
+  <string name="home_check_description" formatted="false">Main: Check the server</string>
+  <string name="localls_0d84d0051f90" formatted="false">Send File</string>
+  <string name="localls_122f71765026" formatted="false">Menu</string>
+  <string name="localls_28c524784ed7" formatted="false">Background check</string>
+  <string name="localls_2a5c42af7c00" formatted="false">Username</string>
+  <string name="localls_2be7c693036e" formatted="false">Main screen</string>
+  <string name="localls_377626743c94" formatted="false">Send at once</string>
+  <string name="localls_3cf59b0c6183" formatted="false">Status and server key</string>
+  <string name="localls_3f5f9c7a0f9f" formatted="false">Shared files</string>
+  <string name="localls_4289b1713783" formatted="false">Server address</string>
+  <string name="localls_5a03382f1926" formatted="false">Server</string>
+  <string name="localls_5db79bc970f8" formatted="false">Key authentication</string>
+  <string name="localls_8159d13a5a04" formatted="false">Outline</string>
+  <string name="localls_87e4c8ecfa27" formatted="false">Receive folder</string>
+  <string name="localls_93cd1ec35325" formatted="false">Server settings</string>
+  <string name="localls_985b5e0f2ccf" formatted="false">Settings</string>
+  <string name="localls_9b566f3da964" formatted="false">Start server</string>
+  <string name="localls_9c3a16fa921c" formatted="false">Background operation</string>
+  <string name="localls_ab71afb97f2e" formatted="false">Connection</string>
+  <string name="localls_afb10c96d259" formatted="false">From the menu \"Shape\" to the server without confirmation.</string>
+  <string name="localls_b490cf27c8e3" formatted="false">Free: —</string>
+  <string name="localls_bec74772d533" formatted="false">Access and QR</string>
+  <string name="localls_cb297d129add" formatted="false">Queue</string>
+  <string name="localls_d142a40639da" formatted="false">Connect to another server</string>
+  <string name="localls_d3257f0c9ba3" formatted="false">Save settings</string>
+  <string name="localls_d515d5d76f4d" formatted="false">Send Files</string>
+  <string name="localls_daf5bde5218d" formatted="false">Access and Options</string>
+  <string name="localls_e0fac208485b" formatted="false">Glass effect</string>
+  <string name="localls_e9e79c7f611f" formatted="false">New Files / LocalLS</string>
+  <string name="localls_ece958000e02" formatted="false">SSH Port</string>
+  <string name="localls_fa94134662a0" formatted="false">Back to main screen</string>
+  <string name="localls_fea894343e80" formatted="false">This phone is a server.</string>
+  <string name="network_address_hint" formatted="false">IP or server name</string>
+  <string name="network_address_label" formatted="false">Server address</string>
+  <string name="network_discovery_hint" formatted="false">Find a server online or give me his address.</string>
+  <string name="network_find" formatted="false">Find online</string>
+  <string name="network_save_address" formatted="false">Save Address</string>
+  <string name="network_search_title" formatted="false">Search for server</string>
+  <string name="qr_login" formatted="false">QR Code Entry</string>
+  <string name="ssh_check_busy" formatted="false">Checking the SSH and the server key...</string>
+  <string name="ssh_check_button" formatted="false">Check SSH</string>
+  <string name="ssh_check_changed" formatted="false">The parameters have been changed. Check the SSH again.</string>
+  <string name="ssh_check_invalid" formatted="false">Check the server address, port and user name</string>
+  <string name="ssh_check_ready" formatted="false">Key connection check</string>
+</resources>

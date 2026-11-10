@@ -21,7 +21,7 @@ final class SshClient {
             try{
                 if(SshKeys.recoverRoute(context,host,port,user,result.hostFingerprint))
                     return probe(host,port,user,SshKeys.credentials(context,host,port,user,password),HostTrustStore.get(context,host,port));
-            }catch(Exception e){result.error="Не удалось восстановить сохранённый доступ. Ключи и настройки не удалены.";}
+            }catch(Exception e){result.error=AppText.tr("Не удалось восстановить сохранённый доступ. Ключи и настройки не удалены.");}
         }
         return result;
     }
@@ -37,8 +37,8 @@ final class SshClient {
             stats.reachable = true;
             stats.latencyMs = Math.max(1, (System.nanoTime() - start) / 1_000_000L);
         } catch (Exception e) {
-            stats.error = "Порт " + port + " недоступен: " + safeMessage(e)
-                    + "\nПроверь запуск сервера, его текущий IP и доступ между устройствами в Wi-Fi/VPN.";
+            stats.error = AppText.tr("Порт ") + port + AppText.tr(" недоступен: ") + safeMessage(e)
+                    + AppText.tr("\nПроверь запуск сервера, его текущий IP и доступ между устройствами в Wi-Fi/VPN.");
             return stats;
         }
 
@@ -47,25 +47,25 @@ final class SshClient {
             // This lets us show/compare the fingerprint before any credential authentication.
             stats.hostFingerprint = probeFingerprint(host, port, user);
         } catch (Exception e) {
-            stats.error = "SSH handshake не выполнен: " + safeMessage(e);
+            stats.error = AppText.tr("SSH handshake не выполнен: ") + safeMessage(e);
             return stats;
         }
 
         if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) {
             stats.hostKeyNeedsTrust = true;
-            stats.error = "Первое подключение: проверь и подтверди fingerprint сервера.";
+            stats.error = AppText.tr("Первое подключение: проверь и подтверди fingerprint сервера.");
             return stats;
         }
 
         if (!trustedFingerprint.equals(stats.hostFingerprint)) {
             stats.hostKeyMismatch = true;
-            stats.error = "Fingerprint сервера изменился. Авторизация и передача файлов заблокированы. Сверь устройство с телефоном-сервером.";
+            stats.error = AppText.tr("Fingerprint сервера изменился. Авторизация и передача файлов заблокированы. Сверь устройство с телефоном-сервером.");
             return stats;
         }
         stats.hostKeyTrusted = true;
 
         if (!credential.available()) {
-            stats.error = "SSH-ключ сервера совпал. Откройте «Подключение → Адрес и ключ → Ключ доступа».";
+            stats.error = AppText.tr("SSH-ключ сервера совпал. Откройте «Подключение → Адрес и ключ → Ключ доступа».");
             return stats;
         }
 
@@ -76,16 +76,17 @@ final class SshClient {
             session.connect(5000);
             stats.authenticated = true;
             ServerTelemetry telemetry=readTelemetry(session);
-            if(telemetry!=null){telemetry.apply(stats);stats.sftpOnly=true;stats.sshd="SFTP без командной оболочки";return stats;}
+            if(telemetry!=null){telemetry.apply(stats);stats.sftpOnly=true;stats.sshd=AppText.tr("SFTP без командной оболочки");return stats;}
             stats.uptime = clean(execute(session, "uptime", 6000));
-            stats.disk = parseDisk(clean(execute(session,
-                    "df -h \"$HOME/storage/shared\" 2>/dev/null | tail -n 1", 6000)));
-            java.util.regex.Matcher free=java.util.regex.Pattern.compile("свободно ([^ •]+)").matcher(stats.disk);if(free.find())stats.freeSpace=free.group(1);
+            String diskLine=clean(execute(session,"df -h \"$HOME/storage/shared\" 2>/dev/null | tail -n 1",6000));
+            stats.disk=parseDisk(diskLine);
+            String[] diskFields=diskLine.trim().split("\\s+");
+            if(diskFields.length>=5)stats.freeSpace=diskFields[diskFields.length-3];
             stats.ip = parseIp(clean(execute(session,
                     "ip addr show wlan0 2>/dev/null | grep 'inet ' | head -n 1", 6000)));
 
             String sshd = clean(execute(session, "pgrep -a sshd 2>/dev/null | head -n 3", 6000));
-            stats.sshd = sshd.isEmpty() ? "процесс не найден" : sshd.replace('\n', ' ');
+            stats.sshd = sshd.isEmpty() ? AppText.tr("процесс не найден") : sshd.replace('\n', ' ');
 
             String batteryJson = clean(execute(session,
                     "command -v termux-battery-status >/dev/null 2>&1 && termux-battery-status 2>/dev/null || echo __NO_TERMUX_API__",
@@ -95,7 +96,7 @@ final class SshClient {
             String iperf = clean(execute(session,
                     "command -v iperf3 >/dev/null 2>&1 && iperf3 --version 2>/dev/null | head -n 1 || echo 'не установлен'",
                     6000));
-            stats.iperf = iperf.isEmpty() ? "—" : iperf;
+            stats.iperf = iperf.isEmpty() ? "—" : "не установлен".equals(iperf)?AppText.tr("не установлен"):iperf;
 
         } catch (Exception e) {
             if (stats.authenticated && session != null && session.isConnected()) {
@@ -103,13 +104,13 @@ final class SshClient {
                 try {
                     files = (com.jcraft.jsch.ChannelSftp) session.openChannel("sftp");
                     files.connect(4000); files.pwd();
-                    stats.sftpOnly = true; stats.sshd = "SFTP без командной оболочки";
+                    stats.sftpOnly = true; stats.sshd = AppText.tr("SFTP без командной оболочки");
                     stats.error = "";
                 } catch (Exception fileError) {
-                    stats.error = "SSH-вход выполнен, но команды и SFTP недоступны";
+                    stats.error = AppText.tr("SSH-вход выполнен, но команды и SFTP недоступны");
                 } finally { if (files != null) files.disconnect(); }
             } else {
-                stats.error = "SSH доступен, но вход не выполнен: " + safeMessage(e);
+                stats.error = AppText.tr("SSH доступен, но вход не выполнен: ") + safeMessage(e);
             }
         } finally {
             if (session != null && session.isConnected()) session.disconnect();
@@ -120,7 +121,7 @@ final class SshClient {
     static SshCommandResult runCommand(String host, int port, String user, SshCredentials credential,
                                        String trustedFingerprint, String command, int timeoutMs) {
         SshCommandResult result = new SshCommandResult();
-        if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) { result.error = "Сначала подтверди fingerprint сервера."; return result; }
+        if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) { result.error = AppText.tr("Сначала подтверди fingerprint сервера."); return result; }
         Session session = null;
         try {
             JSch jsch = new JSch();
@@ -130,11 +131,11 @@ final class SshClient {
             HostKey hostKey = session.getHostKey();
             result.fingerprint = hostKey == null ? "" : hostKey.getFingerPrint(jsch);
             if (trustedFingerprint == null || trustedFingerprint.isEmpty()) {
-                result.error = "Сначала подтверди fingerprint сервера.";
+                result.error = AppText.tr("Сначала подтверди fingerprint сервера.");
                 return result;
             }
             if (!trustedFingerprint.equals(result.fingerprint)) {
-                result.error = "Fingerprint изменился. Выполнение команды заблокировано.";
+                result.error = AppText.tr("Fingerprint изменился. Выполнение команды заблокировано.");
                 return result;
             }
 
@@ -143,8 +144,8 @@ final class SshClient {
             result.exitCode = executed.exitCode;
             result.success = executed.exitCode == 0;
             if (!result.success) result.error = executed.exitCode < 0
-                    ? "Сервер не подтвердил завершение SSH-команды"
-                    : "Команда SSH завершилась с кодом " + executed.exitCode;
+                    ? AppText.tr("Сервер не подтвердил завершение SSH-команды")
+                    : AppText.tr("Команда SSH завершилась с кодом ") + executed.exitCode;
         } catch (Exception e) {
             result.error = safeMessage(e);
         } finally {
@@ -174,7 +175,7 @@ final class SshClient {
     private static Session buildSession(JSch jsch, String host, int port, String user, SshCredentials credential,
                                         String trustedFingerprint) throws Exception {
         if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) {
-            throw new Exception("Сначала подтверди fingerprint сервера.");
+            throw new Exception(AppText.tr("Сначала подтверди fingerprint сервера."));
         }
         // Pin the already trusted fingerprint inside JSch itself. A changed key is rejected
         // during key exchange, before password authentication is attempted.
@@ -186,7 +187,7 @@ final class SshClient {
         config.put("StrictHostKeyChecking", "yes");
 
         session.setConfig(config);
-        // Не даём Android/Wi-Fi тихо "заморозить" длительное SSH-соединение.
+        // Не даём Android/Wi-Fi тихо AppText.tr("заморозить") длительное SSH-соединение.
         session.setServerAliveInterval(15_000);
         session.setServerAliveCountMax(3);
         session.setTimeout(15_000);
@@ -215,7 +216,7 @@ final class SshClient {
             if (session.isConnected()) session.disconnect();
         }
         String fingerprint = repository.getLastFingerprint();
-        if (fingerprint.isEmpty()) throw new Exception("сервер не передал SSH host key");
+        if (fingerprint.isEmpty()) throw new Exception(AppText.tr("сервер не передал SSH host key"));
         return fingerprint;
     }
 
@@ -225,7 +226,7 @@ final class SshClient {
 
     private static void parseBattery(ServerStats stats, String raw) {
         if (raw.isEmpty() || raw.contains("__NO_TERMUX_API__")) {
-            stats.battery = "нужен Termux:API";
+            stats.battery = AppText.tr("нужен Termux:API");
             stats.temperature = "—";
             stats.charging = "—";
             return;
@@ -240,7 +241,7 @@ final class SshClient {
             stats.temperature = Double.isNaN(temperature) ? "—" : String.format(java.util.Locale.US, "%.1f °C", temperature);
             stats.charging = status + ("—".equals(plugged) ? "" : " • " + plugged);
         } catch (Exception e) {
-            stats.battery = "Termux:API: ответ не распознан";
+            stats.battery = AppText.tr("Termux:API: ответ не распознан");
         }
     }
 
@@ -248,9 +249,9 @@ final class SshClient {
         if (line.isEmpty()) return "—";
         String[] p = line.trim().split("\\s+");
         if (p.length >= 5) {
-            return "всего " + p[p.length - 5]
-                    + " • занято " + p[p.length - 4]
-                    + " • свободно " + p[p.length - 3]
+            return AppText.tr("всего ") + p[p.length - 5]
+                    + AppText.tr(" • занято ") + p[p.length - 4]
+                    + AppText.tr(" • свободно ") + p[p.length - 3]
                     + " • " + p[p.length - 2];
         }
         return line;
@@ -270,9 +271,9 @@ final class SshClient {
     }
 
     private static String safeMessage(Exception e) {
-        if (e instanceof java.net.SocketTimeoutException) return "Сервер не ответил вовремя";
-        if (e instanceof java.net.ConnectException) return "Порт недоступен";
-        if (e instanceof java.net.UnknownHostException) return "Адрес сервера не найден";
-        return "Проверьте ключ или пароль, доступ к серверу и поддерживаемые алгоритмы";
+        if (e instanceof java.net.SocketTimeoutException) return AppText.tr("Сервер не ответил вовремя");
+        if (e instanceof java.net.ConnectException) return AppText.tr("Порт недоступен");
+        if (e instanceof java.net.UnknownHostException) return AppText.tr("Адрес сервера не найден");
+        return AppText.tr("Проверьте ключ или пароль, доступ к серверу и поддерживаемые алгоритмы");
     }
 }

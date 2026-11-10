@@ -322,3 +322,5 @@ body[data-glass=true] .preview-card { background:rgba(var(--surface-rgb),var(--g
 .queue-current>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
 .queue-current>small { color:var(--muted); white-space:nowrap; flex:none; }
 .queue-card>.card-head { position:sticky; top:-16px; z-index:2; background:var(--surface); padding-block:8px; }
+
+#sharedFolderLabel,#hostFolderSettings{overflow-wrap:anywhere;white-space:normal}#language{min-width:0;width:100%}

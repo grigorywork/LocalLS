@@ -42,13 +42,13 @@ public final class ServerSetupActivity extends BaseActivity {
     private JSONObject exportProfile;
     private final Runnable refresh = new Runnable() {
         @Override public void run() {
-            String message = setup.getString("status", "Сервер ещё не проверен");
+            String message = setup.getString("status", AppText.tr("Сервер ещё не проверен"));
             if (!busy && !message.contentEquals(status.getText())) status.setText(message);
             boolean pending = !setup.getString("pending", "").isEmpty();
             long elapsed = System.currentTimeMillis() - setup.getLong("pending_at", 0);
             if (pending && (elapsed < 0 || elapsed > TermuxSetup.COMMAND_TIMEOUT_MS)) {
                 setup.edit().remove("pending").remove("prepared_session")
-                        .putString("status", "Время ожидания истекло. Проверь Termux и повтори подготовку.").apply();
+                        .putString("status", AppText.tr("Время ожидания истекло. Проверь Termux и повтори подготовку.")).apply();
             }
             updateSteps();
             handler.postDelayed(this, 1000);
@@ -75,14 +75,14 @@ public final class ServerSetupActivity extends BaseActivity {
         });
         findViewById(R.id.prepareTermuxButton).setOnClickListener(v -> openTermux());
         findViewById(R.id.termuxHelpButton).setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("Доступ к Termux")
-                .setMessage("1. Открой Termux один раз и дождись установки среды.\n2. Выбери корневую папку Termux в этом мастере.\n3. В разрешениях LocalLS разреши выполнение команд Termux.\n4. Нажми «Подготовить сервер».\n\nПри ERROR RUN_COMMAND прочитай текст окна Termux. Не удаляй данные Termux: в них находится существующий сервер.")
-                .setNegativeButton("Понятно", null)
+                .setTitle(AppText.tr("Доступ к Termux"))
+                .setMessage(AppText.tr("1. Открой Termux один раз и дождись установки среды.\n2. Выбери корневую папку Termux в этом мастере.\n3. В разрешениях LocalLS разреши выполнение команд Termux.\n4. Нажми «Подготовить сервер».\n\nПри ERROR RUN_COMMAND прочитай текст окна Termux. Не удаляй данные Termux: в них находится существующий сервер."))
+                .setNegativeButton(AppText.tr("Понятно"), null)
                 .setNeutralButton("Termux", (dialog, which) -> openTermux())
-                .setPositiveButton("Разрешения", (dialog, which) -> {
+                .setPositiveButton(AppText.tr("Разрешения"), (dialog, which) -> {
                     try { startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                             Uri.parse("package:" + getPackageName()))); }
-                    catch (RuntimeException e) { message("Открой системные настройки → Приложения → LocalLS → Разрешения."); }
+                    catch (RuntimeException e) { message(AppText.tr("Открой системные настройки → Приложения → LocalLS → Разрешения.")); }
                 }).show());
         findViewById(R.id.selectTermuxFolderButton).setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
@@ -109,7 +109,7 @@ public final class ServerSetupActivity extends BaseActivity {
         if (awaitingReload && leftForReload) {
             awaitingReload = leftForReload = false;
             if (System.currentTimeMillis() - reloadOpenedAt < 3200) {
-                setup.edit().putString("status", "Termux был закрыт слишком быстро. Нажми «Подготовить сервер» и вернись из Termux через несколько секунд.").apply();
+                setup.edit().putString("status", AppText.tr("Termux был закрыт слишком быстро. Нажми «Подготовить сервер» и вернись из Termux через несколько секунд.")).apply();
             } else handler.post(() -> { if (isUiActive() && !busy && setup.getString("pending", "").isEmpty()) TermuxSetup.run(this); });
         }
     }
@@ -123,7 +123,7 @@ public final class ServerSetupActivity extends BaseActivity {
         super.onRequestPermissionsResult(request, permissions, grants);
         if (request == PERMISSION) {
             if (grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED) prepareServer();
-            else message("Для графической настройки разреши LocalLS выполнять команды Termux.");
+            else message(AppText.tr("Для графической настройки разреши LocalLS выполнять команды Termux."));
         }
     }
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -135,13 +135,13 @@ public final class ServerSetupActivity extends BaseActivity {
         try {
             Intent launch = getPackageManager().getLaunchIntentForPackage(TermuxSetup.PACKAGE);
             startActivity(launch != null ? launch : new Intent(Intent.ACTION_VIEW, Uri.parse("https://f-droid.org/packages/com.termux/")));
-        } catch (RuntimeException e) { message("Установи официальный Termux с F-Droid."); }
+        } catch (RuntimeException e) { message(AppText.tr("Установи официальный Termux с F-Droid.")); }
     }
     private void prepareServer() {
         if (busy || !setup.getString("pending", "").isEmpty()) return;
         if (!prerequisitesChecked) { checkPrerequisites(true); return; }
-        if (!TermuxSetup.installed(this)) { message("Сначала установи Termux на серверном устройстве."); return; }
-        if (!folderReady) { message("Открой Termux и выбери его корневую папку. Сохранённый доступ мог быть отозван Android."); return; }
+        if (!TermuxSetup.installed(this)) { message(AppText.tr("Сначала установи Termux на серверном устройстве.")); return; }
+        if (!folderReady) { message(AppText.tr("Открой Termux и выбери его корневую папку. Сохранённый доступ мог быть отозван Android.")); return; }
         if (checkSelfPermission(TermuxSetup.PERMISSION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{TermuxSetup.PERMISSION}, PERMISSION); return;
         }
@@ -149,13 +149,13 @@ public final class ServerSetupActivity extends BaseActivity {
         String value = password.getText().toString();
         if (change && (value.length() < 8 || value.length() > 128 || value.indexOf('\0') >= 0
                 || !value.equals(confirmation.getText().toString()))) {
-            message("Новый пароль: 8–128 символов; оба поля должны совпадать."); return;
+            message(AppText.tr("Новый пароль: 8–128 символов; оба поля должны совпадать.")); return;
         }
         if (quickPrepare && !change) { quickPrepare = false; beginPreparation(false, ""); return; }
-        new AlertDialog.Builder(this).setTitle(change ? "Задать пароль сервера?" : "Подготовить сервер?")
-                .setMessage(change ? "Пароль Termux будет заменён. Работающие SSH-сеансы и способ автозапуска сохранятся."
-                        : "Текущий пароль и работающий sshd сохранятся. OpenSSH установится при необходимости.")
-                .setNegativeButton("Отмена", null).setPositiveButton("Подготовить", (dialog, which) -> beginPreparation(change, value)).show();
+        new AlertDialog.Builder(this).setTitle(change ? AppText.tr("Задать пароль сервера?") : AppText.tr("Подготовить сервер?"))
+                .setMessage(change ? AppText.tr("Пароль Termux будет заменён. Работающие SSH-сеансы и способ автозапуска сохранятся.")
+                        : AppText.tr("Текущий пароль и работающий sshd сохранятся. OpenSSH установится при необходимости."))
+                .setNegativeButton(AppText.tr("Отмена"), null).setPositiveButton(AppText.tr("Подготовить"), (dialog, which) -> beginPreparation(change, value)).show();
     }
     private void beginPreparation(boolean change, String value) {
         quickPrepare = false;
@@ -169,9 +169,9 @@ public final class ServerSetupActivity extends BaseActivity {
             String failure = "";
             try { TermuxSetup.configure(this, tree, secret); }
             catch (TermuxSetup.ExternalAppsNotEnabledException e) {
-                failure = "Доступ к внешним командам не подтверждён в настройках Termux. Выбери его папку повторно. Если ошибка остаётся, пришли текст окна ERROR RUN_COMMAND без пароля.";
+                failure = AppText.tr("Доступ к внешним командам не подтверждён в настройках Termux. Выбери его папку повторно. Если ошибка остаётся, пришли текст окна ERROR RUN_COMMAND без пароля.");
             }
-            catch (Exception e) { failure = "Не удалось подготовить папку Termux. Выбери её повторно и проверь первый запуск."; }
+            catch (Exception e) { failure = AppText.tr("Не удалось подготовить папку Termux. Выбери её повторно и проверь первый запуск."); }
             finally { Arrays.fill(secret, '\0'); }
             final String problem = failure;
             handler.post(() -> {
@@ -179,15 +179,15 @@ public final class ServerSetupActivity extends BaseActivity {
                 busy = false;
                 if (problem.isEmpty()) {
                     if (TermuxSetup.needsSettingsReload(this)) {
-                        new AlertDialog.Builder(this).setTitle("Применить доступ в Termux")
-                                .setMessage("Termux нужно обновить настройки в памяти. Открой его кнопкой ниже, подожди несколько секунд и вернись в LocalLS кнопкой «Назад». Если первый раз скрылась клавиатура, нажми «Назад» ещё раз. Вводить команды не нужно. Работающая SSH-служба сохранится.")
-                                .setNegativeButton("Позже", null).setPositiveButton("Открыть и применить", (dialog, which) -> {
+                        new AlertDialog.Builder(this).setTitle(AppText.tr("Применить доступ в Termux"))
+                                .setMessage(AppText.tr("Termux нужно обновить настройки в памяти. Открой его кнопкой ниже, подожди несколько секунд и вернись в LocalLS кнопкой «Назад». Если первый раз скрылась клавиатура, нажми «Назад» ещё раз. Вводить команды не нужно. Работающая SSH-служба сохранится."))
+                                .setNegativeButton(AppText.tr("Позже"), null).setPositiveButton(AppText.tr("Открыть и применить"), (dialog, which) -> {
                                     awaitingReload = true; leftForReload = false;
                                     reloadOpenedAt = System.currentTimeMillis();
                                     try { TermuxSetup.openForSettingsReload(this); }
                                     catch (RuntimeException e) {
                                         awaitingReload = false;
-                                        message("Не удалось открыть Termux. Открой его через значок приложения и повтори.");
+                                        message(AppText.tr("Не удалось открыть Termux. Открой его через значок приложения и повтори."));
                                     }
                                 }).show();
                     } else TermuxSetup.run(this);
@@ -206,10 +206,10 @@ public final class ServerSetupActivity extends BaseActivity {
     private void verify() {
         if (busy || !setup.getString("pending", "").isEmpty()) return;
         if (!prerequisitesChecked || !folderReady || !commandAllowed() || !prepared()) {
-            message("Сначала выполни шаги доступа и подготовь OpenSSH."); return;
+            message(AppText.tr("Сначала выполни шаги доступа и подготовь OpenSSH.")); return;
         }
         final String secret = password.getText().toString();
-        if (secret.isEmpty()) { message("Введи пароль сервера для проверки входа."); return; }
+        if (secret.isEmpty()) { message(AppText.tr("Введи пароль сервера для проверки входа.")); return; }
         busy = true;
         invalidateVerification();
         status.setText(com.bitpoint.homeservercontrol.ui.R.string.status_681fa4dbaeb8);
@@ -230,7 +230,7 @@ public final class ServerSetupActivity extends BaseActivity {
                         || !user.equals(setup.getString("user", "")) || port != setup.getInt("port", 8022)
                         || !setup.getString("pending", "").isEmpty()) {
                     invalidateVerification();
-                    String text = "Параметры сервера изменились. Повтори проверку SSH.";
+                    String text = AppText.tr("Параметры сервера изменились. Повтори проверку SSH.");
                     setup.edit().putString("status", text).apply();
                     status.setText(text);
                     return;
@@ -239,8 +239,8 @@ public final class ServerSetupActivity extends BaseActivity {
                 verifiedSession = result.isEmpty() ? "" : session;
                 verifiedUser = user;
                 verifiedPort = port;
-                String text = result.isEmpty() ? "Вход не подтверждён. Проверь пароль и активный порт sshd."
-                        : "SSH и пароль проверены. Пользователь: " + user + ", порт: " + port + "\nКлюч: " + result;
+                String text = result.isEmpty() ? AppText.tr("Вход не подтверждён. Проверь пароль и активный порт sshd.")
+                        : AppText.tr("SSH и пароль проверены. Пользователь: ") + user + AppText.tr(", порт: ") + port + AppText.tr("\nКлюч: ") + result;
                 setup.edit().putString("status", text).apply();
                 status.setText(text);
                 updateSteps();
@@ -256,20 +256,20 @@ public final class ServerSetupActivity extends BaseActivity {
             ServerSetupProfile.validate(exportProfile);
             startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json")
                     .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE, "LocalLS-server.json"), EXPORT);
-        } catch (Exception e) { message("Проверь IP сервера и выполни проверку SSH."); }
+        } catch (Exception e) { message(AppText.tr("Проверь IP сервера и выполни проверку SSH.")); }
     }
 
     private void securityCheck(boolean key) {
         if (busy) return;
         if (!prerequisitesChecked || !folderReady || !commandAllowed() || !verificationCurrent()) {
-            message("Сначала подготовь сервер и проверь вход SSH."); return;
+            message(AppText.tr("Сначала подготовь сервер и проверь вход SSH.")); return;
         }
         if (key && password.getText().length() == 0) {
-            message("Введи действующий пароль для добавления публичного ключа."); return;
+            message(AppText.tr("Введи действующий пароль для добавления публичного ключа.")); return;
         }
-        if (key) new AlertDialog.Builder(this).setTitle("Проверить ключевой доступ?")
-                .setMessage("Ключ этого мастера будет сохранён зашифрованным и добавлен к существующим authorized_keys. Затем проверим отдельный вход только по ключу. Парольный резервный доступ и профиль удалённого сервера сохранятся.")
-                .setNegativeButton("Отмена", null).setPositiveButton("Добавить и проверить", (dialog, which) -> beginSecurityCheck(true)).show();
+        if (key) new AlertDialog.Builder(this).setTitle(AppText.tr("Проверить ключевой доступ?"))
+                .setMessage(AppText.tr("Ключ этого мастера будет сохранён зашифрованным и добавлен к существующим authorized_keys. Затем проверим отдельный вход только по ключу. Парольный резервный доступ и профиль удалённого сервера сохранятся."))
+                .setNegativeButton(AppText.tr("Отмена"), null).setPositiveButton(AppText.tr("Добавить и проверить"), (dialog, which) -> beginSecurityCheck(true)).show();
         else beginSecurityCheck(false);
     }
 
@@ -279,9 +279,9 @@ public final class ServerSetupActivity extends BaseActivity {
 
     private void prepareLocalAgent() {
         if (busy || !verificationCurrent() || !prerequisitesChecked || !folderReady || !commandAllowed()) return;
-        new AlertDialog.Builder(this).setTitle("Подготовить HTTPS-агент?")
-                .setMessage("На новом телефоне установим необходимые пакеты, создадим token и TLS-сертификат и запустим независимый агент. При повторе сохраним существующие секреты и проверенный процесс. Работающий sshd и автозапуск сохранятся. Нужен интернет для пакетов; проверка может занять несколько минут.")
-                .setNegativeButton("Отмена", null).setPositiveButton("Подготовить", (dialog, which) -> beginSecurityCheck(false, true)).show();
+        new AlertDialog.Builder(this).setTitle(AppText.tr("Подготовить HTTPS-агент?"))
+                .setMessage(AppText.tr("На новом телефоне установим необходимые пакеты, создадим token и TLS-сертификат и запустим независимый агент. При повторе сохраним существующие секреты и проверенный процесс. Работающий sshd и автозапуск сохранятся. Нужен интернет для пакетов; проверка может занять несколько минут."))
+                .setNegativeButton(AppText.tr("Отмена"), null).setPositiveButton(AppText.tr("Подготовить"), (dialog, which) -> beginSecurityCheck(false, true)).show();
     }
 
     private void beginSecurityCheck(boolean key, boolean prepareAgent) {
@@ -291,11 +291,11 @@ public final class ServerSetupActivity extends BaseActivity {
         final Uri tree = Uri.parse(setup.getString("tree", ""));
         final String keyFingerprint = verifiedKeyFingerprint;
         final String secret = key || (prepareAgent && keyFingerprint.isEmpty()) ? password.getText().toString() : "";
-        if ((key || (prepareAgent && keyFingerprint.isEmpty())) && secret.isEmpty()) { message("Введи действующий пароль сервера."); return; }
+        if ((key || (prepareAgent && keyFingerprint.isEmpty())) && secret.isEmpty()) { message(AppText.tr("Введи действующий пароль сервера.")); return; }
         if (key) verifiedKeyFingerprint = ""; else verifiedAgentFingerprint = "";
         busy = true;
-        status.setText(key ? "Добавление ключа и проверка нового SSH-входа…" : prepareAgent
-                ? "Подготовка HTTPS-агента. Дождись завершения установки пакетов…" : "Проверка существующего HTTPS-агента…");
+        status.setText(key ? AppText.tr("Добавление ключа и проверка нового SSH-входа…") : prepareAgent
+                ? AppText.tr("Подготовка HTTPS-агента. Дождись завершения установки пакетов…") : AppText.tr("Проверка существующего HTTPS-агента…"));
         updateSteps();
         worker.execute(() -> {
             String result = "";
@@ -325,16 +325,16 @@ public final class ServerSetupActivity extends BaseActivity {
                         || port != verifiedPort || !fingerprint.equals(verifiedFingerprint)
                         || !tree.toString().equals(setup.getString("tree", "")) || !folderReady || !commandAllowed()) {
                     invalidateVerification();
-                    String text = "Состояние сервера изменилось. Повтори проверку SSH и безопасности.";
+                    String text = AppText.tr("Состояние сервера изменилось. Повтори проверку SSH и безопасности.");
                     setup.edit().putString("status", text).apply(); status.setText(text); updateSteps(); return;
                 }
                 if (key) verifiedKeyFingerprint = checked; else verifiedAgentFingerprint = checked;
                 String text = checked.isEmpty() ? key
-                        ? "Ключевой вход не подтверждён. Проверь пароль и настройки доступа SSH. Существующий ключ мастера сохранён для повтора."
-                        : prepareAgent ? setupFailure.isEmpty() ? "Агент подготовлен или ещё запускается, но HTTPS-статус не подтверждён. Повтори проверку агента; работающий sshd сохранён." : setupFailure
-                        : "HTTPS-агент не подтверждён. Проверь существующий агент, config.json, сертификат в HOME Termux и локальный порт. HTTP не используется."
-                        : key ? "Отдельный вход только по ключу проверен. Парольный доступ сохранён.\nКлюч: " + checked
-                        : "Сертификат проверен по файлу Termux, статус получен через HTTPS.\nСертификат: " + checked;
+                        ? AppText.tr("Ключевой вход не подтверждён. Проверь пароль и настройки доступа SSH. Существующий ключ мастера сохранён для повтора.")
+                        : prepareAgent ? setupFailure.isEmpty() ? AppText.tr("Агент подготовлен или ещё запускается, но HTTPS-статус не подтверждён. Повтори проверку агента; работающий sshd сохранён.") : setupFailure
+                        : AppText.tr("HTTPS-агент не подтверждён. Проверь существующий агент, config.json, сертификат в HOME Termux и локальный порт. HTTP не используется.")
+                        : key ? AppText.tr("Отдельный вход только по ключу проверен. Парольный доступ сохранён.\nКлюч: ") + checked
+                        : AppText.tr("Сертификат проверен по файлу Termux, статус получен через HTTPS.\nСертификат: ") + checked;
                 setup.edit().putString("status", text).apply(); status.setText(text); updateSteps();
             });
         });
@@ -346,11 +346,11 @@ public final class ServerSetupActivity extends BaseActivity {
         try {
             if (request == FOLDER) {
                 if (!"com.termux.documents".equals(uri.getAuthority()) || !TermuxSetup.HOME.equals(DocumentsContract.getTreeDocumentId(uri))) {
-                    message("Выбери корневую папку в разделе Termux."); return;
+                    message(AppText.tr("Выбери корневую папку в разделе Termux.")); return;
                 }
                 if ((data.getFlags() & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) == 0
                         || (data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) == 0) {
-                    message("Мастеру нужен доступ к чтению и записи папки Termux."); return;
+                    message(AppText.tr("Мастеру нужен доступ к чтению и записи папки Termux.")); return;
                 }
                 getContentResolver().takePersistableUriPermission(uri,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
@@ -359,14 +359,14 @@ public final class ServerSetupActivity extends BaseActivity {
             } else if (request == EXPORT && exportProfile != null) {
                 if (!verificationCurrent()) {
                     exportProfile = null;
-                    message("Состояние сервера изменилось. Повтори проверку SSH и экспорт."); return;
+                    message(AppText.tr("Состояние сервера изменилось. Повтори проверку SSH и экспорт.")); return;
                 }
                 try (OutputStream stream = getContentResolver().openOutputStream(uri, "wt")) {
                     if (stream == null) throw new java.io.IOException();
                     stream.write(exportProfile.toString(2).getBytes(StandardCharsets.UTF_8));
                 }
                 exportProfile = null;
-                message("Профиль сохранён без пароля. Передай его на устройство, с которого будешь подключаться.");
+                message(AppText.tr("Профиль сохранён без пароля. Передай его на устройство, с которого будешь подключаться."));
             } else if (request == IMPORT) {
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 try (InputStream stream = getContentResolver().openInputStream(uri)) {
@@ -379,15 +379,15 @@ public final class ServerSetupActivity extends BaseActivity {
                 }
                 JSONObject profile = new JSONObject(buffer.toString("UTF-8"));
                 ServerSetupProfile.validate(profile);
-                new AlertDialog.Builder(this).setTitle("Подключить этот сервер?")
+                new AlertDialog.Builder(this).setTitle(AppText.tr("Подключить этот сервер?"))
                         .setMessage(profile.getString("host") + ":" + profile.getInt("port") + "\n" + profile.getString("user")
-                                + "\n\nСверь ключ с экраном сервера:\n" + profile.getString("fingerprint"))
-                        .setNegativeButton("Отмена", null).setPositiveButton("Ключ совпадает", (dialog, which) -> {
-                            try { ServerSetupProfile.apply(this, profile); message("Профиль импортирован. На главном экране введи пароль сервера."); }
-                            catch (Exception e) { message("Импорт заблокирован: ключ отличается от уже доверенного."); }
+                                + AppText.tr("\n\nСверь ключ с экраном сервера:\n") + profile.getString("fingerprint"))
+                        .setNegativeButton(AppText.tr("Отмена"), null).setPositiveButton(AppText.tr("Ключ совпадает"), (dialog, which) -> {
+                            try { ServerSetupProfile.apply(this, profile); message(AppText.tr("Профиль импортирован. На главном экране введи пароль сервера.")); }
+                            catch (Exception e) { message(AppText.tr("Импорт заблокирован: ключ отличается от уже доверенного.")); }
                         }).show();
             }
-        } catch (Exception e) { message("Не удалось прочитать или сохранить профиль. Проверь файл и доступ."); }
+        } catch (Exception e) { message(AppText.tr("Не удалось прочитать или сохранить профиль. Проверь файл и доступ.")); }
     }
     private boolean commandAllowed() {
         return checkSelfPermission(TermuxSetup.PERMISSION) == PackageManager.PERMISSION_GRANTED;
@@ -435,14 +435,14 @@ public final class ServerSetupActivity extends BaseActivity {
         boolean ready = installed && prerequisitesChecked && folderReady && command;
         if (!verifiedFingerprint.isEmpty() && (!verificationCurrent() || !installed || !command
                 || (prerequisitesChecked && !folderReady))) invalidateVerification();
-        String text = "1. Termux: " + (!installed ? "нужно установить" : prerequisitesChecked && folderReady
-                ? "среда доступна" : "установлен; открой для первого запуска")
-                + "\n2. Папка Termux: " + (!prerequisitesChecked ? "проверяется…" : folderReady ? "доступ подтверждён" : "нужно выбрать заново")
-                + "\n3. Команды Termux: " + (command ? "разрешены Android" : "нужно разрешение")
-                + "\n4. OpenSSH: " + (pending || busy ? "выполняется проверка / подготовка…" : prepared() ? "подготовлен" : "нужно подготовить")
-                + "\n5. Вход SSH: " + (verificationCurrent() ? "подтверждён" : "нужно проверить паролем")
-                + "\n6. SSH-ключ: " + (verifiedKeyFingerprint.isEmpty() ? "ещё не проверен" : "новый вход подтверждён")
-                + "\n7. HTTPS-агент: " + (verifiedAgentFingerprint.isEmpty() ? "ещё не проверен / не установлен" : "статус подтверждён");
+        String text = "1. Termux: " + (!installed ? AppText.tr("нужно установить") : prerequisitesChecked && folderReady
+                ? AppText.tr("среда доступна") : AppText.tr("установлен; открой для первого запуска"))
+                + AppText.tr("\n2. Папка Termux: ") + (!prerequisitesChecked ? AppText.tr("проверяется…") : folderReady ? AppText.tr("доступ подтверждён") : AppText.tr("нужно выбрать заново"))
+                + AppText.tr("\n3. Команды Termux: ") + (command ? AppText.tr("разрешены Android") : AppText.tr("нужно разрешение"))
+                + "\n4. OpenSSH: " + (pending || busy ? AppText.tr("выполняется проверка / подготовка…") : prepared() ? AppText.tr("подготовлен") : AppText.tr("нужно подготовить"))
+                + AppText.tr("\n5. Вход SSH: ") + (verificationCurrent() ? AppText.tr("подтверждён") : AppText.tr("нужно проверить паролем"))
+                + AppText.tr("\n6. SSH-ключ: ") + (verifiedKeyFingerprint.isEmpty() ? AppText.tr("ещё не проверен") : AppText.tr("новый вход подтверждён"))
+                + AppText.tr("\n7. HTTPS-агент: ") + (verifiedAgentFingerprint.isEmpty() ? AppText.tr("ещё не проверен / не установлен") : AppText.tr("статус подтверждён"));
         TextView steps = findViewById(R.id.serverSetupSteps);
         if (!text.contentEquals(steps.getText())) steps.setText(text);
         showFolder();
@@ -455,11 +455,11 @@ public final class ServerSetupActivity extends BaseActivity {
     }
     private void showFolder() {
         TextView folder = findViewById(R.id.termuxFolderStatus);
-        String text = !prerequisitesChecked ? "Проверка доступа к папке…" : folderReady
-                ? "Доступ к корневой папке Termux подтверждён" : "Выбери корневую папку Termux и разреши чтение и запись";
+        String text = !prerequisitesChecked ? AppText.tr("Проверка доступа к папке…") : folderReady
+                ? AppText.tr("Доступ к корневой папке Termux подтверждён") : AppText.tr("Выбери корневую папку Termux и разреши чтение и запись");
         if (!text.contentEquals(folder.getText())) folder.setText(text);
     }
-    private void message(String text) { new AlertDialog.Builder(this).setMessage(text).setPositiveButton("Понятно", null).show(); }
+    private void message(String text) { new AlertDialog.Builder(this).setMessage(text).setPositiveButton(AppText.tr("Понятно"), null).show(); }
     private String localIp() {
         try {
             for (NetworkInterface network : Collections.list(NetworkInterface.getNetworkInterfaces())) {

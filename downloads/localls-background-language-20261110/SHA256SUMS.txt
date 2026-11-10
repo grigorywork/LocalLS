@@ -1,0 +1,4 @@
+634a7c563580c092da297725dad0d418242fd382f1abfcf40602cfff903834b5  LocalLS-1.41-code63-background-language-20261110.apk
+b7aa67c4c1c2c7f38b1172e7005d379921772343a10ce330211c7e4b9e4f5a44  LocalLS-1.43-Windows-x64-Setup-unsigned-background-language-20261110.exe
+c3d5584fb4a0143f3dceedf46dbf4e18f1037204f92f3095d9e84221b9eca7bb  LocalLS-1.44.0-Fedora-x86_64-background-language-20261110.rpm
+0dd8a63b2cfe9aaf68ad21b9732cdd8fe56e8a5c3294a48e909189fb2081a11f  LocalLS-1.44.0-Debian13-amd64-background-language-20261110.deb

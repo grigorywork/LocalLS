@@ -67,7 +67,7 @@ final class EmbeddedSftpServer implements AutoCloseable {
             }
         }catch(RuntimeException ignored){/* Callback failures must not turn a completed SFTP close into data loss. */}
     }
-    static final int MAX_DEVICES=7,SESSIONS_PER_DEVICE=4;
+    static final int MAX_DEVICES=10,SESSIONS_PER_DEVICE=4;
     static final int HANDLES_PER_CHANNEL=16,HANDLES_PER_DEVICE=32;
     private final java.util.Map<String,PublicKey> allowedClients=new java.util.LinkedHashMap<>();
     private final java.util.Set<org.apache.sshd.common.session.Session> sessions=java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -79,8 +79,8 @@ final class EmbeddedSftpServer implements AutoCloseable {
         for(var session:sessions)if(id.equals(session.getAttribute(AUTH_KEY)))session.close(true);
     }
     private void addAllowed(PublicKey key){
-        String id=KeyUtils.getFingerPrint(key);if(allowedClients.containsKey(id)){if(!allowed(key))throw new IllegalStateException("Ключ отличается");return;}
-        if(allowedClients.size()>=MAX_DEVICES)throw new IllegalStateException("Разрешено не более 7 устройств");allowedClients.put(id,key);
+        String id=KeyUtils.getFingerPrint(key);if(allowedClients.containsKey(id)){if(!allowed(key))throw new IllegalStateException(AppText.tr("Ключ отличается"));return;}
+        if(allowedClients.size()>=MAX_DEVICES)throw new IllegalStateException(AppText.tr("Разрешено не более 10 устройств"));allowedClients.put(id,key);
     }
     /** Keep the live budget bounded without letting idle handshakes starve the next client. */
     private synchronized void admitSession(org.apache.sshd.common.session.Session incoming){
@@ -107,8 +107,8 @@ final class EmbeddedSftpServer implements AutoCloseable {
     private boolean pairingApproved;
     synchronized void beginPairing(String nonce,long expires){
         long now=System.currentTimeMillis();revokedInvitations.entrySet().removeIf(e->e.getValue()<=now);
-        if(revokedInvitations.containsKey(nonce))throw new IllegalStateException("Доступ отозван. Создай новый QR");
-        if(server==null||nonce==null||!nonce.matches("[a-f0-9-]{36}")||expires<=now||expires-now>600000L)throw new IllegalStateException("Приглашение недоступно");
+        if(revokedInvitations.containsKey(nonce))throw new IllegalStateException(AppText.tr("Доступ отозван. Создай новый QR"));
+        if(server==null||nonce==null||!nonce.matches("[a-f0-9-]{36}")||expires<=now||expires-now>600000L)throw new IllegalStateException(AppText.tr("Приглашение недоступно"));
         if(nonce.equals(pairingNonce)&&expires==pairingExpires)return;
         pairingNonce=nonce;pairingExpires=expires;pendingPairingKey="";pendingPairingPublic=null;pairingApproved=false;
     }
@@ -116,13 +116,13 @@ final class EmbeddedSftpServer implements AutoCloseable {
     synchronized void endPairing(String nonce){if(pairingNonce.equals(nonce)){pairingNonce="";pendingPairingKey="";pendingPairingPublic=null;pairingApproved=false;}}
     private boolean activePairing(String nonce){return server!=null&&!pairingNonce.isEmpty()&&pairingNonce.equals(nonce)&&System.currentTimeMillis()<pairingExpires;}
     synchronized void approvePairing(String nonce,String publicKey)throws Exception{
-        if(!activePairing(nonce)||pendingPairingPublic==null||!normalizeAuthorizedKey(publicKey).equals(pendingPairingKey))throw new IllegalStateException("Запрос изменился или истёк");
+        if(!activePairing(nonce)||pendingPairingPublic==null||!normalizeAuthorizedKey(publicKey).equals(pendingPairingKey))throw new IllegalStateException(AppText.tr("Запрос изменился или истёк"));
         addAllowed(pendingPairingPublic);pairingApproved=true;
     }
     synchronized void approveOptical(String nonce,String publicKey)throws Exception{
-        if(!activePairing(nonce))throw new IllegalStateException("QR изменился или истёк");
+        if(!activePairing(nonce))throw new IllegalStateException(AppText.tr("QR изменился или истёк"));
         String normalized=normalizeAuthorizedKey(publicKey);PublicKey key=authorizedKey(normalized);
-        if(pendingPairingPublic!=null&&!KeyUtils.compareKeys(pendingPairingPublic,key))throw new IllegalStateException("Запрос другого устройства уже ожидает подтверждения");
+        if(pendingPairingPublic!=null&&!KeyUtils.compareKeys(pendingPairingPublic,key))throw new IllegalStateException(AppText.tr("Запрос другого устройства уже ожидает подтверждения"));
         addAllowed(key);pendingPairingPublic=key;pendingPairingKey=normalized;pairingApproved=true;
     }
     private synchronized boolean pairingAuthentication(String name,PublicKey key){
@@ -139,7 +139,7 @@ final class EmbeddedSftpServer implements AutoCloseable {
     static String normalizeAuthorizedKey(String text) throws Exception { return SshPublicKeyParser.parse(text).normalized; }
     static String publicFingerprint(String text)throws Exception{return KeyUtils.getFingerPrint(authorizedKey(text));}
     synchronized int start(String bind,int port,String user,PublicKey allowed,KeyPair hostKey,Path directory) throws Exception {
-        if(allowed==null)throw new IllegalArgumentException("Нужен разрешённый ключ");
+        if(allowed==null)throw new IllegalArgumentException(AppText.tr("Нужен разрешённый ключ"));
         return startInternal(bind,port,user,java.util.Collections.singletonList(allowed),hostKey,directory);
     }
     /** Explicit locked startup: no password or key can authenticate until local approval. */
@@ -147,15 +147,15 @@ final class EmbeddedSftpServer implements AutoCloseable {
         return startInternal(bind,port,user,java.util.Collections.emptyList(),hostKey,directory);
     }
     synchronized void authorizeFirstClient(PublicKey key) {
-        if(server==null || key==null || !allowedClients.isEmpty())throw new IllegalStateException("Первый ключ уже разрешён");
+        if(server==null || key==null || !allowedClients.isEmpty())throw new IllegalStateException(AppText.tr("Первый ключ уже разрешён"));
         addAllowed(key);
     }
     synchronized int startAuthorized(String bind,int port,String user,java.util.Collection<PublicKey> allowed,KeyPair hostKey,Path directory)throws Exception{
         return startInternal(bind,port,user,allowed,hostKey,directory);
     }
     private int startInternal(String bind,int port,String user,java.util.Collection<PublicKey> allowed,KeyPair hostKey,Path directory) throws Exception {
-        if(server!=null) throw new IllegalStateException("Сервер уже работает");
-        if(!ConnectionEndpoint.validUser(user) || port<0 || port>65535 || hostKey==null) throw new IllegalArgumentException("Неверные параметры сервера");
+        if(server!=null) throw new IllegalStateException(AppText.tr("Сервер уже работает"));
+        if(!ConnectionEndpoint.validUser(user) || port<0 || port>65535 || hostKey==null) throw new IllegalArgumentException(AppText.tr("Неверные параметры сервера"));
         allowedClients.clear();for(PublicKey key:allowed)addAllowed(key);
         pairingNonce="";pendingPairingKey="";pendingPairingPublic=null;pairingApproved=false;pairingUser=user;
         Files.createDirectories(directory); Path root=directory.toRealPath();

@@ -1,14 +1,13 @@
-# LocalLS для Android
+# LocalLS Android 1.41 — MSS9LN
 
-Обмен файлами между телефоном, планшетом и ПК по SSH/SFTP. Автор — **MSS9LN**.
+Включи сервер → покажи QR-код → подтверди второе устройство. В «Файлах» выбери папки и направление передачи. Удалённая сторона обозначается «Сервер-ПК» или «Сервер-мобильный».
 
-1. На сервере включи LocalLS и покажи QR.
-2. На другом устройстве отсканируй QR, сверь код и разреши доступ на сервере.
-3. В «Файлах» выбери файлы или папки и направление копирования.
-4. Прогресс и повтор — в «Очереди».
+До 10 разрешённых устройств. Разреши работу без ограничений батареи; выключенный экран не требует остановки сервера. Принудительная остановка или ограничения производителя могут остановить приложение. Папки выбираются системным диалогом, с обычными разрешениями Android.
 
-Для первой настройки используй один Wi-Fi. Обновляй приложение поверх прежнего: ключи, настройки и файлы сохранятся.
+Язык, светлый фон и цвет выбираются независимо в «Оформлении». Обновляй поверх прежней установки для сохранения ключей и настроек.
 
-[Короткая справка](app/src/main/assets/phone-setup.txt)
+[Краткая справка](app/src/main/assets/phone-setup.txt) · [English guide](app/src/main/assets/phone-setup-en.txt)
 
-Версия Android задаётся в `release.properties`. Сборка: JDK 17, Android SDK 37, Build Tools 36.0.0, Gradle Wrapper. Локальные проверки: `python3 tools/audit_project.py`, затем `./gradlew :app:assembleDebug`. Release собирается с прежним приватным сертификатом вне репозитория.
+English: Start the server, show its QR code and approve the other device. Choose folders and a transfer direction in Files. Allow unrestricted battery use for background operation. Screen-off is supported; force-stop and vendor restrictions still apply. Up to 10 devices. Language, light background and accent are independent settings.
+
+Build: JDK 17, Android SDK 37, Build Tools 36.0.0, Gradle Wrapper. Release metadata: `release.properties`. The private release certificate stays outside the repository.

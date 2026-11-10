@@ -28,11 +28,11 @@ final class SftpClient {
 
     /** A pinned, public-key-only SSH attempt. No file channel or password is opened. */
     static boolean pairingAttempt(String host,int port,String user,String nonce,SshCredentials key,String pin)throws Exception{
-        if(!ConnectionEndpoint.validHost(host)||!ConnectionEndpoint.validUser(user)||port<1||port>65535||nonce==null||!nonce.matches("[a-f0-9-]{36}")||pin==null||!pin.matches("SHA256:[A-Za-z0-9+/]{43}")||!key.keyMode())throw new IllegalArgumentException("Неверный запрос QR");
+        if(!ConnectionEndpoint.validHost(host)||!ConnectionEndpoint.validUser(user)||port<1||port>65535||nonce==null||!nonce.matches("[a-f0-9-]{36}")||pin==null||!pin.matches("SHA256:[A-Za-z0-9+/]{43}")||!key.keyMode())throw new IllegalArgumentException(AppText.tr("Неверный запрос QR"));
         return pinnedLogin(host,port,user+"#"+nonce,key,pin);
     }
     static boolean loginAttempt(String host,int port,String user,SshCredentials key,String pin)throws Exception{
-        if(!ConnectionEndpoint.validHost(host)||!ConnectionEndpoint.validUser(user)||port<1||port>65535||pin==null||!pin.matches("SHA256:[A-Za-z0-9+/]{43}")||!key.keyMode())throw new IllegalArgumentException("Неверные параметры входа");
+        if(!ConnectionEndpoint.validHost(host)||!ConnectionEndpoint.validUser(user)||port<1||port>65535||pin==null||!pin.matches("SHA256:[A-Za-z0-9+/]{43}")||!key.keyMode())throw new IllegalArgumentException(AppText.tr("Неверные параметры входа"));
         return pinnedLogin(host,port,user,key,pin);
     }
     private static boolean pinnedLogin(String host,int port,String login,SshCredentials key,String pin)throws Exception{
@@ -41,11 +41,11 @@ final class SftpClient {
         try{
             key.configure(jsch,session);session.setTimeout(3500);
             try{session.connect(3500);}catch(com.jcraft.jsch.JSchException error){
-                String actual=trust.getLastFingerprint();if(!actual.isEmpty()&&!pin.equals(actual))throw new SecurityException("Ключ сервера изменился",error);
+                String actual=trust.getLastFingerprint();if(!actual.isEmpty()&&!pin.equals(actual))throw new SecurityException(AppText.tr("Ключ сервера изменился"),error);
                 if(pin.equals(actual)&&error.getMessage()!=null&&error.getMessage().startsWith("Auth fail"))return false;
                 throw error;
             }
-            VerifiedCopy.check();if(!pin.equals(trust.getLastFingerprint()))throw new SecurityException("Ключ сервера изменился");return session.isConnected();
+            VerifiedCopy.check();if(!pin.equals(trust.getLastFingerprint()))throw new SecurityException(AppText.tr("Ключ сервера изменился"));return session.isConnected();
         }finally{session.disconnect();try{jsch.removeAllIdentity();}catch(com.jcraft.jsch.JSchException ignored){}}
     }
 
@@ -199,14 +199,14 @@ final class SftpClient {
     }
 
     static void installPublicKey(String host,int port,String user,SshCredentials credential,String pin,String publicKey) throws Exception {
-        if (!publicKey.matches("(?:ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp(?:256|384|521)) [A-Za-z0-9+/=]+ LocalLS")) throw new Exception("Ключ не распознан");
+        if (!publicKey.matches("(?:ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp(?:256|384|521)) [A-Za-z0-9+/=]+ LocalLS")) throw new Exception(AppText.tr("Ключ не распознан"));
         Connection connection=connect(host,port,user,credential,pin);
         try { ChannelSftp s=connection.sftp; String home=s.getHome(),dir=join(home,".ssh"),file=join(dir,"authorized_keys"); SftpATTRS attrs;
-            try { attrs=s.lstat(literal(dir)); if(!attrs.isDir()||attrs.isLink())throw new Exception("Небезопасная папка .ssh"); }
+            try { attrs=s.lstat(literal(dir)); if(!attrs.isDir()||attrs.isLink())throw new Exception(AppText.tr("Небезопасная папка .ssh")); }
             catch(com.jcraft.jsch.SftpException e){if(e.id!=ChannelSftp.SSH_FX_NO_SUCH_FILE)throw e;s.mkdir(dir);} s.chmod(0700,literal(dir));
             byte[] old=new byte[0];
-            try { attrs=s.lstat(literal(file)); if(!attrs.isReg()||attrs.isLink()||attrs.getSize()>512*1024)throw new Exception("Небезопасный authorized_keys");
-                java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();try(InputStream in=s.get(literal(file))){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1){if(out.size()+n>512*1024)throw new Exception("authorized_keys слишком большой");out.write(b,0,n);}}old=out.toByteArray();
+            try { attrs=s.lstat(literal(file)); if(!attrs.isReg()||attrs.isLink()||attrs.getSize()>512*1024)throw new Exception(AppText.tr("Небезопасный authorized_keys"));
+                java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();try(InputStream in=s.get(literal(file))){byte[] b=new byte[4096];int n;while((n=in.read(b))!=-1){if(out.size()+n>512*1024)throw new Exception(AppText.tr("authorized_keys слишком большой"));out.write(b,0,n);}}old=out.toByteArray();
             }catch(com.jcraft.jsch.SftpException e){if(e.id!=ChannelSftp.SSH_FX_NO_SUCH_FILE)throw e;}
             String text=new String(old,java.nio.charset.StandardCharsets.UTF_8); String[] expected=publicKey.split(" "); boolean exists=false;
             for(String line:text.split("\\r?\\n")){String[] parts=line.trim().split("\\s+");if(!line.trim().startsWith("#"))for(int i=0;i+1<parts.length;i++)if(parts[i].equals(expected[0])&&parts[i+1].equals(expected[1]))exists=true;}
@@ -278,12 +278,12 @@ final class SftpClient {
             };
         }
         List<RemoteEntry> list(String path)throws Exception{
-            SftpATTRS parent=c.sftp.lstat(literal(path));if(parent.isLink() || !parent.isDir())throw new java.io.IOException("Папка недоступна");
+            SftpATTRS parent=c.sftp.lstat(literal(path));if(parent.isLink() || !parent.isDir())throw new java.io.IOException(AppText.tr("Папка недоступна"));
             List<RemoteEntry> out=new ArrayList<>();
             @SuppressWarnings("unchecked") Vector<ChannelSftp.LsEntry> raw=c.sftp.ls(literal(path));
             for(ChannelSftp.LsEntry e:raw){String name=e.getFilename();if(name.equals(".")||name.equals("..")||TransferPaths.temporary(name))continue;
                 TransferPaths.name(name);SftpATTRS a=e.getAttrs();if(a==null || a.isLink() || (!a.isDir() && !a.isReg()))continue;
-                if(out.size()>=10000)throw new java.io.IOException("Слишком много файлов");
+                if(out.size()>=10000)throw new java.io.IOException(AppText.tr("Слишком много файлов"));
                 out.add(new RemoteEntry(name,join(path,name),a.isDir(),a.getSize(),a.getMTime()));}
             return out;
         }
@@ -291,11 +291,11 @@ final class SftpClient {
         String unique(String parent,String name)throws Exception{
             TransferPaths.name(name);String path=join(parent,name);if(!exists(path))return path;
             for(int i=1;i<10000;i++){String next=join(parent,TransferPaths.duplicate(name,i));if(!exists(next))return next;}
-            throw new java.io.IOException("Слишком много одинаковых имён");
+            throw new java.io.IOException(AppText.tr("Слишком много одинаковых имён"));
         }
         String folder(String parent,String name)throws Exception{String path=unique(parent,name);c.sftp.mkdir(path);return path;}
         RemoteEntry entry(String path)throws Exception{
-            try{SftpATTRS a=c.sftp.lstat(literal(path));if(a.isLink()||(!a.isDir()&&!a.isReg()))throw new java.io.IOException("Недопустимый файл");
+            try{SftpATTRS a=c.sftp.lstat(literal(path));if(a.isLink()||(!a.isDir()&&!a.isReg()))throw new java.io.IOException(AppText.tr("Недопустимый файл"));
                 return new RemoteEntry(new java.io.File(path).getName(),path,a.isDir(),a.getSize(),a.getMTime());
             }catch(com.jcraft.jsch.SftpException e){if(e.id==ChannelSftp.SSH_FX_NO_SUCH_FILE)return null;throw e;}
         }
@@ -304,37 +304,37 @@ final class SftpClient {
             try{com.jcraft.jsch.SftpStatVFS info=c.sftp.statVFS(literal(path));try{return Math.multiplyExact(info.getFragmentSize(),info.getAvailBlocks());}catch(ArithmeticException e){return Long.MAX_VALUE;}}
             catch(com.jcraft.jsch.SftpException e){if(e.id==ChannelSftp.SSH_FX_OP_UNSUPPORTED)return -1;throw e;}
         }
-        String ensureFolder(String path)throws Exception{RemoteEntry e=entry(path);if(e==null)c.sftp.mkdir(literal(path));else if(!e.directory)throw new java.io.IOException("На месте папки уже есть файл");return path;}
+        String ensureFolder(String path)throws Exception{RemoteEntry e=entry(path);if(e==null)c.sftp.mkdir(literal(path));else if(!e.directory)throw new java.io.IOException(AppText.tr("На месте папки уже есть файл"));return path;}
         String checksum(String path)throws Exception{try(InputStream in=metered(c.sftp.get(literal(path)))){return VerifiedCopy.sha256(in);}}
         void recoverPublished(String target,String temporaryName,String expectedHash)throws Exception{
-            TransferPaths.name(temporaryName);if(!temporaryName.startsWith(".localls-upload-")||!temporaryName.endsWith(".part")||!expectedHash.equals(checksum(target)))throw new java.io.IOException("Публикация не подтверждена");
-            String temporary=join(parent(target),temporaryName);for(String path:new String[]{temporary,temporary+".previous"}){RemoteEntry e=entry(path);if(e!=null){if(e.directory)throw new java.io.IOException("Временное имя занято папкой");c.sftp.rm(literal(path));}}
+            TransferPaths.name(temporaryName);if(!temporaryName.startsWith(".localls-upload-")||!temporaryName.endsWith(".part")||!expectedHash.equals(checksum(target)))throw new java.io.IOException(AppText.tr("Публикация не подтверждена"));
+            String temporary=join(parent(target),temporaryName);for(String path:new String[]{temporary,temporary+".previous"}){RemoteEntry e=entry(path);if(e!=null){if(e.directory)throw new java.io.IOException(AppText.tr("Временное имя занято папкой"));c.sftp.rm(literal(path));}}
         }
-        String identity(String path)throws Exception{RemoteEntry e=entry(path);if(e==null||e.directory)throw new java.io.IOException("Файл недоступен");return e.size+":"+e.mtime;}
+        String identity(String path)throws Exception{RemoteEntry e=entry(path);if(e==null||e.directory)throw new java.io.IOException(AppText.tr("Файл недоступен"));return e.size+":"+e.mtime;}
         /** Verify every retained byte before appending; keep private staging on a network failure. */
         void readResumable(String path,java.io.File partial,ProgressCallback progress)throws Exception{
             String before=identity(path);RemoteEntry e=entry(path);long offset=partial.length();
-            if(offset>e.size)throw new java.io.IOException("Частичный файл длиннее исходника");
+            if(offset>e.size)throw new java.io.IOException(AppText.tr("Частичный файл длиннее исходника"));
             try(InputStream source=metered(c.sftp.get(literal(path)))){
                 if(offset>0)try(InputStream saved=new java.io.FileInputStream(partial)){VerifiedCopy.prefix(source,saved,offset,(n,total)->{if(progress!=null&&!progress.onProgress(0,e.size))throw new ResumeCancelled();});}
                 try(java.io.FileOutputStream out=new java.io.FileOutputStream(partial,true)){
                     VerifiedCopy.copy(source,out,offset,e.size,(n,total)->{if(progress!=null&&!progress.onProgress(n,total))throw new ResumeCancelled();});out.getFD().sync();
                 }
-            }catch(ResumeCancelled e1){throw new java.io.InterruptedIOException("Передача отменена");}
-            if(!before.equals(identity(path)))throw new java.io.IOException("Файл на сервере изменился во время скачивания");
+            }catch(ResumeCancelled e1){throw new java.io.InterruptedIOException(AppText.tr("Передача отменена"));}
+            if(!before.equals(identity(path)))throw new java.io.IOException(AppText.tr("Файл на сервере изменился во время скачивания"));
         }
         /** A caller-owned stable temporary name makes a retry resumable across processes. */
         interface BeforePublish{void ready(String target,String sha256)throws Exception;}
         String writeResumable(String parent,String name,InputStream source,long size,ProgressCallback progress,
                 String tempName,String target,String policy,boolean verify,BeforePublish checkpoint)throws Exception{
             TransferPaths.name(name);TransferPaths.name(tempName);
-            if(!tempName.startsWith(".localls-upload-")||!tempName.endsWith(".part"))throw new java.io.IOException("Неверное имя дозагрузки");
-            String temp=join(parent,tempName);RemoteEntry old=entry(temp);if(old!=null&&old.directory)throw new java.io.IOException("Недопустимый временный файл");
-            long offset=old==null?0:old.size;if(size>=0&&offset>size)throw new java.io.IOException("Частичный файл длиннее исходника");
+            if(!tempName.startsWith(".localls-upload-")||!tempName.endsWith(".part"))throw new java.io.IOException(AppText.tr("Неверное имя дозагрузки"));
+            String temp=join(parent,tempName);RemoteEntry old=entry(temp);if(old!=null&&old.directory)throw new java.io.IOException(AppText.tr("Недопустимый временный файл"));
+            long offset=old==null?0:old.size;if(size>=0&&offset>size)throw new java.io.IOException(AppText.tr("Частичный файл длиннее исходника"));
             java.security.MessageDigest digest=java.security.MessageDigest.getInstance("SHA-256");
             InputStream input=new java.security.DigestInputStream(source,digest);
             if(offset>0)try(InputStream saved=metered(c.sftp.get(literal(temp)))){VerifiedCopy.prefix(input,saved,offset,(n,total)->{if(progress!=null&&!progress.onProgress(0,size))throw new ResumeCancelled();});}
-                catch(ResumeCancelled cancelled){throw new java.io.InterruptedIOException("Передача отменена");}
+                catch(ResumeCancelled cancelled){throw new java.io.InterruptedIOException(AppText.tr("Передача отменена"));}
             final long base=offset;final boolean[] keep={true};final long[] count={offset};
             try(OutputStream out=metered(c.sftp.put(literal(temp),monitor((n,total)->{
                 count[0]=base+n;keep[0]=keep[0]&&(progress==null||progress.onProgress(base+n,size));return keep[0];
@@ -342,9 +342,9 @@ final class SftpClient {
                 byte[] block=new byte[32768];int n;while((n=input.read(block))!=-1){VerifiedCopy.check();if(!keep[0])throw new java.io.InterruptedIOException();out.write(block,0,n);}
             }
             VerifiedCopy.check();if(!keep[0])throw new java.io.InterruptedIOException();
-            RemoteEntry finished=entry(temp);if(finished==null||(size>=0&&finished.size!=size)||finished.size!=count[0])throw new java.io.IOException("Исходный файл изменился");
+            RemoteEntry finished=entry(temp);if(finished==null||(size>=0&&finished.size!=size)||finished.size!=count[0])throw new java.io.IOException(AppText.tr("Исходный файл изменился"));
             String hash=VerifiedCopy.hex(digest.digest());
-            if(verify&&!hash.equals(checksum(temp)))throw new java.io.IOException("SHA-256 копии не совпадает");
+            if(verify&&!hash.equals(checksum(temp)))throw new java.io.IOException(AppText.tr("SHA-256 копии не совпадает"));
             if(target==null||target.isEmpty())target="keep".equals(policy)?unique(parent,name):join(parent,name);
             if(checkpoint!=null)checkpoint.ready(target,hash);
             publish(temp,target,policy);return target;
@@ -353,16 +353,16 @@ final class SftpClient {
         private void publish(String temp,String target,String policy)throws Exception{
             RemoteEntry prior=entry(target);
             if(prior!=null){
-                if(!"replace".equals(policy)||prior.directory)throw new java.io.IOException("Имя назначения уже занято");
+                if(!"replace".equals(policy)||prior.directory)throw new java.io.IOException(AppText.tr("Имя назначения уже занято"));
                 String backup=temp+".previous";
-                if(entry(backup)!=null)throw new java.io.IOException("Сохранена прежняя копия после обрыва. Проверь "+backup);
+                if(entry(backup)!=null)throw new java.io.IOException(AppText.tr("Сохранена прежняя копия после обрыва. Проверь ")+backup);
                 c.sftp.rename(literal(target),literal(backup));
                 try{c.sftp.rename(literal(temp),literal(target));}
                 catch(Exception error){try{c.sftp.rename(literal(backup),literal(target));}catch(Exception restore){error.addSuppressed(restore);}throw error;}
                 c.sftp.rm(literal(backup));
             }else{
                 String backup=temp+".previous";RemoteEntry saved=entry(backup);
-                if(saved!=null&&(!"replace".equals(policy)||saved.directory))throw new java.io.IOException("Не подтверждена принадлежность резервной копии");
+                if(saved!=null&&(!"replace".equals(policy)||saved.directory))throw new java.io.IOException(AppText.tr("Не подтверждена принадлежность резервной копии"));
                 try{c.sftp.rename(literal(temp),literal(target));}
                 catch(Exception error){if(saved!=null)try{if(entry(target)==null)c.sftp.rename(literal(backup),literal(target));}catch(Exception restore){error.addSuppressed(restore);}throw error;}
                 if(saved!=null)c.sftp.rm(literal(backup));
@@ -370,13 +370,13 @@ final class SftpClient {
         }
         private static final class ResumeCancelled extends RuntimeException{}
         void read(String path,OutputStream out,ProgressCallback progress)throws Exception{
-            if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Передача отменена");
-            SftpATTRS a=c.sftp.lstat(literal(path));if(a.isLink() || !a.isReg())throw new java.io.IOException("Недопустимый файл");
+            if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException(AppText.tr("Передача отменена"));
+            SftpATTRS a=c.sftp.lstat(literal(path));if(a.isLink() || !a.isReg())throw new java.io.IOException(AppText.tr("Недопустимый файл"));
             final long[] copied={0};final boolean[] keepGoing={true};
             c.sftp.get(literal(path),metered(out),monitor((n,total)->{copied[0]=n;keepGoing[0]=keepGoing[0] && (progress==null || progress.onProgress(n,total));return keepGoing[0];},a.getSize()));
-            if(!keepGoing[0] || Thread.currentThread().isInterrupted() || copied[0]!=a.getSize())throw new java.io.InterruptedIOException("Передача не завершена");
+            if(!keepGoing[0] || Thread.currentThread().isInterrupted() || copied[0]!=a.getSize())throw new java.io.InterruptedIOException(AppText.tr("Передача не завершена"));
             SftpATTRS after=c.sftp.lstat(literal(path));
-            if(after.isLink() || !after.isReg() || after.getSize()!=a.getSize() || after.getMTime()!=a.getMTime())throw new java.io.IOException("Файл на сервере изменился во время скачивания. Повтори передачу.");
+            if(after.isLink() || !after.isReg() || after.getSize()!=a.getSize() || after.getMTime()!=a.getMTime())throw new java.io.IOException(AppText.tr("Файл на сервере изменился во время скачивания. Повтори передачу."));
             out.flush();
         }
         String write(String parent,String name,InputStream input,long size,ProgressCallback progress)throws Exception{
@@ -393,11 +393,11 @@ final class SftpClient {
                     }
                 }catch(java.io.IOException error){
                     if(!keepGoing[0] || Thread.currentThread().isInterrupted()){
-                        java.io.InterruptedIOException cancelled=new java.io.InterruptedIOException("Передача отменена");
+                        java.io.InterruptedIOException cancelled=new java.io.InterruptedIOException(AppText.tr("Передача отменена"));
                         cancelled.initCause(error);throw cancelled;
                     }
                     if(error.getCause() instanceof com.jcraft.jsch.SftpException)throw (com.jcraft.jsch.SftpException)error.getCause();
-                    throw new com.jcraft.jsch.SftpException(ChannelSftp.SSH_FX_FAILURE,"Передача не завершена",error);
+                    throw new com.jcraft.jsch.SftpException(ChannelSftp.SSH_FX_FAILURE,AppText.tr("Передача не завершена"),error);
                 }
                 if(!keepGoing[0] || Thread.currentThread().isInterrupted() || (size>0 && copied[0]!=size))throw new java.io.InterruptedIOException();
                 // Resolve the name after streaming; another upload may have finished meanwhile.
@@ -407,7 +407,7 @@ final class SftpClient {
                     try{c.sftp.rename(literal(temp),literal(target));moved=true;return target;}
                     catch(com.jcraft.jsch.SftpException error){if(!exists(target))throw error;}
                 }
-                throw new java.io.IOException("Имя одновременно занимают другие передачи. Повтори копирование.");
+                throw new java.io.IOException(AppText.tr("Имя одновременно занимают другие передачи. Повтори копирование."));
             }finally{if(!moved)try{c.sftp.rm(literal(temp));}catch(Exception ignored){}}
         }
         @Override public void close(){c.close();}
@@ -416,7 +416,7 @@ final class SftpClient {
     private static Connection connect(String host, int port, String user, SshCredentials credential,
                                       String trustedFingerprint) throws Exception {
         if (trustedFingerprint == null || trustedFingerprint.trim().isEmpty()) {
-            throw new Exception("Сначала подтверди SSH fingerprint на главном экране.");
+            throw new Exception(AppText.tr("Сначала подтверди SSH fingerprint на главном экране."));
         }
         JSch jsch = new JSch();
         // Enforce the trusted key during key exchange, before SSH password authentication.
@@ -438,7 +438,7 @@ final class SftpClient {
             String fingerprint = hostKey == null ? "" : hostKey.getFingerPrint(jsch);
             if (!trustedFingerprint.equals(fingerprint)) {
                 session.disconnect();
-                throw new Exception("SSH fingerprint изменился. Передача заблокирована.");
+                throw new Exception(AppText.tr("SSH fingerprint изменился. Передача заблокирована."));
             }
     
             ChannelSftp sftp = (ChannelSftp) session.openChannel("sftp");

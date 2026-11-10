@@ -49,17 +49,17 @@ public class NetworkActivity extends BaseActivity {
     }
     private void save(){
         String host=localHostInput.getText().toString().trim();localHostInput.setError(null);
-        if(!ConnectionEndpoint.validHost(host)){localHostInput.setError("Укажи IP или имя сервера без порта и пути");return;}
+        if(!ConnectionEndpoint.validHost(host)){localHostInput.setError(AppText.tr("Укажи IP или имя сервера без порта и пути"));return;}
         SharedPreferences prefs=getSharedPreferences(ServerConfig.PREFS,MODE_PRIVATE);
         if(!loadedMode.equals(prefs.getString(ServerConfig.KEY_MODE,ServerConfig.MODE_LOCAL))||!loadedHost.equals(ConnectionSelector.selectedHost(this))||loadedPort!=prefs.getInt(ServerConfig.KEY_PORT,ServerConfig.DEFAULT_PORT)||!loadedUser.equals(prefs.getString(ServerConfig.KEY_USER,ServerConfig.DEFAULT_USER))){
-            Toast.makeText(this,"Подключение изменилось. Открой поиск заново.",Toast.LENGTH_LONG).show();return;
+            Toast.makeText(this,AppText.tr("Подключение изменилось. Открой поиск заново."),Toast.LENGTH_LONG).show();return;
         }
-        if(loadedPort<1||loadedPort>65535||!ConnectionEndpoint.validUser(loadedUser)){Toast.makeText(this,"Проверь порт и пользователя в подключении",Toast.LENGTH_LONG).show();return;}
+        if(loadedPort<1||loadedPort>65535||!ConnectionEndpoint.validUser(loadedUser)){Toast.makeText(this,AppText.tr("Проверь порт и пользователя в подключении"),Toast.LENGTH_LONG).show();return;}
         try{SshKeys.moveRoute(this,loadedHost,host,loadedPort,loadedUser);}
-        catch(Exception error){Toast.makeText(this,"Не удалось сохранить доступ. Прежний адрес сохранён.",Toast.LENGTH_LONG).show();return;}
+        catch(Exception error){Toast.makeText(this,AppText.tr("Не удалось сохранить доступ. Прежний адрес сохранён."),Toast.LENGTH_LONG).show();return;}
         // Old alternate profiles remain intact; there is no VPN control or automatic migration.
         prefs.edit().putString(ServerConfig.MODE_VPN.equals(loadedMode)?ServerConfig.KEY_VPN_HOST:ServerConfig.KEY_LOCAL_HOST,host).apply();
-        loadedHost=host;Toast.makeText(this,"Адрес сохранён",Toast.LENGTH_SHORT).show();
+        loadedHost=host;Toast.makeText(this,AppText.tr("Адрес сохранён"),Toast.LENGTH_SHORT).show();
     }
 
     private void discoverLocalServer() {
@@ -81,16 +81,16 @@ public class NetworkActivity extends BaseActivity {
                 }
                 String[] candidates = result.hosts.toArray(new String[0]);
                 AlertDialog.Builder dialog = new AlertDialog.Builder(this)
-                        .setTitle("Найден SSH-сервер")
-                        .setNegativeButton("Отмена", null);
+                        .setTitle(AppText.tr("Найден SSH-сервер"))
+                        .setNegativeButton(AppText.tr("Отмена"), null);
                 if (candidates.length == 1) {
-                    dialog.setMessage("Найден адрес " + candidates[0]
-                                    + ". Подставить его в поле адреса?")
-                            .setPositiveButton("Использовать", (d, which) ->
+                    dialog.setMessage(AppText.tr("Найден адрес ") + candidates[0]
+                                    + AppText.tr(". Подставить его в поле адреса?"))
+                            .setPositiveButton(AppText.tr("Использовать"), (d, which) ->
                                     applyDiscoveredHost(candidates[0], port));
                 } else {
                     // AlertDialog displays either a message or its item list, not both.
-                    dialog.setTitle("Выбери SSH-сервер")
+                    dialog.setTitle(AppText.tr("Выбери SSH-сервер"))
                             .setItems(candidates, (d, which) ->
                                     applyDiscoveredHost(candidates[which], port));
                 }
@@ -110,7 +110,7 @@ public class NetworkActivity extends BaseActivity {
         if (requestTask != null) requestTask.cancel(true);
         findViewById(R.id.networkDiscoverButton).setEnabled(true);
         if (discoveryDialog != null) discoveryDialog.dismiss();
-        if (resultText.getText().toString().startsWith("Ищу устройства"))
+        if (resultText.getText().toString().startsWith(AppText.tr("Ищу устройства")))
             resultText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_74ceac806dfb);
     }
     @Override protected void onPause() { cancelRequest(); super.onPause(); }

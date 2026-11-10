@@ -16,7 +16,7 @@ final class ServerStartupFailure {
             case "POWER":code="POWER";break;
             default:code="FOREGROUND";
         }
-        StringBuilder out=new StringBuilder("Этап: "+code+"\n");
+        StringBuilder out=new StringBuilder(AppText.tr("Этап: ")+code+"\n");
         Set<Throwable> seen=Collections.newSetFromMap(new IdentityHashMap<>());
         for(Throwable cause=error;cause!=null && seen.size()<8 && seen.add(cause);cause=cause.getCause()) {
             out.append(cause.getClass().getSimpleName()).append('\n');int limit=0;
@@ -27,13 +27,13 @@ final class ServerStartupFailure {
     static String hint(String stage,Throwable error) {
         Set<Throwable> seen=Collections.newSetFromMap(new IdentityHashMap<>());
         for(Throwable cause=error;cause!=null && seen.add(cause);cause=cause.getCause())
-            if(cause instanceof java.net.BindException)return "Порт занят. Останови другой сервер или выбери другой порт.";
-        if("TIMEOUT".equals(stage))return "Запуск не завершился за 45 секунд. Скопируй диагностику запуска.";
-        if("INPUT".equals(stage))return "Проверь пользователя localls и порт 1024–65535.";
-        if("KEY".equals(stage))return "Не удалось прочитать публичный ключ. Нужен RSA 3072+ или ECDSA P-256 (.pub).";
-        if("IDENTITY".equals(stage))return "Не удалось открыть host key в Android Keystore. Ключ не заменён.";
-        if("POWER".equals(stage))return "Android не разрешил поддержку сервера в фоне.";
-        if("NETWORK".equals(stage))return "Ошибка запуска сетевого сервера. Скопируй диагностику кнопкой ниже.";
-        return "Android не разрешил запуск службы. Скопируй диагностику кнопкой ниже.";
+            if(cause instanceof java.net.BindException)return AppText.tr("Порт занят. Останови другой сервер или выбери другой порт.");
+        if("TIMEOUT".equals(stage))return AppText.tr("Запуск не завершился за 45 секунд. Скопируй диагностику запуска.");
+        if("INPUT".equals(stage))return AppText.tr("Проверь пользователя localls и порт 1024–65535.");
+        if("KEY".equals(stage))return AppText.tr("Не удалось прочитать публичный ключ. Нужен RSA 3072+ или ECDSA P-256 (.pub).");
+        if("IDENTITY".equals(stage))return AppText.tr("Не удалось открыть host key в Android Keystore. Ключ не заменён.");
+        if("POWER".equals(stage))return AppText.tr("Android не разрешил поддержку сервера в фоне.");
+        if("NETWORK".equals(stage))return AppText.tr("Ошибка запуска сетевого сервера. Скопируй диагностику кнопкой ниже.");
+        return AppText.tr("Android не разрешил запуск службы. Скопируй диагностику кнопкой ниже.");
     }
 }

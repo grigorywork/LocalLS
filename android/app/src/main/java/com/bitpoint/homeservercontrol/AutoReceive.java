@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 final class AutoReceive implements AutoCloseable {
     // Receivers can overlap while an old provider is still closing after a server restart.
     private static final Object DRAIN_LOCK=new Object();
-    static volatile String status="Автосохранение готово";
+    static volatile String status=AppText.tr("Автосохранение готово");
     static volatile boolean error,active;
     static volatile String diagnostic="";
     private long lastProgress;
@@ -32,7 +32,7 @@ final class AutoReceive implements AutoCloseable {
             if(!f.isFile())return;
             queue.offer(relative,f.length(),f.lastModified());
             retry();
-        }catch(Exception e){failure("Не удалось поставить файл на автосохранение. Оригинал находится в LocalLS.",e);}
+        }catch(Exception e){failure(AppText.tr("Не удалось поставить файл на автосохранение. Оригинал находится в LocalLS."),e);}
     }
 
     synchronized void retry(){
@@ -40,14 +40,14 @@ final class AutoReceive implements AutoCloseable {
         requested.set(true);
         if(!scheduled.compareAndSet(false,true))return;
         try{worker.execute(this::runPending);}
-        catch(RejectedExecutionException e){scheduled.set(false);if(!closed)failure("Очередь сохранения остановлена. Перезапусти сервер.",e);}
+        catch(RejectedExecutionException e){scheduled.set(false);if(!closed)failure(AppText.tr("Очередь сохранения остановлена. Перезапусти сервер."),e);}
     }
 
     private void runPending(){
         synchronized(DRAIN_LOCK){
         try{
             while(!closed && requested.getAndSet(false))drain();
-        }catch(Exception e){if(!closed)failure("Не удалось прочитать очередь сохранения. Перезапусти сервер. Оригиналы находятся в LocalLS.",e);}
+        }catch(Exception e){if(!closed)failure(AppText.tr("Не удалось прочитать очередь сохранения. Перезапусти сервер. Оригиналы находятся в LocalLS."),e);}
         finally{
             active=false;scheduled.set(false);
             if(!closed && requested.get())retry();
@@ -74,12 +74,12 @@ final class AutoReceive implements AutoCloseable {
                     queue.discard(item);missing++;continue;
                 }
                 String destination=ReceiveFolder.selected(context),place=ReceiveFolder.label(destination);
-                active=true;status="Автосохранение → "+place;
+                active=true;status=AppText.tr("Автосохранение → ")+place;
                 LocalFileExporter.copy(root,item.path,ReceiveFolder.destination(context,item.path,destination),(done,total)->{
                     if(closed)throw new CancellationException();
                     long now=android.os.SystemClock.elapsedRealtime();
                     if(now-lastProgress>250 || done==total){
-                        lastProgress=now;status="Автосохранение · "+LocalFileExportService.format(done)+" / "+LocalFileExportService.format(total);
+                        lastProgress=now;status=AppText.tr("Автосохранение · ")+LocalFileExportService.format(done)+" / "+LocalFileExportService.format(total);
                     }
                 });
                 queue.done(item);saved++;lastSavedFolder=place;
@@ -93,12 +93,12 @@ final class AutoReceive implements AutoCloseable {
         if(closed){active=false;return;}
         if(failed>0){
             error=true;diagnostic=firstFailure;
-            status="Сохранено: "+saved+". Ожидают повтора: "+failed+". Проверь папку и свободное место, затем нажми «Повторить сохранение».";
+            status=AppText.tr("Сохранено: ")+saved+AppText.tr(". Ожидают повтора: ")+failed+AppText.tr(". Проверь папку и свободное место, затем нажми «Повторить сохранение».");
         }else{
             error=false;diagnostic="";
-            status=saved>0?"Сохранено автоматически: "+saved+". Последнее место → "+lastSavedFolder:"Автосохранение готово";
+            status=saved>0?AppText.tr("Сохранено автоматически: ")+saved+AppText.tr(". Последнее место → ")+lastSavedFolder:AppText.tr("Автосохранение готово");
         }
-        if(missing>0)status+=" Пропущены удалённые исходники: "+missing+".";
+        if(missing>0)status+=AppText.tr(" Пропущены удалённые исходники: ")+missing+".";
         active=false;
     }
 

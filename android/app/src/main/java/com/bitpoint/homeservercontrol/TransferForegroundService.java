@@ -42,8 +42,8 @@ public class TransferForegroundService extends Service {
         if(lastFailed!=null && id.equals(lastFailed.request.getStringExtra(REQUEST_ID)))lastFailed=null;
         return lastFailed;
     }}
-    static volatile String currentName="Подготовка передачи";
-    static volatile State state=new State(false,false,"Передач пока нет","",0,0,0);
+    static volatile String currentName=AppText.tr("Подготовка передачи");
+    static volatile State state=new State(false,false,AppText.tr("Передач пока нет"),"",0,0,0);
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final AtomicInteger queued=new AtomicInteger();
     private final Object lifecycle=new Object();
@@ -61,7 +61,7 @@ public class TransferForegroundService extends Service {
         enqueue(c,action,sources,remotePath,destination,endpoint,TransferJournal.KEEP,false);
     }
     static void enqueue(Context c,String action,List<FileNodes.Node> sources,String remotePath,FileNodes.Node destination,FileConnection endpoint,String conflict,boolean verify){
-        if(sources.isEmpty() || sources.size()>64)throw new IllegalArgumentException("Выбери от 1 до 64 элементов");
+        if(sources.isEmpty() || sources.size()>64)throw new IllegalArgumentException(AppText.tr("Выбери от 1 до 64 элементов"));
         Intent i=new Intent(c,TransferForegroundService.class).setAction(action).putExtra(REQUEST_ID,UUID.randomUUID().toString());
         ArrayList<Bundle> nodes=new ArrayList<>();for(FileNodes.Node n:sources)nodes.add(n.bundle());i.putParcelableArrayListExtra("sources",nodes);
         if(destination!=null)i.putExtra("destination",destination.bundle());i.putExtra("remote",remotePath);
@@ -71,38 +71,38 @@ public class TransferForegroundService extends Service {
         ArrayList<Uri> grants=new ArrayList<>();for(FileNodes.Node n:sources)if("doc".equals(n.kind))grants.add(Uri.parse(n.path));
         if(!grants.isEmpty()){ClipData clip=ClipData.newRawUri("LocalLS files",grants.get(0));for(int n=1;n<grants.size();n++)clip.addItem(new ClipData.Item(grants.get(n)));i.setClipData(clip);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);}
         synchronized(REQUEST_LOCK){
-            if(clearing)throw new IllegalStateException("Подожди окончания очистки очереди");
-            try{new TransferJournal(c).ensure(i);}catch(Exception error){throw new IllegalStateException("Не удалось сохранить очередь",error);}
+            if(clearing)throw new IllegalStateException(AppText.tr("Подожди окончания очистки очереди"));
+            try{new TransferJournal(c).ensure(i);}catch(Exception error){throw new IllegalStateException(AppText.tr("Не удалось сохранить очередь"),error);}
             launch(c,i);
         }
     }
     private static void launch(Context c,Intent request){if(Build.VERSION.SDK_INT>=26)c.startForegroundService(request);else c.startService(request);}
-    static void resume(Context c,String id)throws Exception{synchronized(REQUEST_LOCK){if(clearing)throw new IllegalStateException("Очищаем список");launch(c,new TransferJournal(c).request(id));}}
+    static void resume(Context c,String id)throws Exception{synchronized(REQUEST_LOCK){if(clearing)throw new IllegalStateException(AppText.tr("Очищаем список"));launch(c,new TransferJournal(c).request(id));}}
     static void restore(Context c){
         if(state.active)return;
         try{int pending=0;TransferJournal journal=new TransferJournal(c);for(org.json.JSONObject j:journal.list()){
             String status=j.optString("status");if("done".equals(status))ShareOutbox.completed(c,journal.request(j.getString("id")));if(!"done".equals(status)&&!"cancelled".equals(status)){
                 pending++;if(lastFailed==null)lastFailed=new FailedJob(journal.request(j.getString("id")),j.optString("message"));
             }
-        }if(pending>0)state=new State(false,true,"Сохранено незавершённых заданий: "+pending+". Открой очередь для продолжения.","",0,0,pending);
-        }catch(Exception e){state=new State(false,true,"Не удалось прочитать сохранённую очередь. Данные очереди сохранены.","QUEUE_READ",0,0,0);}
+        }if(pending>0)state=new State(false,true,AppText.tr("Сохранено незавершённых заданий: ")+pending+AppText.tr(". Открой очередь для продолжения."),"",0,0,pending);
+        }catch(Exception e){state=new State(false,true,AppText.tr("Не удалось прочитать сохранённую очередь. Данные очереди сохранены."),"QUEUE_READ",0,0,0);}
     }
     static void retry(Context c){FailedJob previous=lastFailed;if(previous!=null){Intent i=new Intent(previous.request);if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);}}
     static boolean canRetry(){return lastFailed!=null;}
     static void stop(Context c){c.stopService(new Intent(c,TransferForegroundService.class));}
     static void cancel(Context c){c.startService(new Intent(c,TransferForegroundService.class).setAction(CANCEL));}
     static void clear(Context c){c.startService(new Intent(c,TransferForegroundService.class).setAction(CLEAR));}
-    @Override public void onCreate(){super.onCreate();journal=new TransferJournal(this);power=new TransferPowerGuard(this);if(Build.VERSION.SDK_INT>=26)getSystemService(NotificationManager.class).createNotificationChannel(new NotificationChannel("file_transfers","Передача файлов",NotificationManager.IMPORTANCE_LOW));}
+    @Override public void onCreate(){super.onCreate();journal=new TransferJournal(this);power=new TransferPowerGuard(this);if(Build.VERSION.SDK_INT>=26)getSystemService(NotificationManager.class).createNotificationChannel(new NotificationChannel("file_transfers",AppText.tr("Передача файлов"),NotificationManager.IMPORTANCE_LOW));}
     private Notification notification(String text){
         PendingIntent open=PendingIntent.getActivity(this,60,new Intent(this,FilesActivity.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         PendingIntent cancel=PendingIntent.getService(this,61,new Intent(this,TransferForegroundService.class).setAction(CANCEL),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder b=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,"file_transfers"):new Notification.Builder(this);
-        return b.setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification).setContentTitle("LocalLS · передача файлов").setContentText(text).setContentIntent(open).setOngoing(true).addAction(0,"Отменить очередь",cancel).build();
+        return b.setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification).setContentTitle(AppText.tr("LocalLS · передача файлов")).setContentText(text).setContentIntent(open).setOngoing(true).addAction(0,AppText.tr("Отменить очередь"),cancel).build();
     }
     @Override public int onStartCommand(Intent intent,int flags,int id){
-        synchronized(lifecycle){return startCommand(intent,id);}
+        synchronized(lifecycle){return startCommand(intent,id,flags);}
     }
-    private int startCommand(Intent intent,int id){
+    private int startCommand(Intent intent,int id,int flags){
         if(destroyed)return START_NOT_STICKY;
         commandRevision++;
         latestId=id;
@@ -111,17 +111,17 @@ public class TransferForegroundService extends Service {
             boolean clear=CLEAR.equals(intent.getAction());if(clearing)return START_NOT_STICKY;
             if(clear)synchronized(REQUEST_LOCK){clearing=true;clearOwner=this;}
             try{journal.cancelAll();synchronized(REQUEST_LOCK){lastFailed=null;}}
-            catch(Exception e){if(clear)synchronized(REQUEST_LOCK){clearing=false;clearOwner=null;}state=new State(queued.get()>0,true,"Не удалось сохранить отмену. Журнал сохранён.","QUEUE_CANCEL",0,0,queued.get());if(queued.get()==0)stopSelf(id);return START_NOT_STICKY;}
+            catch(Exception e){if(clear)synchronized(REQUEST_LOCK){clearing=false;clearOwner=null;}state=new State(queued.get()>0,true,AppText.tr("Не удалось сохранить отмену. Журнал сохранён."),"QUEUE_CANCEL",0,0,queued.get());if(queued.get()==0)stopSelf(id);return START_NOT_STICKY;}
             generation++;int count=queued.get();
-            state=new State(count>0,false,clear?"Очищаем список…":count>0?"Останавливаем очередь…":"Очередь пуста.","",0,0,count);
+            state=new State(count>0,false,clear?AppText.tr("Очищаем список…"):count>0?AppText.tr("Останавливаем очередь…"):AppText.tr("Очередь пуста."),"",0,0,count);
             if(clear){
                 worker.execute(()->{
                     try{
                         // A previous service instance may still be closing a provider stream.
                         synchronized(REQUEST_LOCK){while(!writers.isEmpty())REQUEST_LOCK.wait();}
-                        synchronized(lifecycle){if(destroyed)return;journal.clearAll();state=new State(false,false,"Очередь пуста.","",0,0,0);}
+                        synchronized(lifecycle){if(destroyed)return;journal.clearAll();state=new State(false,false,AppText.tr("Очередь пуста."),"",0,0,0);}
                     }
-                    catch(Exception e){state=new State(false,true,"Не удалось полностью очистить список. Повтори очистку.","QUEUE_CLEAR",0,0,0);}
+                    catch(Exception e){state=new State(false,true,AppText.tr("Не удалось полностью очистить список. Повтори очистку."),"QUEUE_CLEAR",0,0,0);}
                     finally{synchronized(REQUEST_LOCK){if(clearOwner==this){clearing=false;clearOwner=null;}}new Handler(getMainLooper()).post(()->{synchronized(lifecycle){if(!destroyed&&queued.get()==0)stopSelf(latestId);}});}
                 });
             }else if(count==0)stopSelf(id);
@@ -137,20 +137,21 @@ public class TransferForegroundService extends Service {
             candidate.putExtra("destination",FileNodes.phoneRoot(this).bundle());
         final Intent request;
         try{
+            if((flags&START_FLAG_REDELIVERY)!=0 && (supplied==null||supplied.isEmpty()||!journal.canRedeliver(requestId))){if(queued.get()==0)stopSelf(id);return queued.get()>0?START_REDELIVER_INTENT:START_NOT_STICKY;}
             if(!journal.ensure(candidate)){if(queued.get()==0)stopSelf(id);return START_NOT_STICKY;}
             request=journal.request(requestId);
-        }catch(Exception error){state=new State(false,true,"Не удалось сохранить задание. Передача не начата.",LocalExportFailure.report("DESTINATION",error),0,0,queued.get());stopSelf(id);return START_NOT_STICKY;}
-        try{startForeground(NOTIFICATION,notification("Подготовка файлов и папок…"));}
+        }catch(Exception error){state=new State(false,true,AppText.tr("Не удалось сохранить задание. Передача не начата."),LocalExportFailure.report("DESTINATION",error),0,0,queued.get());stopSelf(id);return START_NOT_STICKY;}
+        try{startForeground(NOTIFICATION,notification(AppText.tr("Подготовка файлов и папок…")));}
         catch(RuntimeException error){
             String diagnostic=LocalExportFailure.report("FOREGROUND",error);failed(request,diagnostic);
             try{journal.status(requestId,"failed",diagnostic);}catch(Exception ignored){}
-            state=new State(false,true,"Android не разрешил запустить фоновую передачу. Открой LocalLS и повтори.",diagnostic,0,0,0);
+            state=new State(false,true,AppText.tr("Android не разрешил запустить фоновую передачу. Открой LocalLS и повтори."),diagnostic,0,0,0);
             stopSelf(id);return START_NOT_STICKY;
         }
         // Repeated retry taps retain the id; deliberate new copies receive new ids.
-        if(!claim(requestId)){if(queued.get()==0)stopSelf(id);return START_NOT_STICKY;}
+        if(!claim(requestId)){if(queued.get()==0)stopSelf(id);return queued.get()>0?START_REDELIVER_INTENT:START_NOT_STICKY;}
         int count=queued.incrementAndGet(),batch=generation;
-        state=new State(true,false,"В очереди: "+count,"",0,0,count);
+        state=new State(true,false,AppText.tr("В очереди: ")+count,"",0,0,count);
         worker.execute(()->{
             Object telemetry=new Object();boolean success=false,claimReleased=false,ownsWriter=false;
             try{
@@ -159,44 +160,44 @@ public class TransferForegroundService extends Service {
                 acquireWriter(requestId);ownsWriter=true;
                 synchronized(lifecycle){
                     if(destroyed || batch!=generation)return;
-                    journal.status(requestId,"running","Подготовка передачи");
-                    currentName="Подготовка передачи";power.acquire();state=new State(true,false,"Подготовка передачи…","",0,0,queued.get());
+                    journal.status(requestId,"running",AppText.tr("Подготовка передачи"));
+                    currentName=AppText.tr("Подготовка передачи");power.acquire();state=new State(true,false,AppText.tr("Подготовка передачи…"),"",0,0,queued.get());
                 }
                 TransferSpeedStore.begin(telemetry);new Job(request,batch,telemetry).run();
                 synchronized(lifecycle){if(!destroyed && batch==generation){
-                    journal.status(requestId,"done","Готово");journal.cleanParts(requestId);ShareOutbox.completed(this,request);
+                    journal.status(requestId,"done",AppText.tr("Готово"));journal.cleanParts(requestId);ShareOutbox.completed(this,request);
                     success=true;FailedJob remaining=succeeded(requestId);int pending=queued.get()-1;
-                    state=new State(pending>0,remaining!=null,pending>0?"Задание скопировано. Осталось в очереди: "+pending:remaining==null?"Готово. Файлы и папки скопированы.":"Задание скопировано. Есть неудачная передача для повтора.",remaining==null?"":remaining.diagnostic,0,0,pending);
+                    state=new State(pending>0,remaining!=null,pending>0?AppText.tr("Задание скопировано. Осталось в очереди: ")+pending:remaining==null?AppText.tr("Готово. Файлы и папки скопированы."):AppText.tr("Задание скопировано. Есть неудачная передача для повтора."),remaining==null?"":remaining.diagnostic,0,0,pending);
                 }}
                 if(success){
                     try{
                         TransferSpeedStore.Snapshot completedSpeed=TransferSpeedStore.snapshot();
                         if(completedSpeed.jobPeak>0)MetricHistoryStore.addSpeed(this,completedSpeed.jobPeak);
-                        TransferLogStore.add(this,"Копирование файлов и папок","Готово");
+                        TransferLogStore.add(this,AppText.tr("Копирование файлов и папок"),AppText.tr("Готово"));
                     }catch(RuntimeException ignored){/* Telemetry must not turn a completed copy into a retry. */}
                 }
             }catch(Exception | LinkageError error){
                 boolean reported=false;
                 synchronized(lifecycle){if(!destroyed && batch==generation){
                     String diagnostic=LocalExportFailure.report("TRANSFER",error);
-                    try{journal.status(requestId,"failed",error instanceof IOException?error.getMessage():"Передача не завершена");}catch(Exception persist){error.addSuppressed(persist);}
+                    try{journal.status(requestId,"failed",error instanceof IOException?error.getMessage():AppText.tr("Передача не завершена"));}catch(Exception persist){error.addSuppressed(persist);}
                     synchronized(REQUEST_LOCK){
                         failed(request,diagnostic);
                         int pending=queued.get()-1;
-                        state=new State(pending>0,true,"Передача не завершена. Исходники сохранены. Проверь сеть, папку и свободное место."+(pending>0?" Осталось в очереди: "+pending:""),diagnostic,0,0,pending);
+                        state=new State(pending>0,true,AppText.tr("Передача не завершена. Исходники сохранены. Проверь сеть, папку и свободное место.")+(pending>0?AppText.tr(" Осталось в очереди: ")+pending:""),diagnostic,0,0,pending);
                         inFlight.remove(requestId);claimReleased=true;
                     }
                     reported=true;
                 }}
-                if(reported)try{TransferLogStore.add(this,"Копирование файлов и папок","Ошибка. Можно повторить.");}catch(RuntimeException ignored){}
+                if(reported)try{TransferLogStore.add(this,AppText.tr("Копирование файлов и папок"),AppText.tr("Ошибка. Можно повторить."));}catch(RuntimeException ignored){}
             }finally{
                 if(ownsWriter)releaseWriter(requestId);
                 if(!claimReleased)release(requestId);
-                TransferSpeedStore.end(telemetry,success?"Завершено":batch==generation?"Ошибка":"Отменено");
+                TransferSpeedStore.end(telemetry,success?AppText.tr("Завершено"):batch==generation?AppText.tr("Ошибка"):AppText.tr("Отменено"));
                 synchronized(lifecycle){if(queued.decrementAndGet()==0){
                     power.release();
                     if(!destroyed){
-                        if(batch!=generation)state=new State(false,false,"Очередь отменена. Завершённые файлы сохранены.","",0,0,0);
+                        if(batch!=generation)state=new State(false,false,AppText.tr("Очередь отменена. Завершённые файлы сохранены."),"",0,0,0);
                         final long finishedRevision=commandRevision;final int finishedId=latestId;
                         new Handler(getMainLooper()).post(()->{synchronized(lifecycle){
                             if(!destroyed && !clearing && queued.get()==0 && finishedRevision==commandRevision)stopSelf(finishedId);
@@ -205,19 +206,20 @@ public class TransferForegroundService extends Service {
                 }}
             }
         });
-        return START_NOT_STICKY;
+        // Android may redeliver only this persisted request. Terminal jobs are rejected above.
+        return supplied!=null&&!supplied.isEmpty()?START_REDELIVER_INTENT:START_NOT_STICKY;
     }
     private final class Job {
         final Intent request;final int batch;final Object telemetry;DurableTransferJob durable;long payloadBytes;int visited,completed;SftpClient.TreeSession remote;
         Job(Intent i,int b,Object t){request=i;batch=b;telemetry=t;}
         void check()throws IOException{synchronized(lifecycle){if(destroyed || batch!=generation || Thread.currentThread().isInterrupted())throw new InterruptedIOException();power.acquire();}}
-        void visit(int depth)throws IOException{check();if(depth>48 || ++visited>10000)throw new IOException("Слишком большая папка: максимум 10000 элементов и 48 уровней");}
+        void visit(int depth)throws IOException{check();if(depth>48 || ++visited>10000)throw new IOException(AppText.tr("Слишком большая папка: максимум 10000 элементов и 48 уровней"));}
         void progress(long bytes,long total){
             synchronized(lifecycle){
             if(destroyed || batch!=generation)return;
             long now=SystemClock.elapsedRealtime();
             if(now-lastProgress<200 && bytes!=total)return;lastProgress=now;
-            String text="Передача: "+LocalFileExportService.format(bytes)+(total>0?" / "+LocalFileExportService.format(total):"");
+            String text=AppText.tr("Передача: ")+LocalFileExportService.format(bytes)+(total>0?" / "+LocalFileExportService.format(total):"");
             state=new State(true,false,text,"",bytes,total,queued.get(),request.getStringExtra(REQUEST_ID),durable==null?"":durable.sourceKey);getSystemService(NotificationManager.class).notify(NOTIFICATION,notification(text));
             }
         }
@@ -232,5 +234,5 @@ public class TransferForegroundService extends Service {
 
     @Override public IBinder onBind(Intent i){return null;}
     @Override public void onTimeout(int id,int type){synchronized(lifecycle){generation++;stopSelf();}}
-    @Override public void onDestroy(){synchronized(lifecycle){destroyed=true;generation++;worker.shutdownNow();synchronized(REQUEST_LOCK){for(String key:inFlight)try{journal.pause(key);}catch(Exception ignored){}if(clearOwner==this){clearing=false;clearOwner=null;}}if(state.active)state=new State(false,true,"Передача остановлена Android. Очередь и завершённые файлы сохранены.","SERVICE_STOPPED",0,0,0);power.release();}stopForeground(true);super.onDestroy();}
+    @Override public void onDestroy(){synchronized(lifecycle){destroyed=true;generation++;worker.shutdownNow();synchronized(REQUEST_LOCK){for(String key:inFlight)try{journal.pause(key);}catch(Exception ignored){}if(clearOwner==this){clearing=false;clearOwner=null;}}if(state.active)state=new State(false,true,AppText.tr("Передача остановлена Android. Очередь и завершённые файлы сохранены."),"SERVICE_STOPPED",0,0,0);power.release();}stopForeground(true);super.onDestroy();}
 }

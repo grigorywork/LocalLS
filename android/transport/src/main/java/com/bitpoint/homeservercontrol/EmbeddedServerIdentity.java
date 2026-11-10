@@ -15,7 +15,7 @@ final class EmbeddedServerIdentity {
             return new KeyPair(factory.generatePublic(new X509EncodedKeySpec(Base64.decode(j.getString("public"),Base64.NO_WRAP))),
                     factory.generatePrivate(new PKCS8EncodedKeySpec(Base64.decode(j.getString("private"),Base64.NO_WRAP))));
         }
-        if(SecurePrefs.containsNamed(context,NAME)) throw new IllegalStateException("Сохранённый host key недоступен; автоматическая замена запрещена");
+        if(SecurePrefs.containsNamed(context,NAME)) throw new IllegalStateException(AppText.tr("Сохранённый host key недоступен; автоматическая замена запрещена"));
         KeyPairGenerator generator=KeyPairGenerator.getInstance("RSA");generator.initialize(3072);
         KeyPair pair=generator.generateKeyPair();
         SecurePrefs.saveNamed(context,NAME,new JSONObject().put("public",Base64.encodeToString(pair.getPublic().getEncoded(),Base64.NO_WRAP))

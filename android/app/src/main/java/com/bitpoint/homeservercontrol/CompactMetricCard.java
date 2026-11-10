@@ -18,13 +18,13 @@ final class CompactMetricCard extends LinearLayout {
 
     CompactMetricCard(Context context,String title,TextView number,Drawable image,int accent){
         super(context);setOrientation(VERTICAL);setBackground(SurfaceStyle.panel(context));setPadding(dp(10),dp(8),dp(10),dp(8));
-        this.title=title;compactTitle=title.replace(" сервера","");boolean batteryCard=image instanceof BatteryGaugeDrawable;
+        this.title=title;compactTitle=title.replace(AppText.tr(" сервера"),"");boolean batteryCard=image instanceof BatteryGaugeDrawable;
         heading=label(title,12,true);value=number;value.setTextSize(28);value.setTypeface(null,Typeface.BOLD);
         value.setCompoundDrawables(null,null,null,null);value.setPadding(0,0,0,0);value.setIncludeFontPadding(false);value.setMaxLines(1);
         addView(value,new LayoutParams(-1,-2));
         glyph=new ImageView(context);glyph.setImageDrawable(image);glyph.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);glyph.setPadding(dp(4),dp(4),dp(4),dp(4));
         GradientDrawable badge=new GradientDrawable();badge.setColor(Color.argb(24,Color.red(accent),Color.green(accent),Color.blue(accent)));badge.setCornerRadius(dp(8));glyph.setBackground(badge);addView(glyph,new LayoutParams(dp(32),dp(32)));
-        detail=label("Нет данных",11,false);indicator=new ProgressBar(context,null,android.R.attr.progressBarStyleHorizontal);indicator.setMax(100);indicator.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);addView(indicator,new LayoutParams(-1,dp(5)));
+        detail=label(AppText.tr("Нет данных"),11,false);indicator=new ProgressBar(context,null,android.R.attr.progressBarStyleHorizontal);indicator.setMax(100);indicator.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);addView(indicator,new LayoutParams(-1,dp(5)));
         GradientDrawable track=new GradientDrawable();track.setColor(ThemeCatalog.color(context,com.bitpoint.homeservercontrol.ui.R.attr.hscStroke));track.setCornerRadius(dp(4));
         GradientDrawable fill=new GradientDrawable();fill.setColor(accent);fill.setCornerRadius(dp(4));
         LayerDrawable layers=new LayerDrawable(new Drawable[]{track,new ClipDrawable(fill,Gravity.START,ClipDrawable.HORIZONTAL)});layers.setId(0,android.R.id.background);layers.setId(1,android.R.id.progress);progressImage=layers;dividerImage=SurfaceStyle.rule(context,0,0);clearImage=new ColorDrawable(Color.TRANSPARENT);indicator.setProgressDrawable(layers);

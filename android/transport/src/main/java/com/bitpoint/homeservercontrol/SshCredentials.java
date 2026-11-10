@@ -19,15 +19,15 @@ final class SshCredentials {
     void configure(JSch jsch, Session session) throws Exception {
         session.setConfig("StrictHostKeyChecking", "yes");
         if (keyMode()) {
-            if (privateKey.isEmpty()) throw new Exception("SSH-ключ не загружен. Откройте «Подключение → Адрес и ключ → Ключ доступа».");
+            if (privateKey.isEmpty()) throw new Exception(AppText.tr("SSH-ключ не загружен. Откройте «Подключение → Адрес и ключ → Ключ доступа»."));
             byte[] raw = privateKey.getBytes(StandardCharsets.UTF_8);
             byte[] phrase = passphrase.getBytes(StandardCharsets.UTF_8);
             try { jsch.addIdentity("LocalLS", raw, null, phrase); }
-            catch (LinkageError e) { throw new Exception("Алгоритм ключа не поддерживается на этом Android"); }
+            catch (LinkageError e) { throw new Exception(AppText.tr("Алгоритм ключа не поддерживается на этом Android")); }
             finally { Arrays.fill(raw, (byte) 0); Arrays.fill(phrase, (byte) 0); }
             if (jsch.getIdentityRepository().getIdentities().isEmpty()
                     || jsch.getIdentityRepository().getIdentities().get(0).isEncrypted())
-                throw new Exception("Ключ не распознан или неверна парольная фраза.");
+                throw new Exception(AppText.tr("Ключ не распознан или неверна парольная фраза."));
             session.setConfig("PreferredAuthentications", "publickey");
         } else {
             session.setPassword(password);

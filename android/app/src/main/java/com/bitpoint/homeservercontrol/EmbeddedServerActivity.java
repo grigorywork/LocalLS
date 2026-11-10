@@ -26,60 +26,61 @@ public class EmbeddedServerActivity extends BaseActivity {
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         LinearLayout layout=new SettingsColumn(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(SettingsUi.dp(this,16),SettingsUi.dp(this,16),SettingsUi.dp(this,16),SettingsUi.dp(this,16));
-        Button back=button(layout,"Настройки сервера",this::finish);back.setId(R.id.settingsBackButton);
-        LinearLayout server=SettingsUi.section(layout,"Сервер");
+        Button back=button(layout,AppText.tr("Настройки сервера"),this::finish);back.setId(R.id.settingsBackButton);
+        LinearLayout server=SettingsUi.section(layout,AppText.tr("Сервер"));
         wifiAddress=new WifiAddressView(this);wifiAddress.setId(R.id.embeddedWifiAddress);wifiAddress.compact();server.addView(wifiAddress);
         SharedPreferences p=getSharedPreferences(EmbeddedServerService.PREFS,MODE_PRIVATE);
-        CheckBox client=new CheckBox(this);client.setId(R.id.serverClientEnabledCheck);client.setText("Подключаться к другому серверу");client.setChecked(p.getBoolean("show_client",false));client.setTextSize(16);client.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));client.setMinHeight(SettingsUi.dp(this,56));client.setOnCheckedChangeListener((view,checked)->p.edit().putBoolean("show_client",checked).apply());
-        user=field(server,"Пользователь",p.getString("user","localls"),true);user.setId(R.id.embeddedServerUser);
-        port=field(server,"Порт",String.valueOf(p.getInt("port",8022)),true);port.setInputType(InputType.TYPE_CLASS_NUMBER);port.setId(R.id.embeddedServerPort);
+        CheckBox client=new CheckBox(this);client.setId(R.id.serverClientEnabledCheck);client.setText(AppText.tr("Подключаться к другому серверу"));client.setChecked(p.getBoolean("show_client",false));client.setTextSize(16);client.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));client.setMinHeight(SettingsUi.dp(this,56));client.setOnCheckedChangeListener((view,checked)->p.edit().putBoolean("show_client",checked).apply());
+        user=field(server,AppText.tr("Пользователь"),p.getString("user","localls"),true);user.setId(R.id.embeddedServerUser);
+        port=field(server,AppText.tr("Порт"),String.valueOf(p.getInt("port",8022)),true);port.setInputType(InputType.TYPE_CLASS_NUMBER);port.setId(R.id.embeddedServerPort);
         address=text(server,"",16);address.setId(R.id.embeddedServerAddress);address.setVisibility(android.view.View.GONE);address.setTextIsSelectable(true);
         state=text(server,"",16);
-        start=button(server,"Включить сервер",() -> {if(EmbeddedServerService.running)stopService(new Intent(this,EmbeddedServerService.class));else startServer();});
-        button(server,"Скопировать данные подключения",() -> {
-            if(LocalServerAddresses.current(this).isEmpty()) {message("Подключи телефон к Wi-Fi. Адрес появится здесь автоматически.");return;}
+        button(server,AppText.tr("Открыть настройки батареи"),()->startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)));
+        start=button(server,AppText.tr("Включить сервер"),() -> {if(EmbeddedServerService.running)EmbeddedServerService.stop(this);else startServer();});
+        button(server,AppText.tr("Скопировать данные подключения"),() -> {
+            if(LocalServerAddresses.current(this).isEmpty()) {message(AppText.tr("Подключи телефон к Wi-Fi. Адрес появится здесь автоматически."));return;}
             ClipboardManager c=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-            c.setPrimaryClip(ClipData.newPlainText("LocalLS SFTP",connectionText(true)));message("Данные подключения скопированы");
+            c.setPrimaryClip(ClipData.newPlainText("LocalLS SFTP",connectionText(true)));message(AppText.tr("Данные подключения скопированы"));
         });
-        LinearLayout access=SettingsUi.section(layout,"Доступ устройств");
-        text(access,"Вход по ключам. Новое устройство нужно разрешить один раз.",14);
-        button(access,"QR-подключение по ключу",() -> startActivity(new Intent(this,QrPairingActivity.class).putExtra("server",true)));
-        button(access,"Устройства с доступом",() -> startActivity(new Intent(this,ServerDevicesActivity.class)));
+        LinearLayout access=SettingsUi.section(layout,AppText.tr("Доступ устройств"));
+        text(access,AppText.tr("Вход по ключам. Новое устройство нужно разрешить один раз."),14);
+        button(access,AppText.tr("QR-подключение по ключу"),() -> startActivity(new Intent(this,QrPairingActivity.class).putExtra("server",true)));
+        button(access,AppText.tr("Устройства с доступом"),() -> startActivity(new Intent(this,ServerDevicesActivity.class)));
         LinearLayout manual=new LinearLayout(this);manual.setOrientation(LinearLayout.VERTICAL);manual.setVisibility(android.view.View.GONE);
-        Button manualToggle=button(access,"Публичный ключ (.pub)",() -> {});manualToggle.setTag("drawer_header");manualToggle.setOnClickListener(v->{boolean expanded=manual.getVisibility()!=android.view.View.VISIBLE;manual.setVisibility(expanded?android.view.View.VISIBLE:android.view.View.GONE);manualToggle.setSelected(expanded);IconButtons.decorate(manualToggle);});
+        Button manualToggle=button(access,AppText.tr("Публичный ключ (.pub)"),() -> {});manualToggle.setTag("drawer_header");manualToggle.setOnClickListener(v->{boolean expanded=manual.getVisibility()!=android.view.View.VISIBLE;manual.setVisibility(expanded?android.view.View.VISIBLE:android.view.View.GONE);manualToggle.setSelected(expanded);IconButtons.decorate(manualToggle);});
         access.addView(manual,new LinearLayout.LayoutParams(-1,-2));
-        key=field(manual,"Первый публичный ключ (.pub)",p.getString("allowed_key",""),false);key.setId(R.id.embeddedServerKey);key.setTextSize(14);key.setMinLines(2);key.setMaxLines(3);key.setVerticalScrollBarEnabled(true);
-        importKey=button(manual,"Выбрать файл .pub",() -> pick(910,"*/*",false));
-        LinearLayout files=SettingsUi.section(layout,"Приём файлов");
-        text(files,"Доступна только папка раздачи. Принятые файлы сохраняются автоматически.",14);
+        key=field(manual,AppText.tr("Первый публичный ключ (.pub)"),p.getString("allowed_key",""),false);key.setId(R.id.embeddedServerKey);key.setTextSize(14);key.setMinLines(2);key.setMaxLines(3);key.setVerticalScrollBarEnabled(true);
+        importKey=button(manual,AppText.tr("Выбрать файл .pub"),() -> pick(910,"*/*",false));
+        LinearLayout files=SettingsUi.section(layout,AppText.tr("Приём файлов"));
+        text(files,AppText.tr("Доступна только папка раздачи. Принятые файлы сохраняются автоматически."),14);
         receiveState=text(files,"",16);
-        button(files,"Папка сохранения",this::chooseReceiveFolder);
-        button(files,"Сохранять в «Загрузки / LocalLS»",() -> {if(Build.VERSION.SDK_INT<29){message("На Android 8–9 выбери папку кнопкой выше");return;}getSharedPreferences(EmbeddedServerService.PREFS,0).edit().remove(ReceiveFolder.TREE).apply();render();});
-        button(files,"Повторить сохранение",() -> {if(EmbeddedServerService.running)startService(new Intent(this,EmbeddedServerService.class).setAction(EmbeddedServerService.RETRY_SAVE));else message("Включи сервер для обработки очереди сохранения");});
-        LinearLayout maintenance=SettingsUi.section(layout,"Обслуживание");
+        button(files,AppText.tr("Папка сохранения"),this::chooseReceiveFolder);
+        button(files,AppText.tr("Сохранять в «Загрузки / LocalLS»"),() -> {if(Build.VERSION.SDK_INT<29){message(AppText.tr("На Android 8–9 выбери папку кнопкой выше"));return;}getSharedPreferences(EmbeddedServerService.PREFS,0).edit().remove(ReceiveFolder.TREE).apply();render();});
+        button(files,AppText.tr("Повторить сохранение"),() -> {if(EmbeddedServerService.running)startService(new Intent(this,EmbeddedServerService.class).setAction(EmbeddedServerService.RETRY_SAVE));else message(AppText.tr("Включи сервер для обработки очереди сохранения"));});
+        LinearLayout maintenance=SettingsUi.section(layout,AppText.tr("Обслуживание"));
         maintenance.addView(client);
-        button(maintenance,"Скопировать диагностику запуска",() -> {
+        button(maintenance,AppText.tr("Скопировать диагностику запуска"),() -> {
             ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             String report=EmbeddedServerService.diagnostic;
-            if(report.isEmpty()) report="LocalLS / SDK "+Build.VERSION.SDK_INT+"\nЭтап: "+EmbeddedServerService.lastStage+
+            if(report.isEmpty()) report="LocalLS / SDK "+Build.VERSION.SDK_INT+AppText.tr("\nЭтап: ")+EmbeddedServerService.lastStage+
                     "\nrunning="+EmbeddedServerService.running+"; starting="+EmbeddedServerService.starting+"; checkingKey="+checkingKey+
                     "; waitingForClient="+EmbeddedServerService.waitingForClient+"; serviceRequested="+(EmbeddedServerService.launchRequested!=0)+"\n"+EmbeddedServerService.status;
             if(!AutoReceive.diagnostic.isEmpty())report+="\n"+AutoReceive.diagnostic;
-            clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS startup",report));message("Диагностика скопирована без ключей и паролей");
+            clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS startup",report));message(AppText.tr("Диагностика скопирована без ключей и паролей"));
         });
-        text(maintenance,"Работает в фоне с уведомлением. После перезагрузки включи сервер снова.",14);
-        button(maintenance,"Работа в фоне",() -> new android.app.AlertDialog.Builder(this).setTitle("Работа в фоне").setMessage("Разреши LocalLS работу без ограничений в настройках батареи Android. Служба работает с уведомлением при выключенном экране. Принудительная остановка Android завершает сервер; после перезагрузки его нужно включить вручную.").setPositiveButton("Понятно",null).show());
-        button(maintenance,"Оформление",() -> startActivity(new Intent(this,AppearanceActivity.class)));
+        text(maintenance,AppText.tr("Работает в фоне с уведомлением. После перезагрузки включи сервер снова."),14);
+        button(maintenance,AppText.tr("Работа в фоне"),() -> new android.app.AlertDialog.Builder(this).setTitle(AppText.tr("Работа в фоне")).setMessage(AppText.tr("Разреши LocalLS работу без ограничений в настройках батареи Android. Служба работает с уведомлением при выключенном экране. Принудительная остановка Android завершает сервер; после перезагрузки его нужно включить вручную.")).setPositiveButton(AppText.tr("Понятно"),null).show());
+        button(maintenance,AppText.tr("Оформление"),() -> startActivity(new Intent(this,AppearanceActivity.class)));
         button(maintenance,getString(R.string.about_title),() -> startActivity(new Intent(this,AboutActivity.class))).setId(R.id.aboutAppButton);
-        button(maintenance,"Справка",() -> startActivity(new Intent(this,PhoneSetupGuideActivity.class)));
+        button(maintenance,AppText.tr("Справка"),() -> startActivity(new Intent(this,PhoneSetupGuideActivity.class)));
         ScrollView scroll=new ScrollView(this);scroll.setBackgroundColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));scroll.addView(layout);setContentView(scroll);
         render();
-        if(Build.VERSION.SDK_INT<26) {start.setEnabled(false);state.setText("Нужен Android 8 или новее");}
+        if(Build.VERSION.SDK_INT<26) {start.setEnabled(false);state.setText(AppText.tr("Нужен Android 8 или новее"));}
         if(saved==null && getIntent().getBooleanExtra("open_receive_folder",false))chooseReceiveFolder();
     }
     private void chooseReceiveFolder(){
         try{startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION),914);}
-        catch(Exception error){message("Выбор папки недоступен");}
+        catch(Exception error){message(AppText.tr("Выбор папки недоступен"));}
     }
     private TextView text(LinearLayout parent,String value,int size) { TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));t.setPadding(0,SettingsUi.dp(this,6),0,SettingsUi.dp(this,6));if(size<=14)SettingsUi.note(t);parent.addView(t,new LinearLayout.LayoutParams(-1,-2));return t; }
     private EditText field(LinearLayout parent,String label,String value,boolean single) {
@@ -88,15 +89,15 @@ public class EmbeddedServerActivity extends BaseActivity {
     private Button button(LinearLayout parent,String label,Runnable action) { Button b=new Button(this);b.setText(label);parent.addView(b);b.setOnClickListener(v -> action.run());return b; }
     private void pick(int request,String type,boolean multiple) {
         try {Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(type);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,multiple);startActivityForResult(i,request);}
-        catch(Exception e) {message("Не удалось открыть выбор файлов Android");}
+        catch(Exception e) {message(AppText.tr("Не удалось открыть выбор файлов Android"));}
     }
     private void startServer() {
         if(checkingKey || EmbeddedServerService.running || EmbeddedServerService.launchPending())return;
         final int parsed;final String name=user.getText().toString().trim(),pub=key.getText().toString().trim();
         try { parsed=Integer.parseInt(port.getText().toString());if(parsed<1024 || parsed>65535)throw new Exception(); }
-        catch(Exception e) {port.setError("Укажи порт от 1024 до 65535");EmbeddedServerService.failure("INPUT",e);render();message(EmbeddedServerService.status);return;}
-        if(!ConnectionEndpoint.validUser(name)) {user.setError("Неверное имя SSH-пользователя");EmbeddedServerService.failure("INPUT",new IllegalArgumentException());render();message(EmbeddedServerService.status);return;}
-        checkingKey=true;EmbeddedServerService.lastStage="UI_PUBLIC_KEY";EmbeddedServerService.status="Проверка публичного ключа…";render();
+        catch(Exception e) {port.setError(AppText.tr("Укажи порт от 1024 до 65535"));EmbeddedServerService.failure("INPUT",e);render();message(EmbeddedServerService.status);return;}
+        if(!ConnectionEndpoint.validUser(name)) {user.setError(AppText.tr("Неверное имя SSH-пользователя"));EmbeddedServerService.failure("INPUT",new IllegalArgumentException());render();message(EmbeddedServerService.status);return;}
+        checkingKey=true;EmbeddedServerService.lastStage="UI_PUBLIC_KEY";EmbeddedServerService.status=AppText.tr("Проверка публичного ключа…");render();
         worker.execute(() -> {
             try {String normalized=pub.isEmpty()?"":EmbeddedSftpServer.normalizeAuthorizedKey(pub);
                 ServerDevices.validateLegacyEdit(this,normalized);
@@ -106,7 +107,7 @@ public class EmbeddedServerActivity extends BaseActivity {
                     if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)
                         requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},912);
                 } catch(Exception e) {EmbeddedServerService.failure("FOREGROUND",e);render();message(EmbeddedServerService.status);} });
-            } catch(Exception | LinkageError e) {ui.post(() -> {if(!closed){checkingKey=false;EmbeddedServerService.failure("KEY",e);key.setError("Нужен публичный RSA 3072+ или ECDSA P-256 ключ");render();message(EmbeddedServerService.status);}});}
+            } catch(Exception | LinkageError e) {ui.post(() -> {if(!closed){checkingKey=false;EmbeddedServerService.failure("KEY",e);key.setError(AppText.tr("Нужен публичный RSA 3072+ или ECDSA P-256 ключ"));render();message(EmbeddedServerService.status);}});}
         });
     }
     private String connectionText(boolean includeAddress) {
@@ -116,38 +117,38 @@ public class EmbeddedServerActivity extends BaseActivity {
         StringBuilder result=new StringBuilder();
         if(includeAddress){
             java.util.List<String> values=LocalServerAddresses.current(this);
-            if(values.isEmpty())result.append("Подключи телефон к Wi-Fi — адрес появится автоматически.\n");
+            if(values.isEmpty())result.append(AppText.tr("Подключи телефон к Wi-Fi — адрес появится автоматически.\n"));
             else for(String ip:values)result.append("IP: ").append(ip).append("\nsftp://").append(name).append('@').append(ip).append(':').append(number).append("\n");
         }
-        result.append("Порт: ").append(number).append(" · Пользователь: ").append(name);
-        if(EmbeddedServerService.running)result.append("\nОтпечаток ключа: ").append(EmbeddedServerService.fingerprint);
+        result.append(AppText.tr("Порт: ")).append(number).append(AppText.tr(" · Пользователь: ")).append(name);
+        if(EmbeddedServerService.running)result.append(AppText.tr("\nОтпечаток ключа: ")).append(EmbeddedServerService.fingerprint);
         return result.toString();
     }
     private void importedKey(String normalized) {
         if(closed)return;
         if(EmbeddedServerService.running) {
-            if(!EmbeddedServerService.waitingForClient) {message("Для замены ключа останови сервер");return;}
-            new AlertDialog.Builder(this).setTitle("Разрешить первое устройство?")
-                .setMessage("Выбранный файл должен быть публичным ключом устройства. Вход получит только устройство с соответствующим закрытым ключом.")
-                .setNegativeButton("Отмена",null).setPositiveButton("Разрешить",(dialog,which) -> {
-                    try {EmbeddedServerService.authorizeFirstClient(this,normalized);key.setText(normalized);message("Сохраняем разрешение…");}
-                    catch(Exception error){message("Не удалось добавить телефон. Проверь состояние сервера.");}
+            if(!EmbeddedServerService.waitingForClient) {message(AppText.tr("Для замены ключа останови сервер"));return;}
+            new AlertDialog.Builder(this).setTitle(AppText.tr("Разрешить первое устройство?"))
+                .setMessage(AppText.tr("Выбранный файл должен быть публичным ключом устройства. Вход получит только устройство с соответствующим закрытым ключом."))
+                .setNegativeButton(AppText.tr("Отмена"),null).setPositiveButton(AppText.tr("Разрешить"),(dialog,which) -> {
+                    try {EmbeddedServerService.authorizeFirstClient(this,normalized);key.setText(normalized);message(AppText.tr("Сохраняем разрешение…"));}
+                    catch(Exception error){message(AppText.tr("Не удалось добавить телефон. Проверь состояние сервера."));}
                 }).show();
         } else if(!checkingKey && !EmbeddedServerService.starting && EmbeddedServerService.launchRequested==0) {
-            key.setText(normalized);message("Ключ выбран. Нажми «Включить сервер».");
+            key.setText(normalized);message(AppText.tr("Ключ выбран. Нажми «Включить сервер»."));
         }
     }
     private void render() {
         if(Build.VERSION.SDK_INT<26)return;
         boolean pending=EmbeddedServerService.launchPending();
         state.setText(EmbeddedServerService.status);
-        if(receiveState!=null){receiveState.setText("Новые файлы → "+ReceiveFolder.label(this)+"\n"+AutoReceive.status);StatusBadge.apply(receiveState,AutoReceive.error?StatusBadge.Tone.ERROR:AutoReceive.active?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS);}
+        if(receiveState!=null){receiveState.setText(AppText.tr("Новые файлы → ")+ReceiveFolder.label(this)+"\n"+AutoReceive.status);StatusBadge.apply(receiveState,AutoReceive.error?StatusBadge.Tone.ERROR:AutoReceive.active?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS);}
         StatusBadge.apply(state,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
             checkingKey || EmbeddedServerService.launchPending()?StatusBadge.Tone.WARNING:
             EmbeddedServerService.diagnostic.isEmpty()?StatusBadge.Tone.NEUTRAL:StatusBadge.Tone.ERROR);
         address.setText(connectionText(false));
         wifiAddress.refresh();
-        start.setText(EmbeddedServerService.running?"Остановить сервер":pending?"Запуск сервера…":"Включить сервер");
+        start.setText(EmbeddedServerService.running?AppText.tr("Остановить сервер"):pending?AppText.tr("Запуск сервера…"):AppText.tr("Включить сервер"));
         start.setEnabled(!checkingKey && !pending);
         boolean editable=!checkingKey && !pending && !EmbeddedServerService.running;
         key.setEnabled(editable);port.setEnabled(editable);user.setEnabled(editable);
@@ -156,7 +157,7 @@ public class EmbeddedServerActivity extends BaseActivity {
     private void message(String value) {if(!closed)Toast.makeText(this,value,Toast.LENGTH_LONG).show();}
     @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);if(result!=RESULT_OK || data==null)return;
-        if(request==914){try{DocumentFiles.grant(this,data);if((data.getFlags()&Intent.FLAG_GRANT_WRITE_URI_PERMISSION)==0)throw new IOException();getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,data.getData().toString()).apply();render();message("Папка сохранена. Подтверждать каждый файл не нужно.");}catch(Exception e){message("Не удалось сохранить доступ к папке");}return;}
+        if(request==914){try{DocumentFiles.grant(this,data);if((data.getFlags()&Intent.FLAG_GRANT_WRITE_URI_PERMISSION)==0)throw new IOException();getSharedPreferences(EmbeddedServerService.PREFS,0).edit().putString(ReceiveFolder.TREE,data.getData().toString()).apply();render();message(AppText.tr("Папка сохранена. Подтверждать каждый файл не нужно."));}catch(Exception e){message(AppText.tr("Не удалось сохранить доступ к папке"));}return;}
         ArrayList<Uri> uris=new ArrayList<>();if(data.getData()!=null)uris.add(data.getData());
         if(data.getClipData()!=null)for(int i=0;i<Math.min(20,data.getClipData().getItemCount());i++)uris.add(data.getClipData().getItemAt(i).getUri());
         worker.execute(() -> {
@@ -181,9 +182,9 @@ public class EmbeddedServerActivity extends BaseActivity {
                             else throw new IOException("Android 8 required");
                         } finally {temp.delete();}
                     }
-                    ui.post(() -> message("Файлы добавлены в папку сервера"));
+                    ui.post(() -> message(AppText.tr("Файлы добавлены в папку сервера")));
                 }
-            } catch(Exception | LinkageError e) {ui.post(() -> message("Не удалось обработать файл. Для ключа нужен .pub, для импорта — доступный файл и свободное место."));}
+            } catch(Exception | LinkageError e) {ui.post(() -> message(AppText.tr("Не удалось обработать файл. Для ключа нужен .pub, для импорта — доступный файл и свободное место.")));}
         });
     }
     @Override protected void onResume() {super.onResume();closed=false;ui.post(refresh);}

@@ -18,7 +18,7 @@ public class LocalFileExportService extends Service {
             this.active=active;this.success=success;this.copied=copied;this.total=total;this.text=text;this.diagnostic=diagnostic;
         }
     }
-    static volatile State state=new State(false,false,0,0,"Нажми на принятый файл, чтобы сохранить его на телефон.","");
+    static volatile State state=new State(false,false,0,0,AppText.tr("Нажми на принятый файл, чтобы сохранить его на телефон."),"");
     private static final int NOTICE=2212;
     private static final String REQUEST_ID="export_request_id";
     private static final Object REQUEST_LOCK=new Object();
@@ -31,8 +31,8 @@ public class LocalFileExportService extends Service {
     private long operation;
     private PowerManager.WakeLock wake;
     static synchronized void start(Context context,String relative,Uri destination,int grants) {
-        if(state.active)throw new IllegalStateException("Сохранение уже идёт");
-        state=new State(true,false,0,0,"Подготовка сохранения…","");
+        if(state.active)throw new IllegalStateException(AppText.tr("Сохранение уже идёт"));
+        state=new State(true,false,0,0,AppText.tr("Подготовка сохранения…"),"");
         Intent intent=new Intent(context,LocalFileExportService.class).putExtra("relative",relative).putExtra(REQUEST_ID,UUID.randomUUID().toString());
         if(destination!=null)intent.setData(destination).addFlags(grants & (Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
         try {if(Build.VERSION.SDK_INT>=26)context.startForegroundService(intent);else context.startService(intent);}
@@ -49,19 +49,19 @@ public class LocalFileExportService extends Service {
         latestId=id;
         // This is a single-export service. Extra deliveries cannot replace its accepted task.
         if(busy)return START_NOT_STICKY;
-        if(intent==null || intent.getStringExtra("relative")==null) {finished=true;state=new State(false,false,0,0,"Сохранение не запущено.","");stopSelf(id);return START_NOT_STICKY;}
+        if(intent==null || intent.getStringExtra("relative")==null) {finished=true;state=new State(false,false,0,0,AppText.tr("Сохранение не запущено."),"");stopSelf(id);return START_NOT_STICKY;}
         String supplied=intent.getStringExtra(REQUEST_ID);
         final String requestId=supplied==null || supplied.isEmpty()?UUID.randomUUID().toString():supplied;
         synchronized(REQUEST_LOCK){if(completedRequests.contains(requestId)){stopSelf(id);return START_NOT_STICKY;}}
         try {
             NotificationManager manager=getSystemService(NotificationManager.class);
-            if(Build.VERSION.SDK_INT>=26)manager.createNotificationChannel(new NotificationChannel("local_export","Сохранение принятых файлов",NotificationManager.IMPORTANCE_LOW));
-            startForeground(NOTICE,notification("Подготовка сохранения…"));
+            if(Build.VERSION.SDK_INT>=26)manager.createNotificationChannel(new NotificationChannel("local_export",AppText.tr("Сохранение принятых файлов"),NotificationManager.IMPORTANCE_LOW));
+            startForeground(NOTICE,notification(AppText.tr("Подготовка сохранения…")));
             if(wake==null){PowerManager power=getSystemService(PowerManager.class);wake=power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"LocalLS:LocalExport");wake.setReferenceCounted(false);}
             wake.acquire(30*60*1000L);
         } catch(RuntimeException error) {fail("FOREGROUND",error);finished=true;releasePower();stopSelf(id);return START_NOT_STICKY;}
         finished=false;busy=true;final long accepted=++operation;
-        state=new State(true,false,0,0,"Подготовка сохранения…","");
+        state=new State(true,false,0,0,AppText.tr("Подготовка сохранения…"),"");
         final String relative=intent.getStringExtra("relative");final Uri destination=intent.getData();
         worker.execute(() -> {
             State completed;
@@ -77,13 +77,13 @@ public class LocalFileExportService extends Service {
                     if(destroyed || accepted!=operation)throw new java.util.concurrent.CancellationException();
                     long now=SystemClock.elapsedRealtime();
                     if(copied==0 || copied==total || now-last[0]>=250) {
-                        last[0]=now;String progress="Сохранение: "+format(copied)+" / "+format(total);
+                        last[0]=now;String progress=AppText.tr("Сохранение: ")+format(copied)+" / "+format(total);
                         state=new State(true,false,copied,total,progress,"");
                         if(copied==0 || copied==total || now%1000<250)main.post(() -> {synchronized(lifecycle){if(!destroyed && busy && accepted==operation)getSystemService(NotificationManager.class).notify(NOTICE,notification(progress));}});
                     }
                     }
                 });
-                completed=new State(false,true,count,count,"Файл сохранён на телефон\n"+target.location(),"");
+                completed=new State(false,true,count,count,AppText.tr("Файл сохранён на телефон\n")+target.location(),"");
             } catch(LocalFileExporter.Failure error) {
                 State old=state;completed=new State(false,false,old.copied,old.total,LocalExportFailure.hint(error.stage,error),LocalExportFailure.report(error.stage,error));
             } catch(Exception error) {
@@ -99,13 +99,13 @@ public class LocalFileExportService extends Service {
         });
         return START_NOT_STICKY;
     }
-    static String format(long bytes) {return String.format(java.util.Locale.getDefault(),"%.1f МБ",bytes/(1024d*1024d));}
+    static String format(long bytes) {return String.format(java.util.Locale.getDefault(),AppText.tr("%.1f МБ"),bytes/(1024d*1024d));}
     private Notification notification(String text) {
         Intent open=new Intent(this,EmbeddedFilesActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pending=PendingIntent.getActivity(this,84,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder builder=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,"local_export"):new Notification.Builder(this);
         return builder.setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification)
-                .setContentTitle("LocalLS · сохранение файла").setContentText(text).setContentIntent(pending).setOngoing(true).setCategory(Notification.CATEGORY_PROGRESS).build();
+                .setContentTitle(AppText.tr("LocalLS · сохранение файла")).setContentText(text).setContentIntent(pending).setOngoing(true).setCategory(Notification.CATEGORY_PROGRESS).build();
     }
     private void releasePower(){if(wake!=null && wake.isHeld())wake.release();}
     @Override public void onTimeout(int id,int type) {synchronized(lifecycle){destroyed=true;operation++;if(!finished)fail("STOPPED",new InterruptedIOException());finished=true;busy=false;worker.shutdownNow();releasePower();stopSelf();}}

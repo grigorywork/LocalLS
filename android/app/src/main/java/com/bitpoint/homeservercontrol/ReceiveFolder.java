@@ -9,7 +9,7 @@ final class ReceiveFolder {
     static final String TREE="receive_folder_tree";
     static String selected(Context c){return c.getSharedPreferences(EmbeddedServerService.PREFS,0).getString(TREE,"");}
     static String label(Context c){return label(selected(c));}
-    static String label(String tree){return tree.isEmpty()?(Build.VERSION.SDK_INT>=29?"Загрузки / LocalLS":"Выбери папку для автоматического сохранения"):"Выбранная папка телефона";}
+    static String label(String tree){return tree.isEmpty()?(Build.VERSION.SDK_INT>=29?AppText.tr("Загрузки / LocalLS"):AppText.tr("Выбери папку для автоматического сохранения")):AppText.tr("Выбранная папка телефона");}
     static LocalFileExporter.Destination destination(Context c,String relative){
         return destination(c,relative,selected(c));
     }

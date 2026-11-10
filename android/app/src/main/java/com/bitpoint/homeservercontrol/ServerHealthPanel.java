@@ -13,20 +13,20 @@ final class ServerHealthPanel extends LinearLayout {
     private long last;
     ServerHealthPanel(Context c){
         super(c);setOrientation(VERTICAL);setGravity(Gravity.CENTER_VERTICAL);
-        state=label("Нет замеров",11,false);value=label("—",22,true);scope=label("Локальный SSH",11,false);
-        chart=new MetricChartView(c);chart.setMinimumHeight(0);chart.setLabels("мс","60 с");addView(chart,new LayoutParams(-1,0,1));
+        state=label(AppText.tr("Нет замеров"),11,false);value=label("—",22,true);scope=label(AppText.tr("Локальный SSH"),11,false);
+        chart=new MetricChartView(c);chart.setMinimumHeight(0);chart.setLabels(AppText.tr("мс"),AppText.tr("60 с"));addView(chart,new LayoutParams(-1,0,1));
     }
     private TextView label(String text,int size,boolean bold){TextView v=new TextView(getContext());v.setText(text);v.setTextSize(size);v.setIncludeFontPadding(false);v.setMaxLines(1);v.setEllipsize(android.text.TextUtils.TruncateAt.END);v.setTextColor(ThemeCatalog.color(getContext(),bold?com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary:com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary));if(bold)v.setTypeface(null,android.graphics.Typeface.BOLD);addView(v,new LayoutParams(-1,-2));return v;}
     void sample(long time,float millis,boolean running){
-        if(!running){samples.clear();last=0;state.setText("Сервер выключен");value.setText("—");}
+        if(!running){samples.clear();last=0;state.setText(AppText.tr("Сервер выключен"));value.setText("—");}
         else{
             if(last>0&&time-last>10000)samples.clear();last=time;
             samples.add(Float.isFinite(millis)&&millis>=0?millis:Float.NaN);while(samples.size()>13)samples.remove(0);
             boolean valid=Float.isFinite(millis)&&millis>=0,all=valid&&samples.size()>=2;for(Float v:samples)all&=Float.isFinite(v);
-            state.setText(!valid?"Нет ответа":all?"Без сбоев в окне":"Собираем замеры");value.setText(valid?(millis<1?"<1 мс":String.format(java.util.Locale.getDefault(),"%.0f мс",millis)):"—");
+            state.setText(!valid?AppText.tr("Нет ответа"):all?AppText.tr("Без сбоев в окне"):AppText.tr("Собираем замеры"));value.setText(valid?(millis<1?AppText.tr("<1 мс"):String.format(java.util.Locale.getDefault(),AppText.tr("%.0f мс"),millis)):"—");
         }
         state.setTextColor(ThemeCatalog.color(getContext(),running&&samples.size()>=2&&!samples.contains(Float.NaN)?com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess:com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary));
-        chart.setValues(new ArrayList<>(samples),0,Float.NaN);setContentDescription("Локальный SSH. "+state.getText()+". "+value.getText());
+        chart.setValues(new ArrayList<>(samples),0,Float.NaN);setContentDescription(AppText.tr("Локальный SSH. ")+state.getText()+". "+value.getText());
     }
     @Override protected void onMeasure(int ws,int hs){
         int h=MeasureSpec.getSize(hs);float d=getResources().getDisplayMetrics().density;

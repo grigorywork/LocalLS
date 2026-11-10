@@ -1,0 +1,6 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),{t,setLanguage}=require('../src/i18n.cjs'),catalog=require('../src/strings.json');
+test('Russian and English labels change without translating file paths or prototype keys',()=>{try{setLanguage('en');assert.equal(t('Сервер'),'Server');assert.equal(t('Очередь'),'Queue');assert.equal(t('Отозвать доступ устройства?'),'Revoke device access?');for(const value of ['constructor','toString','__proto__','/tmp/Фото отпуск.png','report.pdf'])assert.equal(t(value),value);setLanguage('ru');assert.equal(t('Сервер'),'Сервер');}finally{setLanguage('ru');}});
+test('Every translated printf message preserves its format arguments',()=>{const tokens=/%(?:[0-9]+\$)?[-#+ 0,(]*[0-9]*(?:\.[0-9]+)?[a-zA-Z%]/g;for(const [ru,en]of Object.entries(catalog))assert.deepEqual(en.match(tokens)||[],ru.match(tokens)||[],ru);});
+
+test('Browser and main process use the same complete local catalog',()=>{const fs=require('node:fs'),path=require('node:path');const source=fs.readFileSync(path.join(__dirname,'../src/i18n.js'),'utf8'),start=source.indexOf('const strings=')+'const strings='.length,end=source.indexOf(";let language='ru';",start);assert.deepEqual(JSON.parse(source.slice(start,end)),require('../src/strings.json'));});

@@ -17,9 +17,9 @@ final class LiveSpeedPanel {
             TransferSpeedStore.Snapshot sample = TransferSpeedStore.snapshot();
             chart.setValues(sample.values, 0, Math.max(1f, sample.peak * 1.15f));
             String text = sample.active
-                    ? String.format(Locale.getDefault(), "%.1f МБ/с", sample.current)
+                    ? String.format(Locale.getDefault(), AppText.tr("%.1f МБ/с"), sample.current)
                     : sample.peak > 0
-                        ? String.format(Locale.getDefault(), "0 МБ/с")
+                        ? String.format(Locale.getDefault(), AppText.tr("0 МБ/с"))
                         : "—";
             if (!text.contentEquals(summary.getText())) summary.setText(text);
             handler.postDelayed(this, 500);
@@ -29,7 +29,7 @@ final class LiveSpeedPanel {
     LiveSpeedPanel(MetricChartView chart, TextView summary) {
         this.chart = chart;
         this.summary = summary;
-        chart.setLabels("МБ/с", "60 с");
+        chart.setLabels(AppText.tr("МБ/с"), AppText.tr("60 с"));
     }
 
     void start() {

@@ -24,17 +24,17 @@ final class FileEntryRow extends LinearLayout implements Checkable {
         addView(labels,new LayoutParams(0,-2,1));
         name=new TextView(context);name.setTextSize(18);name.setMaxLines(2);name.setEllipsize(android.text.TextUtils.TruncateAt.END);labels.addView(name);
         detail=new TextView(context);detail.setTextSize(13);labels.addView(detail);
-        more=new Button(context);more.setText("⋮");more.setTag("file_overflow");more.setTextSize(22);more.setFocusable(false);more.setContentDescription("Действия с файлом");addView(more,new LayoutParams(dp(48),dp(48)));IconButtons.decorate(more);
+        more=new Button(context);more.setText("⋮");more.setTag("file_overflow");more.setTextSize(22);more.setFocusable(false);more.setContentDescription(AppText.tr("Действия с файлом"));addView(more,new LayoutParams(dp(48),dp(48)));IconButtons.decorate(more);
         setBackgroundResource(android.R.drawable.list_selector_background);
     }
     private int dp(int value){return Math.round(value*getResources().getDisplayMetrics().density);}
     void bind(FileNodes.Node node,boolean checked,Selection selection) {
         checkbox.setOnCheckedChangeListener(null);setChecked(checked);
-        name.setText(node.name);detail.setText(node.directory?"Папка":node.size<0?"Размер неизвестен":android.text.format.Formatter.formatShortFileSize(getContext(),node.size));
+        name.setText(node.name);detail.setText(node.directory?AppText.tr("Папка"):node.size<0?AppText.tr("Размер неизвестен"):android.text.format.Formatter.formatShortFileSize(getContext(),node.size));
         name.setTextColor(ThemeCatalog.color(getContext(),com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));
         detail.setTextColor(ThemeCatalog.color(getContext(),com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary));
         icon.clearColorFilter();icon.setImageDrawable(FileTypeIcons.drawable(getContext(),node.name,node.directory));
-        checkbox.setContentDescription("Выбрать «"+node.name+"»");
+        checkbox.setContentDescription(AppText.tr("Выбрать «")+node.name+"»");
         checkbox.setOnCheckedChangeListener((button,value)->{if(!mirroring)selection.changed(value);});
     }
     void actions(Runnable action){more.setOnClickListener(v->action.run());}

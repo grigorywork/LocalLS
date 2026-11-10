@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+  <string name="connection_configure" formatted="false">Address and key</string>
+  <string name="connection_import" formatted="false">Insert SSH/SFTP Address</string>
+  <string name="connection_log" formatted="false">Connectivity log</string>
+  <string name="live_speed_chart_description" formatted="false">SFTP speed schedule for the last 60 seconds in megabytes per second</string>
+  <string name="local_server_stopped" formatted="false">Files are off.</string>
+  <string name="monitor_explanation" formatted="false">Check the server\'s availability about once every 15 minutes.</string>
+  <string name="profile_transfer" formatted="false">Transfer of parameters</string>
+  <string name="server_setup_prepare_agent" formatted="false">Prepare HTTPS agent</string>
+  <string name="server_setup_security_help" formatted="false">Once the SSH enters, you can check the key access and the existing HTTPS agent. The master \' s key is stored encrypted and reused; other clients create their keys. The agent is needed to independently control the SSH. This test reads its current settings and certificate by saving the current current current current and service.</string>
+  <string name="server_setup_security_title" formatted="false">Security check for this server</string>
+  <string name="server_setup_steps_loading" formatted="false">Test of Termux and System Access...</string>
+  <string name="server_setup_steps_title" formatted="false">My server: The steps of settings</string>
+  <string name="server_setup_verify_agent" formatted="false">Check existing HTTPS agent</string>
+  <string name="server_setup_verify_key" formatted="false">Add SSH key and check entry</string>
+  <string name="ssh_key_setup" formatted="false">Access key</string>
+  <string name="status_0870869f22e7" formatted="false">SSH/SFTP available • server key confirmed</string>
+  <string name="status_12b30fbc136c" formatted="false">Selected local server: %1$s:%2$d\nTap Check SSH port, then Save network.</string>
+  <string name="status_18bf0e4021be" formatted="false">● SSH AVAILABLE</string>
+  <string name="status_2ff061084808" formatted="false">Clear the key print and press \"Trust.</string>
+  <string name="status_32dfa9c36e2b" formatted="false">● CHECKING…</string>
+  <string name="status_3450e8b60cd1" formatted="false">The keyprint: -</string>
+  <string name="status_3597244eb434" formatted="false">Uptime: %1$s</string>
+  <string name="status_36c28e09c94a" formatted="false">Response SSH: -</string>
+  <string name="status_617bb5a0a088" formatted="false">Username: %1$s</string>
+  <string name="status_681fa4dbaeb8" formatted="false">A check of the local SSH server...</string>
+  <string name="status_6ecd2c217d67" formatted="false">Termux access settings...</string>
+  <string name="status_7141047c824d" formatted="false">● Server running</string>
+  <string name="status_74ceac806dfb" formatted="false">Verification canceled, press the right function again.</string>
+  <string name="status_7fad5c3e34a2" formatted="false">Adres or screen modified. Press \"Recheck SSH.</string>
+  <string name="status_8229b14b80f9" formatted="false">Key fingerprint: %1$s</string>
+  <string name="status_a267c32f1c34" formatted="false">SERVER IS NOT RELIEF</string>
+  <string name="status_a7e8f235c5f7" formatted="false">The profile has been modified. Press \"Reason SSH.</string>
+  <string name="status_ab27bd0a2936" formatted="false">● NOT VERIFIED</string>
+  <string name="status_cbe1cb69c8a9" formatted="false">Works...</string>
+  <string name="status_d2229423fc38" formatted="false">Looking for SSH port %1$d on this Wi-Fi network…</string>
+  <string name="status_d2b35fb33f9d" formatted="false">OVERVIEW OF SSSH CONCLUSION</string>
+  <string name="status_de99b03c323c" formatted="false">The SERVER KNOCK\'S CHANGED</string>
+  <string name="status_e1d5c4bee882" formatted="false">This phone\'s IP: %1$s\n%2$s\nCandidates: %3$s</string>
+  <string name="status_e5faf35a2fce" formatted="false">This phone\'s IP: %1$s\n%2$s\n\nMake sure both devices use the same Wi-Fi network and sshd is running.</string>
+  <string name="status_f7ed201ba529" formatted="false">OVERVIEW OF THE REFERENCE</string>
+  <string name="status_ff7a04dd6c26" formatted="false">Port: %1$d</string>
+  <string name="status_latency_format" formatted="false">SSH latency: %1$d ms</string>
+  <string name="status_port_unavailable" formatted="false">Port: —</string>
+  <string name="ui_activity_diagnostics_text_6bd1a6" formatted="false">The report does not specifically show the S.S.H. password and the agent\'s current.</string>
+  <string name="ui_activity_diagnostics_text_9ba1e2" formatted="false">Diagnostics</string>
+  <string name="ui_activity_files_text_44d651" formatted="false">server files</string>
+  <string name="ui_activity_history_text_07d65a" formatted="false">Memory busy</string>
+  <string name="ui_activity_history_text_1b4984" formatted="false">SSH latency</string>
+  <string name="ui_activity_history_text_3992ce" formatted="false">The server history</string>
+  <string name="ui_activity_history_text_3b7574" formatted="false">Graphics are only stored locally in the application. The passwords and currents aren\'t in history.</string>
+  <string name="ui_activity_history_text_3d2c83" formatted="false">Speed iperf3</string>
+  <string name="ui_activity_history_text_53bbf4" formatted="false">Recent checks: accessibility, delay, space occupied and iperf3.</string>
+  <string name="ui_activity_history_text_a1c56f" formatted="false">Accessibility</string>
+  <string name="ui_activity_main_text_9788dc" formatted="false">SFTP speed</string>
+  <string name="ui_activity_server_setup_text_243db1" formatted="false">server settings</string>
+  <string name="ui_activity_server_setup_text_315b29" formatted="false">1. server environment</string>
+  <string name="ui_activity_server_setup_text_4460ec" formatted="false">OpenSSH will be installed if not available. The operating sshd will remain running. The auto-start and sshd configuration will be maintained. File folder: Termux / LocalLS.</string>
+  <string name="ui_activity_server_setup_text_66834d" formatted="false">3. Entry and preparation of SCH</string>
+  <string name="ui_activity_server_setup_text_b06c59" formatted="false">Pass the file to another device and press \"Import Profile.\" Check the SSH key to the server. The password is entered separately and does not fit into the profile.</string>
+  <string name="ui_activity_server_setup_text_ca7fb6" formatted="false">4. Connecting another device</string>
+  <string name="ui_activity_server_setup_text_cd1cd9" formatted="false">In the system selection of folders, open the Termux section and choose its root folder. The other settings will be maintained.</string>
+  <string name="ui_activity_server_setup_text_e25347" formatted="false">On the server device, prepare the SSH, on the other device import the profile.</string>
+  <string name="ui_activity_server_setup_text_e39d62" formatted="false">Set up the official Termux and open it once to prepare the Wednesday. Come back here. You don\'t have to print anything in it.</string>
+  <string name="ui_activity_server_setup_text_e7ef10" formatted="false">2. Access to the Termux folder</string>
+  <string name="ui_appsettingsbutton_text_d73b55" formatted="false">Annex</string>
+  <string name="ui_autorefreshcheck_text_ca64ba" formatted="false">Auto-check every 15 seconds</string>
+  <string name="ui_availabilitysummary_text_d0dd94" formatted="false">No data</string>
+  <string name="ui_batteryvalue_text_4b0d64" formatted="false">Battery: —</string>
+  <string name="ui_closeserversetupbutton_text_398c7d" formatted="false">Done</string>
+  <string name="ui_copybutton_text_a72c30" formatted="false">Copy SFTP data</string>
+  <string name="ui_createserverpasswordcheck_text_12ca66" formatted="false">Create a new server password</string>
+  <string name="ui_dashboardlatencychart_contentdescription_8f3ede" formatted="false">SSH response schedule in milliseconds</string>
+  <string name="ui_dashboardlatencysummary_text_e117f3" formatted="false">No samples</string>
+  <string name="ui_dashboardspeedsummary_text_6353d0" formatted="false">No transfers</string>
+  <string name="ui_diagnosticsbackbutton_text_f6dab0" formatted="false">Back</string>
+  <string name="ui_diagnosticscleartransfersbutton_text_270022" formatted="false">Clear transfer history</string>
+  <string name="ui_diagnosticscopybutton_text_9121d6" formatted="false">Copy Diagnostics</string>
+  <string name="ui_diagnosticsrefreshbutton_text_c5165b" formatted="false">Update Report</string>
+  <string name="ui_drawerappearanceheader_text_d206f1" formatted="false">Appearance</string>
+  <string name="ui_drawerscrim_contentdescription_46e7a9" formatted="false">Close Tools</string>
+  <string name="ui_drawertoolsheader_text_c0eca9" formatted="false">Journal</string>
+  <string name="ui_exportbutton_text_8591b3" formatted="false">Export of diagnostics</string>
+  <string name="ui_exportserverprofilebutton_text_3a7ef3" formatted="false">Export profile</string>
+  <string name="ui_fingerprintvalue_text_ce1393" formatted="false">Keyprint: -</string>
+  <string name="ui_forgetkeybutton_text_9f05a8" formatted="false">Forget server trust</string>
+  <string name="ui_historybutton_text_bc2ad2" formatted="false">Schedules</string>
+  <string name="ui_historyclearbutton_text_98b207" formatted="false">Clear</string>
+  <string name="ui_importserverprofilebutton_text_5718dd" formatted="false">Import Profile</string>
+  <string name="ui_latencyvalue_text_eb61e0" formatted="false">Response SSH: —</string>
+  <string name="ui_localhostinput_hint_14eef6" formatted="false">Local IP e.g. 192.168.1.82</string>
+  <string name="ui_localmodebutton_text_f5d288" formatted="false">Local</string>
+  <string name="ui_logtext_text_17b97f" formatted="false">Ready for work.</string>
+  <string name="ui_portinput_hint_217d88" formatted="false">SSH Port</string>
+  <string name="ui_portvalue_text_2db21c" formatted="false">Port: —</string>
+  <string name="ui_preparetermuxbutton_text_5992ea" formatted="false">Set / Open Termux</string>
+  <string name="ui_savebutton_text_87ae19" formatted="false">Save settings</string>
+  <string name="ui_selecttermuxfolderbutton_text_ae1abb" formatted="false">Select Thermux Folder</string>
+  <string name="ui_serversetuphostinput_hint_6a9f30" formatted="false">Wi-Fi server IP address</string>
+  <string name="ui_serversetuppasswordconfirm_hint_ed8f74" formatted="false">Repeat the new password.</string>
+  <string name="ui_serversetuppasswordinput_hint_435e30" formatted="false">server password</string>
+  <string name="ui_serversetupstatus_text_fb21c0" formatted="false">The server hasn\'t been checked yet.</string>
+  <string name="ui_settingsbutton_text_7f17c7" formatted="false">Settings</string>
+  <string name="ui_startserversetupbutton_text_9dc1e4" formatted="false">Prepare server</string>
+  <string name="ui_statusdetail_text_24a4f5" formatted="false">Press \"Check the server\"</string>
+  <string name="ui_statustext_text_e8db03" formatted="false">● NOT VERIFIED</string>
+  <string name="ui_termuxfolderstatus_text_9cd5ff" formatted="false">Folder not selected</string>
+  <string name="ui_termuxhelpbutton_text_11ffb0" formatted="false">Termux Access Assistance</string>
+  <string name="ui_themechooserbutton_text_548836" formatted="false">Color theme</string>
+  <string name="ui_trustkeybutton_text_83e493" formatted="false">Trusting this key</string>
+  <string name="ui_uptimevalue_text_fe1b29" formatted="false">Uptime —</string>
+  <string name="ui_userinput_hint_51aff1" formatted="false">Username</string>
+  <string name="ui_uservalue_text_a253bc" formatted="false">User: —</string>
+  <string name="ui_verifyserversetupbutton_text_adad8c" formatted="false">Check SSH and password</string>
+  <string name="ui_wificonnectbutton_text_973ea4" formatted="false">Connect Wi-Fi</string>
+  <string name="ui_wifiopennetworkcheck_text_07a98a" formatted="false">Network without password</string>
+  <string name="ui_wifipasswordinput_hint_849d70" formatted="false">Wi-Fi password</string>
+  <string name="ui_wifirefreshbutton_text_b853ee" formatted="false">Check the network</string>
+  <string name="ui_wifisettingsbutton_text_0aefc3" formatted="false">System settings</string>
+  <string name="ui_wifissidinput_hint_4e5eef" formatted="false">Wi-Fi network name (SSID)</string>
+  <string name="ui_wifistatustext_text_aba1b9" formatted="false">Network settings on this device. Android will require confirmation.</string>
+</resources>

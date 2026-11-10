@@ -21,13 +21,13 @@ final class QueueEstimate {
             for(int n=0;n<sources.length();n++)count(journal,job.getString("id"),sources.getJSONObject(n),state,sum,visited,0);
         }
         String time;
-        if(TransferForegroundService.clearing)time="Очищаем список…";
-        else if(pending==0)time="Очередь пуста";
-        else if(!state.active)time="Ожидает продолжения";
-        else if(!sum.known)time="Уточняем объём…";
-        else if(sum.bytes==0)time="Завершаем передачу…";
-        else {long seconds=DashboardLayout.estimateSeconds(0,sum.bytes,speed);time=seconds<0?"Рассчитываем время…":DashboardLayout.formatEta(seconds).replace("Осталось ","");}
-        return new QueueEstimate(pending,sum.bytes,sum.known,state.active,"Вся очередь: "+time);
+        if(TransferForegroundService.clearing)time=AppText.tr("Очищаем список…");
+        else if(pending==0)time=AppText.tr("Очередь пуста");
+        else if(!state.active)time=AppText.tr("Ожидает продолжения");
+        else if(!sum.known)time=AppText.tr("Уточняем объём…");
+        else if(sum.bytes==0)time=AppText.tr("Завершаем передачу…");
+        else {long seconds=DashboardLayout.estimateSeconds(0,sum.bytes,speed);time=seconds<0?AppText.tr("Рассчитываем время…"):DashboardLayout.formatEta(seconds).replace(AppText.tr("Осталось "),"");}
+        return new QueueEstimate(pending,sum.bytes,sum.known,state.active,AppText.tr("Вся очередь: ")+time);
     }
     private static final class Totals {long bytes;boolean known=true;}
     private static void count(TransferJournal journal,String id,JSONObject node,TransferForegroundService.State state,Totals sum,Set<String> visited,int depth)throws Exception{
@@ -40,6 +40,6 @@ final class QueueEstimate {
         long sent=id.equals(state.requestId)&&key.equals(state.sourceKey)?Math.max(0,Math.min(size,state.bytes)):0;
         try{sum.bytes=Math.addExact(sum.bytes,size-sent);}catch(ArithmeticException e){sum.known=false;}
     }
-    static String countLabel(int count){int last=count%10,hundred=count%100;return count+" "+(hundred>=11&&hundred<=14?"заданий":last==1?"задание":last>=2&&last<=4?"задания":"заданий");}
-    String volume(){if(!known&&remaining==0)return "Объём уточняется";return (known?"Осталось ":"Не менее ")+ServerTelemetry.bytes(remaining);}
+    static String countLabel(int count){int last=count%10,hundred=count%100;return count+" "+(hundred>=11&&hundred<=14?AppText.tr("заданий"):last==1?AppText.tr("задание"):last>=2&&last<=4?AppText.tr("задания"):AppText.tr("заданий"));}
+    String volume(){if(!known&&remaining==0)return AppText.tr("Объём уточняется");return (known?AppText.tr("Осталось "):AppText.tr("Не менее "))+ServerTelemetry.bytes(remaining);}
 }

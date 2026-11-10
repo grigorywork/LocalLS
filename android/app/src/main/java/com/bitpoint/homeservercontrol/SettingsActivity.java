@@ -23,7 +23,7 @@ public class SettingsActivity extends BaseActivity {
                 .putBoolean(ShareOutbox.AUTO,((CheckBox)findViewById(R.id.shareImmediatelyCheck)).isChecked())
                 .putBoolean(ServerConfig.KEY_BACKGROUND_MONITOR,monitor.isChecked()).remove(ServerConfig.KEY_MONITOR_HAS_STATE).apply();
             boolean scheduled=MonitoringScheduler.setEnabled(this,monitor.isChecked());
-            Toast.makeText(this,monitor.isChecked() && !scheduled?"Не удалось включить мониторинг":"Настройки сохранены",Toast.LENGTH_SHORT).show();
+            Toast.makeText(this,monitor.isChecked() && !scheduled?AppText.tr("Не удалось включить мониторинг"):AppText.tr("Настройки сохранены"),Toast.LENGTH_SHORT).show();
         });
         findViewById(R.id.settingsBackButton).setOnClickListener(v -> finish());
         findViewById(R.id.aboutAppButton).setOnClickListener(v -> startActivity(new android.content.Intent(this,AboutActivity.class)));

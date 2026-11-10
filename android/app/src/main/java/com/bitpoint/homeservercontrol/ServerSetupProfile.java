@@ -15,7 +15,7 @@ final class ServerSetupProfile {
                 || profile.optInt("port") < 1 || profile.optInt("port") > 65535
                 || !profile.optString("user").matches("[a-zA-Z0-9_]{1,64}")
                 || !profile.optString("fingerprint").matches("SHA256:[A-Za-z0-9+/]{43}"))
-            throw new IllegalArgumentException("Это не корректный профиль LocalLS.");
+            throw new IllegalArgumentException(AppText.tr("Это не корректный профиль LocalLS."));
     }
     static void apply(Context context, JSONObject profile) throws Exception {
         validate(profile);
@@ -23,7 +23,7 @@ final class ServerSetupProfile {
         int port = profile.getInt("port");
         String previous = HostTrustStore.get(context, host, port);
         if (!previous.isEmpty() && !previous.equals(fingerprint))
-            throw new IllegalArgumentException("Ключ отличается от уже доверенного. Импорт заблокирован.");
+            throw new IllegalArgumentException(AppText.tr("Ключ отличается от уже доверенного. Импорт заблокирован."));
         HostTrustStore.trust(context, host, port, fingerprint);
         SecurePrefs.clearPassword(context);
         context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE).edit()

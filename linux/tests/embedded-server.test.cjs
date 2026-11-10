@@ -81,12 +81,12 @@ test('Revoking a Windows server device closes its sessions and old QR cannot res
     const port = code.port; await f.server.stop(); await f.start(port); assert.equal(await pairing.loginAttempt(code, key), false);
   } finally { client.disconnect(); await f.close(); }
 });
-test('Windows server enforces seven devices and expired requests never grant access', async () => {
-  const keys = Array.from({length: 7}, identity), f = await setup(keys.map(k => ({...publicIdentity(k.publicKey), key: undefined}))), eighth = identity();
+test('Windows server enforces ten devices and expired requests never grant access', async () => {
+  const keys = Array.from({length: 10}, identity), f = await setup(keys.map(k => ({...publicIdentity(k.publicKey), key: undefined}))), eighth = identity();
   try {
     const code = f.offer(); await pairing.loginAttempt(code, eighth, true);
     assert.throws(() => f.server.approve(code.nonce, eighth.publicKey), /DEVICE_LIMIT/);
-    assert.equal(f.server.snapshot().devices.length, 7); assert.equal(await pairing.loginAttempt(code, keys[0]), true);
+    assert.equal(f.server.snapshot().devices.length, 10); assert.equal(await pairing.loginAttempt(code, keys[0]), true);
     assert.equal(await pairing.loginAttempt(code, eighth), false);
     f.server.invitation.expires = Date.now() - 1;
     assert.throws(() => f.server.approve(code.nonce, eighth.publicKey), /QR_EXPIRED/);

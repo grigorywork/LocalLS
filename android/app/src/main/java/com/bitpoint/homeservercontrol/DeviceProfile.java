@@ -27,8 +27,8 @@ final class DeviceProfile {
         long ram = totalRamMb(context);
         StringBuilder out = new StringBuilder();
         out.append(manufacturer).append(' ').append(model);
-        if (ram > 0) out.append(" • RAM ~").append(ram).append(" МБ");
-        if (isLowRam(context)) out.append(" • low-RAM режим Android");
+        if (ram > 0) out.append(" • RAM ~").append(ram).append(AppText.tr(" МБ"));
+        if (isLowRam(context)) out.append(AppText.tr(" • low-RAM режим Android"));
         return out.toString().trim();
     }
 

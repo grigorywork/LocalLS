@@ -70,18 +70,18 @@ public class MainActivity extends BaseActivity {
     private boolean readingHome;
     private void refreshHomeTransfers(){
         if(readingHome||serverHomeSelected||!isUiActive())return;readingHome=true;final int generation=uiGeneration;
-        executor.execute(()->{String history="Передач пока нет";QueueEstimate estimate=null;boolean any=false;try{
+        executor.execute(()->{String history=AppText.tr("Передач пока нет");QueueEstimate estimate=null;boolean any=false;try{
             java.util.List<String> rows=new java.util.ArrayList<>();
             java.util.List<org.json.JSONObject> jobs=new TransferJournal(this).list();any=!jobs.isEmpty();estimate=QueueEstimate.read(this,jobs,TransferForegroundService.state,TransferSpeedStore.queueSpeed());
             for(org.json.JSONObject job:jobs){
                 String status=job.optString("status");if(!java.util.Arrays.asList("done","failed","cancelled").contains(status))continue;
-                org.json.JSONArray sources=job.getJSONArray("sources");for(int i=0;i<sources.length()&&rows.size()<3;i++){org.json.JSONObject f=sources.getJSONObject(i);rows.add(("done".equals(status)?"✓ ":"failed".equals(status)?"! ":"× ")+f.optString("name")+" · "+(f.optBoolean("directory")?"Папка":ServerTelemetry.bytes(f.optLong("size")))+" · "+("done".equals(status)?("upload".equals(job.optString("action"))?"Отправлено":"Получено"):"failed".equals(status)?"Ошибка":"Отменено"));}if(rows.size()==3)break;
+                org.json.JSONArray sources=job.getJSONArray("sources");for(int i=0;i<sources.length()&&rows.size()<3;i++){org.json.JSONObject f=sources.getJSONObject(i);rows.add(("done".equals(status)?"✓ ":"failed".equals(status)?"! ":"× ")+f.optString("name")+" · "+(f.optBoolean("directory")?AppText.tr("Папка"):ServerTelemetry.bytes(f.optLong("size")))+" · "+("done".equals(status)?("upload".equals(job.optString("action"))?AppText.tr("Отправлено"):AppText.tr("Получено")):"failed".equals(status)?AppText.tr("Ошибка"):AppText.tr("Отменено")));}if(rows.size()==3)break;
             }if(!rows.isEmpty())history=android.text.TextUtils.join("\n",rows);
-        }catch(Exception e){history="Журнал временно недоступен";}
+        }catch(Exception e){history=AppText.tr("Журнал временно недоступен");}
         final String result=history;final QueueEstimate queueEstimate=estimate;final boolean hasEntries=any;handler.post(()->{readingHome=false;if(!isUiActive()||generation!=uiGeneration)return;
             TransferForegroundService.State state=TransferForegroundService.state;
-            int percent=state.total>0?(int)Math.min(100,state.bytes*100d/state.total):0;String detail=state.active?(state.total>0?percent+"% · "+ServerTelemetry.bytes(state.bytes)+" из "+ServerTelemetry.bytes(state.total):state.text):state.text;
-            ((DashboardLayout)findViewById(R.id.dashboardScroll)).transfers(state.active?TransferForegroundService.currentName:"Передача не выполняется",detail,percent,result);
+            int percent=state.total>0?(int)Math.min(100,state.bytes*100d/state.total):0;String detail=state.active?(state.total>0?percent+"% · "+ServerTelemetry.bytes(state.bytes)+AppText.tr(" из ")+ServerTelemetry.bytes(state.total):state.text):state.text;
+            ((DashboardLayout)findViewById(R.id.dashboardScroll)).transfers(state.active?TransferForegroundService.currentName:AppText.tr("Передача не выполняется"),detail,percent,result);
             ((DashboardLayout)findViewById(R.id.dashboardScroll)).transferTiming(TransferSpeedStore.queueSpeed(),state.bytes,state.total);
             if(queueEstimate!=null)((DashboardLayout)findViewById(R.id.dashboardScroll)).queueSummary(queueEstimate,hasEntries);
         });});
@@ -150,7 +150,7 @@ public class MainActivity extends BaseActivity {
         renderAttachmentEntry();
         StatusBadge.apply(statusText,StatusBadge.Tone.WARNING);
         if(activeHost().isEmpty()) {
-            statusText.setText("НЕ НАСТРОЕНО");statusDetail.setText("Укажи адрес другого устройства в разделе «Адрес и ключ».");
+            statusText.setText(AppText.tr("НЕ НАСТРОЕНО"));statusDetail.setText(AppText.tr("Укажи адрес другого устройства в разделе «Адрес и ключ»."));
         }
         if(getIntent().getBooleanExtra("localls.openAppearance",false)){getIntent().removeExtra("localls.openAppearance");handler.post(()->{if(!serverHomeSelected&&clientEnabled()){openToolsDrawer();drawerSections.open(R.id.drawerAppearancePane);}});}
     }
@@ -208,7 +208,7 @@ public class MainActivity extends BaseActivity {
             View tab=findViewById(id);boolean selected=(id==R.id.homeServerTab)==serverHomeSelected;
             tab.setSelected(selected);tab.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
                     id==R.id.homeServerTab&&!clientEnabled()?ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscPanel):ThemeCatalog.color(this,selected?com.bitpoint.homeservercontrol.ui.R.attr.hscButton:com.bitpoint.homeservercontrol.ui.R.attr.hscSecondaryButton)));
-            if(id==R.id.homeServerTab){Button title=(Button)tab;title.setText(clientEnabled()||getResources().getConfiguration().fontScale>1.3f?"Сервер":"Сервер\nЭтот телефон");title.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));}
+            if(id==R.id.homeServerTab){Button title=(Button)tab;title.setText(clientEnabled()||getResources().getConfiguration().fontScale>1.3f?AppText.tr("Сервер"):AppText.tr("Сервер\nЭтот телефон"));title.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextPrimary));}
             IconButtons.dashboardTab((Button)tab);
         }
     }
@@ -217,23 +217,23 @@ public class MainActivity extends BaseActivity {
         ((ServerHomeLayout)findViewById(R.id.serverHome)).refresh();
         ((WifiAddressView)findViewById(R.id.currentWifiAddress)).refresh();
         TextView summary=findViewById(R.id.localServerSummary);
-        summary.setText(EmbeddedServerService.running?"● Сервер работает":
-            EmbeddedServerService.launchPending()?"Запуск сервера…":EmbeddedServerService.status);
+        summary.setText(EmbeddedServerService.running?AppText.tr("● Сервер работает"):
+            EmbeddedServerService.launchPending()?AppText.tr("Запуск сервера…"):EmbeddedServerService.status);
         boolean savedKey=!getSharedPreferences(EmbeddedServerService.PREFS,0).getString("allowed_key","").isEmpty();
-        ((TextView)findViewById(R.id.serverAccessSummary)).setText("Порт "+(EmbeddedServerService.running?EmbeddedServerService.boundPort:getSharedPreferences(EmbeddedServerService.PREFS,0).getInt("port",8022))+" · "+getSharedPreferences(EmbeddedServerService.PREFS,0).getString("user","localls")+(EmbeddedServerService.running&&EmbeddedServerService.waitingForClient?" · Вход закрыт":" · Доступ по ключу"));
+        ((TextView)findViewById(R.id.serverAccessSummary)).setText(AppText.tr("Порт ")+(EmbeddedServerService.running?EmbeddedServerService.boundPort:getSharedPreferences(EmbeddedServerService.PREFS,0).getInt("port",8022))+" · "+getSharedPreferences(EmbeddedServerService.PREFS,0).getString("user","localls")+(EmbeddedServerService.running&&EmbeddedServerService.waitingForClient?AppText.tr(" · Вход закрыт"):AppText.tr(" · Доступ по ключу")));
         StatusBadge.apply(summary,EmbeddedServerService.running?(EmbeddedServerService.waitingForClient?StatusBadge.Tone.WARNING:StatusBadge.Tone.SUCCESS):
             EmbeddedServerService.launchPending()?StatusBadge.Tone.WARNING:
             EmbeddedServerService.diagnostic.isEmpty()?StatusBadge.Tone.NEUTRAL:StatusBadge.Tone.ERROR);
         TextView receive=findViewById(R.id.serverReceiveSummary);
-        receive.setText(ReceiveFolder.label(this));receive.setContentDescription("Папка входящих: "+ReceiveFolder.label(this)+". "+AutoReceive.status);
-        ((Button)findViewById(R.id.serverBackgroundButton)).setText(EmbeddedServerService.running?"Работает в фоне":"Работа в фоне");
+        receive.setText(ReceiveFolder.label(this));receive.setContentDescription(AppText.tr("Папка входящих: ")+ReceiveFolder.label(this)+". "+AutoReceive.status);
+        ((Button)findViewById(R.id.serverBackgroundButton)).setText(EmbeddedServerService.running?AppText.tr("Работает в фоне"):AppText.tr("Работа в фоне"));
         Button power=findViewById(R.id.serverPowerButton);
         boolean pending=EmbeddedServerService.launchPending();
-        power.setText(EmbeddedServerService.running?"Остановить":pending?"Запуск…":"Включить");
+        power.setText(EmbeddedServerService.running?AppText.tr("Остановить"):pending?AppText.tr("Запуск…"):AppText.tr("Включить"));
         power.setEnabled(Build.VERSION.SDK_INT>=26 && !pending);
     }
     private void toggleOwnServer(){
-        if(EmbeddedServerService.running){stopService(new Intent(this,EmbeddedServerService.class));return;}
+        if(EmbeddedServerService.running){EmbeddedServerService.stop(this);return;}
         if(Build.VERSION.SDK_INT<26 || EmbeddedServerService.launchPending())return;
         try{
             EmbeddedServerService.start(this);
@@ -267,8 +267,8 @@ public class MainActivity extends BaseActivity {
         trustKeyButton.setVisibility(View.GONE);
         fingerprintValue.setVisibility(View.GONE);
         ((DashboardLayout)findViewById(R.id.dashboardScroll)).resetMetrics();
-        batteryValue.setText("—");batteryValue.setContentDescription("Заряд батареи сервера: —");
-        diskValue.setContentDescription("Свободное место сервера: —");
+        batteryValue.setText("—");batteryValue.setContentDescription(AppText.tr("Заряд батареи сервера: —"));
+        diskValue.setContentDescription(AppText.tr("Свободное место сервера: —"));
         latencyValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a); diskValue.setText("—"); uptimeValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_cbe1cb69c8a9);
     }
 
@@ -308,7 +308,7 @@ public class MainActivity extends BaseActivity {
         findViewById(R.id.serverReceiveButton).setOnClickListener(v->startActivity(new Intent(this,EmbeddedServerActivity.class).putExtra("open_receive_folder",true)));
         findViewById(R.id.serverBackgroundButton).setOnClickListener(v->{try{
             startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName())));
-        }catch(RuntimeException error){Toast.makeText(this,"Открой настройки Android → LocalLS → Батарея",Toast.LENGTH_LONG).show();}});
+        }catch(RuntimeException error){Toast.makeText(this,AppText.tr("Открой настройки Android → LocalLS → Батарея"),Toast.LENGTH_LONG).show();}});
         findViewById(R.id.drawerScrim).setOnClickListener(v -> closeToolsDrawer());
         findViewById(R.id.drawerConnectionHeader).setOnClickListener(v -> {
             showDashboardSheet(R.id.connectionSheet);
@@ -383,9 +383,9 @@ public class MainActivity extends BaseActivity {
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         input.setHint("ssh://user@192.168.1.82:8022");
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Адрес подключения")
-                .setMessage("Вставь SSH/SFTP-адрес без пароля и пути. Он заполнит активную точку Local/VPN. Затем сохрани и проверь подключение.")
-                .setView(input).setNegativeButton("Отмена", null).setPositiveButton("Заполнить", null).create();
+                .setTitle(AppText.tr("Адрес подключения"))
+                .setMessage(AppText.tr("Вставь SSH/SFTP-адрес без пароля и пути. Он заполнит активную точку Local/VPN. Затем сохрани и проверь подключение."))
+                .setView(input).setNegativeButton(AppText.tr("Отмена"), null).setPositiveButton(AppText.tr("Заполнить"), null).create();
         dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             try {
@@ -411,17 +411,17 @@ public class MainActivity extends BaseActivity {
         portInput.setError(null);
         boolean invalid = false;
         if ((!localHost.isEmpty() || !vpnModeButton.isChecked()) && !ConnectionEndpoint.validHost(localHost)) {
-            localHostInput.setError("Укажи IP или имя сервера без порта и пути"); invalid = true;
+            localHostInput.setError(AppText.tr("Укажи IP или имя сервера без порта и пути")); invalid = true;
         }
         if ((!vpnHost.isEmpty() || vpnModeButton.isChecked()) && !ConnectionEndpoint.validHost(vpnHost)) {
-            vpnHostInput.setError("Укажи IP или имя сервера в VPN"); invalid = true;
+            vpnHostInput.setError(AppText.tr("Укажи IP или имя сервера в VPN")); invalid = true;
         }
         if (!ConnectionEndpoint.validUser(user)) {
-            userInput.setError("Укажи имя пользователя SSH, например u0_a123"); invalid = true;
+            userInput.setError(AppText.tr("Укажи имя пользователя SSH, например u0_a123")); invalid = true;
         }
-        if (port <= 0) { portInput.setError("Порт SSH: от 1 до 65535"); invalid = true; }
+        if (port <= 0) { portInput.setError(AppText.tr("Порт SSH: от 1 до 65535")); invalid = true; }
         if (invalid) {
-            Toast.makeText(this, "Исправь отмеченные поля подключения", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.tr("Исправь отмеченные поля подключения"), Toast.LENGTH_SHORT).show();
             return false;
         }
 
@@ -429,8 +429,8 @@ public class MainActivity extends BaseActivity {
         SharedPreferences prefs = getSharedPreferences(ServerConfig.PREFS, MODE_PRIVATE);
         String oldHost=ConnectionSelector.selectedHost(this),newHost=vpnModeButton.isChecked()?vpnHost:localHost;
         if(port==prefs.getInt(ServerConfig.KEY_PORT,ServerConfig.DEFAULT_PORT) && user.equals(prefs.getString(ServerConfig.KEY_USER,ServerConfig.DEFAULT_USER))){
-            try{if(SshKeys.moveRoute(this,oldHost,newHost,port,user))appendLog("Адрес изменён. Прежний ключ и fingerprint сервера сохранены.");}
-            catch(Exception e){Toast.makeText(this,"Не удалось сохранить доступ для нового адреса. Старое подключение сохранено.",Toast.LENGTH_LONG).show();return false;}
+            try{if(SshKeys.moveRoute(this,oldHost,newHost,port,user))appendLog(AppText.tr("Адрес изменён. Прежний ключ и fingerprint сервера сохранены."));}
+            catch(Exception e){Toast.makeText(this,AppText.tr("Не удалось сохранить доступ для нового адреса. Старое подключение сохранено."),Toast.LENGTH_LONG).show();return false;}
         }
         prefs.edit()
                 .putString(ServerConfig.KEY_LOCAL_HOST, localHost)
@@ -441,8 +441,8 @@ public class MainActivity extends BaseActivity {
                 .putBoolean(ServerConfig.KEY_SAVE_PASSWORD, false)
                 .apply();
 
-        appendLog("Подключение сохранено.");
-        Toast.makeText(this,"Сохранено",Toast.LENGTH_SHORT).show();
+        appendLog(AppText.tr("Подключение сохранено."));
+        Toast.makeText(this,AppText.tr("Сохранено"),Toast.LENGTH_SHORT).show();
         renderConnectionSummary();
         return true;
     }
@@ -491,7 +491,7 @@ public class MainActivity extends BaseActivity {
         statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_32dfa9c36e2b);
         statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
         statusDetail.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.server_endpoint_format, primaryHost, port));
-        appendLog("Проверяю " + primaryHost + ":" + port + "…");
+        appendLog(AppText.tr("Проверяю ") + primaryHost + ":" + port + "…");
 
         final int generation = uiGeneration;
         checkTask = executor.submit(() -> {
@@ -519,7 +519,7 @@ public class MainActivity extends BaseActivity {
                 checking = false;
                 setCheckButtonsEnabled(true);
                 if (!primaryHost.equals(finalHost)) {
-                    appendLog("Основной маршрут недоступен. Использован резервный: " + finalHost + ".");
+                    appendLog(AppText.tr("Основной маршрут недоступен. Использован резервный: ") + finalHost + ".");
                 }
                 if (finalStats.reachable) ConnectionSelector.rememberWorkingHost(this, finalHost);
                 renderStats(finalStats, finalHost, port, user);
@@ -534,10 +534,10 @@ public class MainActivity extends BaseActivity {
         userValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_617bb5a0a088, user));
         latencyValue.setText(stats.reachable ? getString(com.bitpoint.homeservercontrol.ui.R.string.status_latency_format, stats.latencyMs) : getString(com.bitpoint.homeservercontrol.ui.R.string.status_36c28e09c94a));
         diskValue.setText(SurfaceStyle.quantity(stats.freeSpace));
-        diskValue.setContentDescription("Свободное место сервера: "+stats.freeSpace);
+        diskValue.setContentDescription(AppText.tr("Свободное место сервера: ")+stats.freeSpace);
         uptimeValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_3597244eb434, stats.uptime));
         batteryValue.setText(stats.battery);
-        batteryValue.setContentDescription("Заряд батареи сервера: "+stats.battery);
+        batteryValue.setContentDescription(AppText.tr("Заряд батареи сервера: ")+stats.battery);
         fingerprintValue.setText(getString(com.bitpoint.homeservercontrol.ui.R.string.status_8229b14b80f9, stats.hostFingerprint));
         fingerprintValue.setVisibility(stats.hostFingerprint != null && !"—".equals(stats.hostFingerprint)
                 ? View.VISIBLE : View.GONE);
@@ -563,18 +563,18 @@ public class MainActivity extends BaseActivity {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_d2b35fb33f9d);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
             statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_2ff061084808);
-            appendLog("Получен новый SSH fingerprint. Команды пока заблокированы.");
+            appendLog(AppText.tr("Получен новый SSH fingerprint. Команды пока заблокированы."));
         } else if (stats.authenticated && stats.hostKeyTrusted) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7141047c824d);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess));
-            if(stats.telemetryAvailable)statusDetail.setText("Доступ по ключу. Показатели сервера обновлены.");
-            else if (stats.sftpOnly) statusDetail.setText("SFTP работает. Командная оболочка отключена; системные метрики недоступны.");
+            if(stats.telemetryAvailable)statusDetail.setText(AppText.tr("Доступ по ключу. Показатели сервера обновлены."));
+            else if (stats.sftpOnly) statusDetail.setText(AppText.tr("SFTP работает. Командная оболочка отключена; системные метрики недоступны."));
             else statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_0870869f22e7);
-            appendLog("Сервер онлайн. SSH-вход успешен.");
+            appendLog(AppText.tr("Сервер онлайн. SSH-вход успешен."));
         } else if (stats.reachable) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_18bf0e4021be);
             statusText.setTextColor(ThemeCatalog.color(this, com.bitpoint.homeservercontrol.ui.R.attr.hscWarning));
-            statusDetail.setText("SSH-порт доступен, авторизация не выполнена.\n" + stats.error);
+            statusDetail.setText(AppText.tr("SSH-порт доступен, авторизация не выполнена.\n") + stats.error);
             appendLog(stats.error);
         } else {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_a267c32f1c34);
@@ -591,17 +591,17 @@ public class MainActivity extends BaseActivity {
 
     private void trustLastFingerprint() {
         if (TextUtils.isEmpty(lastSeenFingerprint) || "—".equals(lastSeenFingerprint) || TextUtils.isEmpty(lastSeenHost) || lastSeenPort <= 0) {
-            Toast.makeText(this, "Сначала выполни проверку сервера", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.tr("Сначала выполни проверку сервера"), Toast.LENGTH_SHORT).show();
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Доверять SSH-ключу?")
-                .setMessage("Отпечаток ключа:\n" + lastSeenFingerprint + "\n\nПодтверждай только если это твой сервер.")
-                .setNegativeButton("Отмена", null)
-                .setPositiveButton("Доверять", (dialog, which) -> {
+                .setTitle(AppText.tr("Доверять SSH-ключу?"))
+                .setMessage(AppText.tr("Отпечаток ключа:\n") + lastSeenFingerprint + AppText.tr("\n\nПодтверждай только если это твой сервер."))
+                .setNegativeButton(AppText.tr("Отмена"), null)
+                .setPositiveButton(AppText.tr("Доверять"), (dialog, which) -> {
                     HostTrustStore.trust(this, lastSeenHost, lastSeenPort, lastSeenFingerprint);
                     trustKeyButton.setVisibility(View.GONE);
-                    appendLog("SSH fingerprint сохранён для " + lastSeenHost + ":" + lastSeenPort + ".");
+                    appendLog(AppText.tr("SSH fingerprint сохранён для ") + lastSeenHost + ":" + lastSeenPort + ".");
                     checkServer(true);
                 })
                 .show();
@@ -612,16 +612,16 @@ public class MainActivity extends BaseActivity {
         int port = parsePort();
         if (TextUtils.isEmpty(host) || port <= 0) return;
         HostTrustStore.clear(this, host, port);
-        appendLog("Сохранённый fingerprint забыт для " + host + ":" + port + ".");
+        appendLog(AppText.tr("Сохранённый fingerprint забыт для ") + host + ":" + port + ".");
         fingerprintValue.setText(com.bitpoint.homeservercontrol.ui.R.string.status_3450e8b60cd1);
         fingerprintValue.setVisibility(View.GONE);
-        Toast.makeText(this, "Fingerprint удалён", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, AppText.tr("Fingerprint удалён"), Toast.LENGTH_SHORT).show();
     }
 
     private void renderConnectionSummary() {
         // Network mode is configured in the existing Network screen. Show the active endpoint here.
         modeGroup.setVisibility(View.GONE);boolean vpn=vpnModeButton.isChecked();localHostInput.setVisibility(vpn?View.GONE:View.VISIBLE);vpnHostInput.setVisibility(vpn?View.VISIBLE:View.GONE);
-        android.view.ViewGroup connection=findViewById(R.id.drawerConnectionPane);for(int i=0;i<connection.getChildCount();i++){View label=connection.getChildAt(i);if(label.getLabelFor()==R.id.localHostInput)label.setVisibility(vpn?View.GONE:View.VISIBLE);if(label.getLabelFor()==R.id.vpnHostInput){label.setVisibility(vpn?View.VISIBLE:View.GONE);((TextView)label).setText("Адрес сервера");}}
+        android.view.ViewGroup connection=findViewById(R.id.drawerConnectionPane);for(int i=0;i<connection.getChildCount();i++){View label=connection.getChildAt(i);if(label.getLabelFor()==R.id.localHostInput)label.setVisibility(vpn?View.GONE:View.VISIBLE);if(label.getLabelFor()==R.id.vpnHostInput){label.setVisibility(vpn?View.VISIBLE:View.GONE);((TextView)label).setText(AppText.tr("Адрес сервера"));}}
         String host = activeHost();
         int port = parsePort();
         String user = userInput.getText().toString().trim();
@@ -637,24 +637,24 @@ public class MainActivity extends BaseActivity {
         int port = parsePort();
         String user = userInput.getText().toString().trim();
         if (!ConnectionEndpoint.validHost(host) || !ConnectionEndpoint.validUser(user) || port < 1) {
-            Toast.makeText(this,"Проверь адрес, пользователя и порт",Toast.LENGTH_SHORT).show(); return;
+            Toast.makeText(this,AppText.tr("Проверь адрес, пользователя и порт"),Toast.LENGTH_SHORT).show(); return;
         }
         String authority = user+"@"+(host.contains(":") ? "["+host+"]" : host)+":"+port;
-        new AlertDialog.Builder(this).setTitle("Скопировать адрес")
+        new AlertDialog.Builder(this).setTitle(AppText.tr("Скопировать адрес"))
                 .setItems(new String[]{"sftp://"+authority,"ssh://"+authority},(d,which) -> {
                     ClipboardManager clipboard=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
                     clipboard.setPrimaryClip(ClipData.newPlainText("LocalLS",(which==0?"sftp://":"ssh://")+authority));
-                    Toast.makeText(this,"Адрес без секретов скопирован",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this,AppText.tr("Адрес без секретов скопирован"),Toast.LENGTH_SHORT).show();
                 }).show();
     }
 
     private boolean validSshInputs(String host, int port, String user, String password) {
         if (!ConnectionEndpoint.validHost(host) || port <= 0 || !ConnectionEndpoint.validUser(user)) {
-            Toast.makeText(this, "Проверь адрес, порт и пользователя", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.tr("Проверь адрес, порт и пользователя"), Toast.LENGTH_SHORT).show();
             return false;
         }
         if (TextUtils.isEmpty(HostTrustStore.get(this, host, port))) {
-            Toast.makeText(this, "Сначала проверь сервер и подтверди fingerprint", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, AppText.tr("Сначала проверь сервер и подтверди fingerprint"), Toast.LENGTH_LONG).show();
             return false;
         }
         return true;
@@ -676,18 +676,18 @@ public class MainActivity extends BaseActivity {
         catch (RuntimeException e) {
             attachedFiles.clear();
             renderAttachmentEntry();
-            Toast.makeText(this, "Нет доступа к вложениям. Прикрепи файлы заново через выбор файлов Android.",
+            Toast.makeText(this, AppText.tr("Нет доступа к вложениям. Прикрепи файлы заново через выбор файлов Android."),
                     Toast.LENGTH_LONG).show();
             return;
         }
         attachedFiles.clear();
         renderAttachmentEntry();
-        appendLog("Открыт встроенный SFTP-браузер.");
+        appendLog(AppText.tr("Открыт встроенный SFTP-браузер."));
     }
 
     private void renderAttachmentEntry() {
         ((Button) findViewById(R.id.attachFilesButton)).setText(attachedFiles.isEmpty()
-                ? "Отправить файл" : "Вложений: " + attachedFiles.size() + " • Отправить");
+                ? AppText.tr("Отправить файл") : AppText.tr("Вложений: ") + attachedFiles.size() + AppText.tr(" • Отправить"));
     }
 
     private void routeSharedIntent(Intent intent,boolean fresh){
@@ -786,13 +786,13 @@ public class MainActivity extends BaseActivity {
         String version;
         try{version=getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(Exception e){version="—";}
         report.append("LocalLS ").append(version).append(" / ").append(getString(R.string.ui_build_revision)).append('\n');
-        report.append("Создано: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())).append("\n\n");
-        report.append("Подключение\n");
-        report.append("Режим: ").append(vpnModeButton.isChecked() ? "VPN/Tailscale" : "Local").append("\n");
-        report.append("Хост: ").append(activeHost()).append("\n");
-        report.append("Порт: ").append(parsePort()).append("\n");
-        report.append("Пользователь: ").append(userInput.getText().toString().trim()).append("\n\n");
-        report.append("Состояние\n");
+        report.append(AppText.tr("Создано: ")).append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())).append("\n\n");
+        report.append(AppText.tr("Подключение\n"));
+        report.append(AppText.tr("Режим: ")).append(vpnModeButton.isChecked() ? "VPN/Tailscale" : "Local").append("\n");
+        report.append(AppText.tr("Хост: ")).append(activeHost()).append("\n");
+        report.append(AppText.tr("Порт: ")).append(parsePort()).append("\n");
+        report.append(AppText.tr("Пользователь: ")).append(userInput.getText().toString().trim()).append("\n\n");
+        report.append(AppText.tr("Состояние\n"));
         report.append(statusText.getText()).append("\n");
         report.append(statusDetail.getText()).append("\n");
         report.append(latencyValue.getText()).append("\n");
@@ -800,9 +800,9 @@ public class MainActivity extends BaseActivity {
         report.append(uptimeValue.getText()).append("\n");
         report.append(batteryValue.getText()).append("\n");
         report.append(fingerprintValue.getText()).append("\n\n");
-        report.append("История памяти\n").append(DiskHistoryStore.render(this, 20)).append("\n\n");
-        report.append("Журнал\n").append(logText.getText()).append("\n");
-        report.append("\nПриватный SSH-ключ и токен агента не экспортируются.\n");
+        report.append(AppText.tr("История памяти\n")).append(DiskHistoryStore.render(this, 20)).append("\n\n");
+        report.append(AppText.tr("Журнал\n")).append(logText.getText()).append("\n");
+        report.append(AppText.tr("\nПриватный SSH-ключ и токен агента не экспортируются.\n"));
         pendingReport = SecretRedactor.redact(report.toString(),
                 "", "");
 
@@ -821,7 +821,7 @@ public class MainActivity extends BaseActivity {
         final Uri destination = data.getData();
         final String report = pendingReport;
         pendingReport = "";
-        if(report.isEmpty()){Toast.makeText(this,"Отчёт не подготовлен. Повтори экспорт диагностики.",Toast.LENGTH_LONG).show();return;}
+        if(report.isEmpty()){Toast.makeText(this,AppText.tr("Отчёт не подготовлен. Повтори экспорт диагностики."),Toast.LENGTH_LONG).show();return;}
         executor.execute(() -> {
             boolean saved = false;
             try (OutputStream out = getContentResolver().openOutputStream(destination, "w")) {
@@ -829,7 +829,7 @@ public class MainActivity extends BaseActivity {
             } catch (Exception e) { /* Do not expose provider errors. */ }
             final boolean success = saved;
             handler.post(() -> { if (isUiActive()) Toast.makeText(this,
-                    success ? "Отчёт сохранён" : "Не удалось сохранить отчёт", Toast.LENGTH_SHORT).show(); });
+                    success ? AppText.tr("Отчёт сохранён") : AppText.tr("Не удалось сохранить отчёт"), Toast.LENGTH_SHORT).show(); });
         });
     }
 
@@ -839,7 +839,7 @@ public class MainActivity extends BaseActivity {
         if (requestCode == WifiSetupController.PERMISSION) { wifiSetup.onPermissionResult(grantResults); return; }
         if (requestCode == REQ_NOTIFICATIONS && grantResults.length > 0
                 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Мониторинг продолжит работать, но уведомления Android запрещены", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, AppText.tr("Мониторинг продолжит работать, но уведомления Android запрещены"), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -865,9 +865,9 @@ public class MainActivity extends BaseActivity {
         float peak = 0;
         for (Float value : recent) peak = Math.max(peak, value);
         summary.setText(recent.isEmpty() ? "—"
-                : String.format(Locale.getDefault(), "%.0f мс", recent.get(recent.size() - 1)));
+                : String.format(Locale.getDefault(), AppText.tr("%.0f мс"), recent.get(recent.size() - 1)));
         while (recent.size() < 20) recent.add(0, Float.NaN);
-        chart.setLabels("мс", "20 проверок");
+        chart.setLabels(AppText.tr("мс"), AppText.tr("20 проверок"));
         chart.setValues(recent, 0, Math.max(10f, peak * 1.2f));
     }
 
@@ -878,7 +878,7 @@ public class MainActivity extends BaseActivity {
         setCheckButtonsEnabled(true);
         TextView result=findViewById(R.id.connectionCheckStatus);
         if(result!=null && getString(R.string.ssh_check_busy).contentEquals(result.getText())){result.setText(R.string.ssh_check_ready);result.setTextColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary));}
-        if (statusText != null && "● ПРОВЕРКА…".contentEquals(statusText.getText())) {
+        if (statusText != null && AppText.tr("● ПРОВЕРКА…").contentEquals(statusText.getText())) {
             statusText.setText(com.bitpoint.homeservercontrol.ui.R.string.status_f7ed201ba529);
             statusDetail.setText(com.bitpoint.homeservercontrol.ui.R.string.status_7fad5c3e34a2);
         }

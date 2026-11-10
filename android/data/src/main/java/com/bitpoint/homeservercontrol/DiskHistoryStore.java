@@ -32,7 +32,7 @@ final class DiskHistoryStore {
         String raw = context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE)
                 .getString(ServerConfig.KEY_DISK_HISTORY, "");
         List<String> items = loadItems(raw);
-        if (items.isEmpty()) return "История пока пустая";
+        if (items.isEmpty()) return AppText.tr("История пока пустая");
         int count = Math.min(maxItems, items.size());
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < count; i++) {

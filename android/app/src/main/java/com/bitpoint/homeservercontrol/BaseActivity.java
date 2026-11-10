@@ -16,12 +16,14 @@ public abstract class BaseActivity extends Activity {
     private int appliedTheme,appliedAppearance;
     private boolean screenActive;
 
+    @Override protected void attachBaseContext(android.content.Context base){super.attachBaseContext(AppLanguage.apply(base));}
+
     @Override
     protected void onCreate(Bundle state) {
         appliedTheme = ThemeCatalog.style(this);
         setTheme(appliedTheme);ThemeCatalog.applyOverlays(this);appliedAppearance=ThemeCatalog.signature(this);
         super.onCreate(state);
-        if(ThemeCatalog.index(this)==4&&Build.VERSION.SDK_INT>=26){
+        if(ThemeCatalog.light(this)&&Build.VERSION.SDK_INT>=26){
             getWindow().setNavigationBarColor(ThemeCatalog.color(this,com.bitpoint.homeservercontrol.ui.R.attr.hscBackground));
             View decor=getWindow().getDecorView();decor.setSystemUiVisibility(decor.getSystemUiVisibility()|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         }
@@ -57,7 +59,7 @@ public abstract class BaseActivity extends Activity {
             return;
         }
         if (!NotificationHelper.showTray(this)) Toast.makeText(this,
-                "Уведомления выключены. Вернуться можно через значок LocalLS.", Toast.LENGTH_LONG).show();
+                AppText.tr("Уведомления выключены. Вернуться можно через значок LocalLS."), Toast.LENGTH_LONG).show();
         moveTaskToBack(true);
     }
 
@@ -98,11 +100,11 @@ public abstract class BaseActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_TRAY_NOTIFICATION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) minimizeToTray();
-            else Toast.makeText(this, "Для сворачивания в шторку разреши уведомления LocalLS.", Toast.LENGTH_LONG).show();
+            else Toast.makeText(this, AppText.tr("Для сворачивания в шторку разреши уведомления LocalLS."), Toast.LENGTH_LONG).show();
         }
         if (requestCode == REQUEST_LOCAL_NETWORK && grantResults.length > 0
                 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Для подключения к серверу разреши доступ к локальной сети в настройках приложения.",
+            Toast.makeText(this, AppText.tr("Для подключения к серверу разреши доступ к локальной сети в настройках приложения."),
                     Toast.LENGTH_LONG).show();
         }
     }

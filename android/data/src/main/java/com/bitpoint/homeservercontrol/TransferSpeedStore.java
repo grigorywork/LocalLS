@@ -18,7 +18,7 @@ final class TransferSpeedStore {
     private static long jobBucket;
     private static double jobBucketBytes;
     private static float jobPeak;
-    private static String state = "Передач пока нет";
+    private static String state = AppText.tr("Передач пока нет");
 
     private TransferSpeedStore() {}
 
@@ -32,7 +32,7 @@ final class TransferSpeedStore {
         jobBucket = bucket;
         jobBucketBytes = 0;
         jobPeak = 0;
-        state = "Передача";
+        state = AppText.tr("Передача");
     }
 
     static synchronized void recordBytes(Object transfer, long cumulativeBytes) {

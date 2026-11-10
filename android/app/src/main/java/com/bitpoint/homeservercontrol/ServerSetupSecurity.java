@@ -41,11 +41,11 @@ final class ServerSetupSecurity {
         JSONObject config;
         try { config = new JSONObject(new String(bytes, StandardCharsets.UTF_8)); }
         finally { Arrays.fill(bytes, (byte) 0); }
-        if (!config.optBoolean("tls", true)) throw new Exception("Агент должен использовать HTTPS");
+        if (!config.optBoolean("tls", true)) throw new Exception(AppText.tr("Агент должен использовать HTTPS"));
         int port = config.optInt("port", 8787);
-        if (port < 1 || port > 65535) throw new Exception("Неверный порт агента");
+        if (port < 1 || port > 65535) throw new Exception(AppText.tr("Неверный порт агента"));
         String path = config.optString("tls_cert", TermuxSetup.HOME + "/home-server-agent/agent-cert.pem");
-        if (!path.startsWith(TermuxSetup.HOME + "/")) throw new Exception("Сертификат должен находиться в HOME Termux");
+        if (!path.startsWith(TermuxSetup.HOME + "/")) throw new Exception(AppText.tr("Сертификат должен находиться в HOME Termux"));
         byte[] pem = TermuxSetup.readHomeFile(context, tree, path.substring(TermuxSetup.HOME.length() + 1), 16384);
         return verifyAgent("127.0.0.1", port, config.getString("token"), pem);
     }
@@ -55,10 +55,10 @@ final class ServerSetupSecurity {
                 .generateCertificate(new ByteArrayInputStream(certificate));
         cert.checkValidity();
         String expected = AgentTls.fingerprint(cert);
-        if (!expected.equals(AgentTls.probe(host, port))) throw new Exception("Сертификат агента изменился");
+        if (!expected.equals(AgentTls.probe(host, port))) throw new Exception(AppText.tr("Сертификат агента изменился"));
         // Recheck the pin on the authenticated connection, including a certificate change between requests.
         AgentResult result = AgentClient.request(host, port, token, "status", expected, false);
-        if (!result.success || !new JSONObject(result.body).optBoolean("ok")) throw new Exception("Статус агента не подтверждён");
+        if (!result.success || !new JSONObject(result.body).optBoolean("ok")) throw new Exception(AppText.tr("Статус агента не подтверждён"));
         return expected;
     }
 
@@ -87,14 +87,14 @@ final class ServerSetupSecurity {
 
     static String preparationFailure(String result) {
         switch (result) {
-            case "AGENT_SETUP_PORT_BUSY": return "Порт агента занят. Существующий процесс сохранён; проверь, какой агент или приложение использует этот порт.";
-            case "AGENT_SETUP_TLS_INCOMPLETE": return "TLS-пара неполная. Существующий ключ сохранён; восстанови соответствующий сертификат из резервной копии.";
-            case "AGENT_SETUP_TLS": return "TLS-пара повреждена, не совпадает или сертификат истёк. Восстанови или обнови её отдельно; мастер не заменяет существующие ключи.";
-            case "AGENT_SETUP_LEGACY": return "В настройках указан старый HTTP-агент. Его процесс и настройки сохранены; сначала выполни переход на HTTPS.";
-            case "AGENT_SETUP_BUSY": return "Другая подготовка агента ещё выполняется. Дождись её завершения и повтори проверку.";
-            case "AGENT_SETUP_CONFIG": return "Проверь config.json: token, порт и адрес. Мастер поддерживает локальный или общий IPv4-адрес службы; настройки не переписываются.";
-            case "AGENT_SETUP_UNSAFE_FILE": return "Файлы агента имеют небезопасный путь или ссылку. Проверь папку home-server-agent и TLS-файлы внутри HOME Termux.";
-            default: return "Подготовка агента не подтверждена. Проверь интернет, установку Python/OpenSSL и существующие настройки агента; затем повтори.";
+            case "AGENT_SETUP_PORT_BUSY": return AppText.tr("Порт агента занят. Существующий процесс сохранён; проверь, какой агент или приложение использует этот порт.");
+            case "AGENT_SETUP_TLS_INCOMPLETE": return AppText.tr("TLS-пара неполная. Существующий ключ сохранён; восстанови соответствующий сертификат из резервной копии.");
+            case "AGENT_SETUP_TLS": return AppText.tr("TLS-пара повреждена, не совпадает или сертификат истёк. Восстанови или обнови её отдельно; мастер не заменяет существующие ключи.");
+            case "AGENT_SETUP_LEGACY": return AppText.tr("В настройках указан старый HTTP-агент. Его процесс и настройки сохранены; сначала выполни переход на HTTPS.");
+            case "AGENT_SETUP_BUSY": return AppText.tr("Другая подготовка агента ещё выполняется. Дождись её завершения и повтори проверку.");
+            case "AGENT_SETUP_CONFIG": return AppText.tr("Проверь config.json: token, порт и адрес. Мастер поддерживает локальный или общий IPv4-адрес службы; настройки не переписываются.");
+            case "AGENT_SETUP_UNSAFE_FILE": return AppText.tr("Файлы агента имеют небезопасный путь или ссылку. Проверь папку home-server-agent и TLS-файлы внутри HOME Termux.");
+            default: return AppText.tr("Подготовка агента не подтверждена. Проверь интернет, установку Python/OpenSSL и существующие настройки агента; затем повтори.");
         }
     }
 

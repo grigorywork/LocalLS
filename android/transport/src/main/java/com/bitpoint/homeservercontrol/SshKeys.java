@@ -30,22 +30,22 @@ final class SshKeys {
     }
     static JSONObject inspect(String privateKey, String passphrase) throws Exception {
         if (privateKey == null || privateKey.getBytes(StandardCharsets.UTF_8).length > 128 * 1024
-                || passphrase == null || passphrase.length() > 4096) throw new Exception("Ключ не распознан");
+                || passphrase == null || passphrase.length() > 4096) throw new Exception(AppText.tr("Ключ не распознан"));
         JSch jsch = new JSch();
         byte[] raw = privateKey.getBytes(StandardCharsets.UTF_8), phrase = passphrase.getBytes(StandardCharsets.UTF_8);
         try {
             jsch.addIdentity("LocalLS", raw, null, phrase);
-            if (jsch.getIdentityRepository().getIdentities().size() != 1) throw new Exception("Один приватный ключ требуется");
+            if (jsch.getIdentityRepository().getIdentities().size() != 1) throw new Exception(AppText.tr("Один приватный ключ требуется"));
             Identity identity = jsch.getIdentityRepository().getIdentities().get(0);
-            if (identity.isEncrypted()) throw new Exception("Неверна парольная фраза");
+            if (identity.isEncrypted()) throw new Exception(AppText.tr("Неверна парольная фраза"));
             String type = identity.getAlgName();
             if (!type.equals("ssh-rsa") && !type.equals("ssh-ed25519") && !type.startsWith("ecdsa-sha2-nistp"))
-                throw new Exception("Тип ключа не поддерживается");
+                throw new Exception(AppText.tr("Тип ключа не поддерживается"));
             byte[] blob = identity.getPublicKeyBlob();
             if (type.equals("ssh-rsa")) {
                 ByteBuffer b = ByteBuffer.wrap(blob); byte[] n = null;
-                for (int i = 0; i < 3; i++) { int length = b.getInt(); if (length < 1 || length > b.remaining()) throw new Exception("Ключ не распознан"); n = new byte[length]; b.get(n); }
-                if (new java.math.BigInteger(1, n).bitLength() < 3072) throw new Exception("RSA должен быть не менее 3072 бит");
+                for (int i = 0; i < 3; i++) { int length = b.getInt(); if (length < 1 || length > b.remaining()) throw new Exception(AppText.tr("Ключ не распознан")); n = new byte[length]; b.get(n); }
+                if (new java.math.BigInteger(1, n).bitLength() < 3072) throw new Exception(AppText.tr("RSA должен быть не менее 3072 бит"));
             }
             return new JSONObject().put(PUBLIC, type + " " + Base64.encodeToString(blob, Base64.NO_WRAP) + " LocalLS")
                     .put("fingerprint", "SHA256:" + Base64.encodeToString(MessageDigest.getInstance("SHA-256").digest(blob), Base64.NO_WRAP | Base64.NO_PADDING));
@@ -72,9 +72,9 @@ final class SshKeys {
     static synchronized JSONObject pairingInfo(Context c,String host,int port,String user,String pin)throws Exception{
         VerifiedCopy.check();JSONObject existing=info(c,host,port,user);VerifiedCopy.check();
         if(existing.has(PUBLIC))return existing;
-        if(hasStoredKey(c,host,port,user))throw new java.io.IOException("Прежний ключ недоступен. Восстанови его в «Ключ доступа»");
+        if(hasStoredKey(c,host,port,user))throw new java.io.IOException(AppText.tr("Прежний ключ недоступен. Восстанови его в «Ключ доступа»"));
         recoverRoute(c,host,port,user,pin);existing=info(c,host,port,user);VerifiedCopy.check();if(existing.has(PUBLIC))return existing;
-        if(hasStoredKey(c,host,port,user))throw new java.io.IOException("Прежний ключ недоступен");
+        if(hasStoredKey(c,host,port,user))throw new java.io.IOException(AppText.tr("Прежний ключ недоступен"));
         JSONObject fresh=generate();VerifiedCopy.check();save(c,host,port,user,fresh);return info(c,host,port,user);
     }
     private static String storageId(Context c,String host,int port,String user){return prefs(c).getString("route_"+keyId(host,port,user),keyId(host,port,user));}
@@ -112,13 +112,13 @@ final class SshKeys {
         // Existing aliases remain readable; only the moved routes adopt this slot.
         String logical="server_"+keyId(pin+"\n"+sourceInfo.getString("fingerprint"),0,user);
         SecurePrefs.saveNamed(c,logical,raw);
-        if(!prefs(c).edit().putString("route_"+keyId(from,port,user),logical).putString("route_"+keyId(to,port,user),logical).commit())throw new java.io.IOException("Не удалось сохранить маршрут");
+        if(!prefs(c).edit().putString("route_"+keyId(from,port,user),logical).putString("route_"+keyId(to,port,user),logical).commit())throw new java.io.IOException(AppText.tr("Не удалось сохранить маршрут"));
         HostTrustStore.trust(c,to,port,pin);return true;
     }
     private static String keyId(String host, int port, String user) {
         try { String value = host.trim().toLowerCase(java.util.Locale.ROOT) + ":" + port + "@" + user;
             return "ssh_identity_" + Base64.encodeToString(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)), Base64.NO_WRAP | Base64.URL_SAFE); }
-        catch (Exception e) { throw new IllegalStateException("Не удалось определить профиль"); }
+        catch (Exception e) { throw new IllegalStateException(AppText.tr("Не удалось определить профиль")); }
     }
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE); }
 }

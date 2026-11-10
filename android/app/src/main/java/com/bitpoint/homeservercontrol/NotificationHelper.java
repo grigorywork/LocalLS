@@ -19,7 +19,7 @@ final class NotificationHelper {
         NotificationManager manager = activity.getSystemService(NotificationManager.class);
         if (manager == null || !manager.areNotificationsEnabled()) return false;
         if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(new NotificationChannel(
-                "app_tray", "LocalLS в фоне", NotificationManager.IMPORTANCE_LOW));
+                "app_tray", AppText.tr("LocalLS в фоне"), NotificationManager.IMPORTANCE_LOW));
         Intent open = new Intent(activity, activity instanceof FilesActivity ? FilesActivity.class : MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pending = PendingIntent.getActivity(activity, TRAY_ID, open,
@@ -30,10 +30,10 @@ final class NotificationHelper {
         Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(activity, "app_tray") : new Notification.Builder(activity);
         Notification notification = builder.setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification)
-                .setContentTitle("LocalLS свёрнут")
-                .setContentText("Нажми, чтобы вернуться в приложение")
+                .setContentTitle(AppText.tr("LocalLS свёрнут"))
+                .setContentText(AppText.tr("Нажми, чтобы вернуться в приложение"))
                 .setContentIntent(pending).setOngoing(true).setOnlyAlertOnce(true)
-                .addAction(new Notification.Action.Builder(com.bitpoint.homeservercontrol.ui.R.drawable.ic_action_close, "Убрать", close).build())
+                .addAction(new Notification.Action.Builder(com.bitpoint.homeservercontrol.ui.R.drawable.ic_action_close, AppText.tr("Убрать"), close).build())
                 .build();
         try { manager.notify(TRAY_ID, notification); return true; }
         catch (SecurityException e) { return false; }
@@ -54,8 +54,8 @@ final class NotificationHelper {
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
         PendingIntent pending = PendingIntent.getActivity(context, 0, open, flags);
 
-        String title = online ? "Сервер снова доступен" : "Сервер недоступен";
-        String text = host + ":" + port + (online ? " отвечает" : " не отвечает по SSH");
+        String title = online ? AppText.tr("Сервер снова доступен") : AppText.tr("Сервер недоступен");
+        String text = host + ":" + port + (online ? AppText.tr(" отвечает") : AppText.tr(" не отвечает по SSH"));
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new Notification.Builder(context, CHANNEL_ID)
                 : new Notification.Builder(context);
@@ -77,9 +77,9 @@ final class NotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "Состояние домашнего сервера",
+                    AppText.tr("Состояние домашнего сервера"),
                     NotificationManager.IMPORTANCE_HIGH);
-            channel.setDescription("Предупреждает, если SSH-сервер пропал или снова появился");
+            channel.setDescription(AppText.tr("Предупреждает, если SSH-сервер пропал или снова появился"));
             manager.createNotificationChannel(channel);
         }
     }

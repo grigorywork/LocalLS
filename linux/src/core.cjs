@@ -1,4 +1,5 @@
 'use strict';
+const {t}=require('./i18n.cjs');
 const crypto = require('node:crypto');
 const { isIP } = require('node:net');
 const fs = require('node:fs');
@@ -10,45 +11,45 @@ const {QueueRate,queueEstimate}=require('./queue-estimate.cjs');
 const {call,protect:protectSftp}=require('./sftp-channel.cjs');
 
 function profile(input) {
-  if (!input || typeof input !== 'object') throw new Error('Некорректный профиль');
+  if (!input || typeof input !== 'object') throw new Error(t('Некорректный профиль'));
   const host = String(input.host || '').trim();
   const user = String(input.user || '').trim();
   const port = Number(input.port);
   const folder = String(input.folder || '.');
   const validHost = /^[a-zA-Z0-9][a-zA-Z0-9.:-]{0,252}$/.test(host) || (/^[0-9a-fA-F:.]+$/.test(host) && isIP(host) === 6);
-  if (!validHost || !Number.isInteger(port) || port < 1 || port > 65535 || !/^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}$/.test(user) || folder.includes('\0') || folder.length > 4096) throw new Error('Проверьте адрес, порт и пользователя');
+  if (!validHost || !Number.isInteger(port) || port < 1 || port > 65535 || !/^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}$/.test(user) || folder.includes('\0') || folder.length > 4096) throw new Error(t('Проверьте адрес, порт и пользователя'));
   const fingerprint = String(input.fingerprint || '');
-  if (fingerprint && !/^SHA256:[A-Za-z0-9+/]{43}$/.test(fingerprint)) throw new Error('Некорректный отпечаток SSH');
+  if (fingerprint && !/^SHA256:[A-Za-z0-9+/]{43}$/.test(fingerprint)) throw new Error(t('Некорректный отпечаток SSH'));
   return { format: 'localls-server-v1', host, port, user, folder, fingerprint };
 }
-function formatBytes(n){if(n<1024)return n+' Б';if(n<1048576)return (n/1024).toFixed(1)+' КБ';if(n<1073741824)return (n/1048576).toFixed(1)+' МБ';return (n/1073741824).toFixed(1)+' ГБ';}
+function formatBytes(n){if(n<1024)return n+t(' Б');if(n<1048576)return (n/1024).toFixed(1)+t(' КБ');if(n<1073741824)return (n/1048576).toFixed(1)+t(' МБ');return (n/1073741824).toFixed(1)+t(' ГБ');}
 function endpoint(p) { return `${p.host.toLowerCase()}:${p.port}`; }
 function fingerprint(key) { return 'SHA256:' + crypto.createHash('sha256').update(key).digest('base64').replace(/=+$/, ''); }
 function name(value) {
-  if (typeof value !== 'string' || !value || value === '.' || value === '..' || /[\\/\x00-\x1f]/.test(value) || value.length > 255) throw new Error('Недопустимое имя файла');
+  if (typeof value !== 'string' || !value || value === '.' || value === '..' || /[\\/\x00-\x1f]/.test(value) || value.length > 255) throw new Error(t('Недопустимое имя файла'));
   return value;
 }
 function remotePath(value) {
-  if (typeof value !== 'string' || value.includes('\0') || value.length > 4096) throw new Error('Недопустимый путь');
+  if (typeof value !== 'string' || value.includes('\0') || value.length > 4096) throw new Error(t('Недопустимый путь'));
   return value;
 }
 function safeDownloadName(value,platform=process.platform) {
   name(value);
-  if (platform==='win32'&&(/[<>:"|?*]/.test(value) || /[. ]$/.test(value) || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i.test(value))) throw new Error('Имя файла несовместимо с Windows');
+  if (platform==='win32'&&(/[<>:"|?*]/.test(value) || /[. ]$/.test(value) || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i.test(value))) throw new Error(t('Имя файла несовместимо с Windows'));
   return value;
 }
 function publicError(err) {
-  const known={PREVIEW_FORMAT:'Просмотр доступен для фото, видео, аудио и PDF.',PREVIEW_LARGE:'Для просмотра файла больше 128 МБ сначала скачай его на компьютер.',PREVIEW_CHANGED:'Файл изменился. Открой просмотр ещё раз.',PREVIEW_CANCELLED:'Просмотр закрыт.',PREVIEW_TIMEOUT:'Сервер не ответил при подготовке просмотра.',PREVIEW_FAILED:'Не удалось подготовить просмотр файла.',PASSWORD_LONG:'Пароль: максимум 4096 символов.',TOKEN_LONG:'Токен: максимум 4096 символов.',CONNECTION_CHANGED:'Параметры подключения изменились. Подключитесь заново.',QUEUE_STORE:'Не удалось сохранить очередь. Освободи место в папке приложения и повтори.',COPY_LINK:'Передача ссылок и специальных файлов не поддерживается. Выбери обычные файлы или папки без ссылок.',COPY_LIMIT:'Слишком большая папка или истекло время подготовки. За один раз можно выбрать до 1000 элементов и 48 уровней.',COPY_FOLDER_CHANGED:'Выбранная папка изменилась. Выбери её заново; прежние файлы сохранены.',SCAN_TIMEOUT:'Сервер не ответил при подготовке папки. Проверь соединение и повтори.',RETRY_PROFILE:'Подключись к прежнему серверу для повтора. Старые задания без привязки к ключу выбери заново.',CLIENT_VAULT_UNREADABLE:'Сохранённое хранилище доступа не удалось открыть. Ключи не заменены; восстанови доступ к системной связке ключей Fedora.',SERVER_VAULT_REQUIRED:'Системная связка ключей Fedora недоступна. Ключ сервера не создан.',SERVER_VAULT_UNREADABLE:'Не удалось открыть прежний ключ сервера. Он сохранён без замены; восстанови доступ к системной связке ключей Fedora.',SERVER_VAULT_WRITE:'Не удалось сохранить ключ сервера. Проверь доступ к папке приложения.',SERVER_CONFIG_UNREADABLE:'Не удалось прочитать настройки сервера. Прежние устройства и данные не сброшены.',SERVER_STOP_FIRST:'Сначала останови сервер для изменения его параметров.',SERVER_NO_NETWORK:'Подключи компьютер к локальной сети, чтобы показать QR-код.',DEVICE_LIMIT:'Уже разрешено семь устройств. Сначала отзови доступ одного из них.',PORT_BUSY:'Этот порт уже занят. Выбери другой в настройках сервера.',SOURCE_CHANGED:'Исходный файл изменился. Повторите передачу.',QR_VAULT_UNREADABLE:'Сохранённое хранилище ключей не удалось открыть. Прежние ключи не заменены; восстанови доступ к системному хранилищу.',QR_INVALID:'Это не QR подключения к серверу LocalLS.',QR_EXPIRED:'QR истёк. Обнови его на телефоне-сервере.',QR_IMAGE_INVALID:'На изображении не найден читаемый QR LocalLS. Выбери чёткое фото или скриншот.',QR_VAULT_REQUIRED:'Системное защищённое хранилище недоступно. Включи его, чтобы сохранить привязку без повторного QR.',KEY_INVALID:'Ключ не распознан или неверна парольная фраза.',KEY_WEAK:'Используйте RSA не менее 3072 бит или Ed25519/ECDSA.',KEY_UNSUPPORTED:'Тип SSH-ключа не поддерживается.',KEY_GENERATION_FAILED:'Не удалось создать SSH-ключ.',KEY_REMOTE_UNSAFE:'Папка .ssh или authorized_keys имеет небезопасный тип или размер.',KEY_MISSING:'Создайте или импортируйте SSH-ключ в разделе безопасности.',KEY_BOOTSTRAP_REQUIRED:'Для установки публичного ключа введите действующий пароль сервера.',AGENT_TRUST_REQUIRED:'Сначала проверьте и подтвердите HTTPS-сертификат агента.',AGENT_TLS_FAILED:'Защищённое соединение агента не установлено: проверьте HTTPS, сертификат и порт.',AGENT_FAILED:'Агент не выполнил запрос.',NO_TOKEN:'Сохраните токен существующего агента в настройках сервера.',NOT_INSTALLED:'Установите официальный клиент Tailscale.',NOT_CONNECTED:'Сначала подключитесь к SSH-серверу.',FILES_ONLY:'Для передачи выберите файлы внутри папки.',DEST_EXISTS:'Файл с таким именем уже существует.',EXISTS:'Это имя уже занято.',NO_KEY:'Не удалось получить ключ SSH-сервера.'};
+  const known={PREVIEW_FORMAT:t('Просмотр доступен для фото, видео, аудио и PDF.'),PREVIEW_LARGE:t('Для просмотра файла больше 128 МБ сначала скачай его на компьютер.'),PREVIEW_CHANGED:t('Файл изменился. Открой просмотр ещё раз.'),PREVIEW_CANCELLED:t('Просмотр закрыт.'),PREVIEW_TIMEOUT:t('Сервер не ответил при подготовке просмотра.'),PREVIEW_FAILED:t('Не удалось подготовить просмотр файла.'),PASSWORD_LONG:t('Пароль: максимум 4096 символов.'),TOKEN_LONG:t('Токен: максимум 4096 символов.'),CONNECTION_CHANGED:t('Параметры подключения изменились. Подключитесь заново.'),QUEUE_STORE:t('Не удалось сохранить очередь. Освободи место в папке приложения и повтори.'),COPY_LINK:t('Передача ссылок и специальных файлов не поддерживается. Выбери обычные файлы или папки без ссылок.'),COPY_LIMIT:t('Слишком большая папка или истекло время подготовки. За один раз можно выбрать до 1000 элементов и 48 уровней.'),COPY_FOLDER_CHANGED:t('Выбранная папка изменилась. Выбери её заново; прежние файлы сохранены.'),SCAN_TIMEOUT:t('Сервер не ответил при подготовке папки. Проверь соединение и повтори.'),RETRY_PROFILE:t('Подключись к прежнему серверу для повтора. Старые задания без привязки к ключу выбери заново.'),CLIENT_VAULT_UNREADABLE:t('Сохранённое хранилище доступа не удалось открыть. Ключи не заменены; восстанови доступ к системной связке ключей Fedora.'),SERVER_VAULT_REQUIRED:t('Системная связка ключей Fedora недоступна. Ключ сервера не создан.'),SERVER_VAULT_UNREADABLE:t('Не удалось открыть прежний ключ сервера. Он сохранён без замены; восстанови доступ к системной связке ключей Fedora.'),SERVER_VAULT_WRITE:t('Не удалось сохранить ключ сервера. Проверь доступ к папке приложения.'),SERVER_CONFIG_UNREADABLE:t('Не удалось прочитать настройки сервера. Прежние устройства и данные не сброшены.'),SERVER_STOP_FIRST:t('Сначала останови сервер для изменения его параметров.'),SERVER_NO_NETWORK:t('Подключи компьютер к локальной сети, чтобы показать QR-код.'),DEVICE_LIMIT:t('Уже разрешено десять устройств. Сначала отзови доступ одного из них.'),PORT_BUSY:t('Этот порт уже занят. Выбери другой в настройках сервера.'),SOURCE_CHANGED:t('Исходный файл изменился. Повторите передачу.'),QR_VAULT_UNREADABLE:t('Сохранённое хранилище ключей не удалось открыть. Прежние ключи не заменены; восстанови доступ к системному хранилищу.'),QR_INVALID:t('Это не QR подключения к серверу LocalLS.'),QR_EXPIRED:t('QR истёк. Обнови его на телефоне-сервере.'),QR_IMAGE_INVALID:t('На изображении не найден читаемый QR LocalLS. Выбери чёткое фото или скриншот.'),QR_VAULT_REQUIRED:t('Системное защищённое хранилище недоступно. Включи его, чтобы сохранить привязку без повторного QR.'),KEY_INVALID:t('Ключ не распознан или неверна парольная фраза.'),KEY_WEAK:t('Используйте RSA не менее 3072 бит или Ed25519/ECDSA.'),KEY_UNSUPPORTED:t('Тип SSH-ключа не поддерживается.'),KEY_GENERATION_FAILED:t('Не удалось создать SSH-ключ.'),KEY_REMOTE_UNSAFE:t('Папка .ssh или authorized_keys имеет небезопасный тип или размер.'),KEY_MISSING:t('Создайте или импортируйте SSH-ключ в разделе безопасности.'),KEY_BOOTSTRAP_REQUIRED:t('Для установки публичного ключа введите действующий пароль сервера.'),AGENT_TRUST_REQUIRED:t('Сначала проверьте и подтвердите HTTPS-сертификат агента.'),AGENT_TLS_FAILED:t('Защищённое соединение агента не установлено: проверьте HTTPS, сертификат и порт.'),AGENT_FAILED:t('Агент не выполнил запрос.'),NO_TOKEN:t('Сохраните токен существующего агента в настройках сервера.'),NOT_INSTALLED:t('Установите официальный клиент Tailscale.'),NOT_CONNECTED:t('Сначала подключитесь к SSH-серверу.'),FILES_ONLY:t('Для передачи выберите файлы внутри папки.'),DEST_EXISTS:t('Файл с таким именем уже существует.'),EXISTS:t('Это имя уже занято.'),NO_KEY:t('Не удалось получить ключ SSH-сервера.')};
   if(known[err?.message])return known[err.message];
-  if (err?.code === 'HOST_KEY_CHANGED') return 'Ключ сервера изменился. Подключение заблокировано.';
-  if (err?.code === 'ABORT_ERR' || err?.name === 'AbortError') return 'Передача отменена';
-  if (err?.level === 'client-authentication') return 'Сервер отклонил вход. Проверьте профиль и разрешение доступа на сервере.';
-  if (err?.code === 'ENOTFOUND') return 'Адрес сервера не найден';
-  if (err?.code === 'ECONNREFUSED') return 'SSH-порт недоступен';
-  if (err?.code === 'ETIMEDOUT') return 'Сервер не ответил вовремя';
-  if (err?.code === 'ENOENT' || err?.code === 2) return 'Файл или папка не найдены';
-  if (err?.code === 'EACCES' || err?.code === 3) return 'Нет доступа к файлу или папке';
-  return 'Операция не выполнена. Проверьте соединение и права доступа.';
+  if (err?.code === 'HOST_KEY_CHANGED') return t('Ключ сервера изменился. Подключение заблокировано.');
+  if (err?.code === 'ABORT_ERR' || err?.name === 'AbortError') return t('Передача отменена');
+  if (err?.level === 'client-authentication') return t('Сервер отклонил вход. Проверьте профиль и разрешение доступа на сервере.');
+  if (err?.code === 'ENOTFOUND') return t('Адрес сервера не найден');
+  if (err?.code === 'ECONNREFUSED') return t('SSH-порт недоступен');
+  if (err?.code === 'ETIMEDOUT') return t('Сервер не ответил вовремя');
+  if (err?.code === 'ENOENT' || err?.code === 2) return t('Файл или папка не найдены');
+  if (err?.code === 'EACCES' || err?.code === 3) return t('Нет доступа к файлу или папке');
+  return t('Операция не выполнена. Проверьте соединение и права доступа.');
 }
 class Server extends EventEmitter {
   constructor(Client) { super(); this.Client = Client || require('ssh2').Client; this.client = null; this.sftp = null; this.location = '.'; }
@@ -144,17 +145,18 @@ class Server extends EventEmitter {
         stream.on('data', chunk => { data += chunk.toString('ascii'); if (data.length > 256) finish(null); });
         stream.on('close', () => {
           try {
-            const fields = data.split('\n'), version2 = protocol === 'localls-status-v2';
-            if (fields.length !== (version2 ? 7 : 6) || fields[0] !== protocol || fields.at(-1) !== '' || fields.slice(1, -1).some(v => !/^(-1|0|[1-9][0-9]{0,18})$/.test(v))) return finish(null);
-            const values = fields.slice(1, -1).map(Number), [battery, free, total, uptime] = values, charging = version2 ? values[4] : -1;
+            const fields = data.split('\n'), version3 = protocol === 'localls-status-v3', version2 = protocol !== 'localls-status-v1';
+            const numeric = fields.slice(1, version3 ? -2 : -1), deviceKind = version3 ? fields.at(-2) : 'unknown';
+            if (fields.length !== (version3 ? 8 : version2 ? 7 : 6) || fields[0] !== protocol || fields.at(-1) !== '' || !['pc','phone','tablet','unknown'].includes(deviceKind) || numeric.some(v => !/^(-1|0|[1-9][0-9]{0,18})$/.test(v))) return finish(null);
+            const values = numeric.map(Number), [battery, free, total, uptime] = values, charging = version2 ? values[4] : -1;
             if (values.some(v => !Number.isSafeInteger(v) || v < -1) || battery > 100 || charging > 1 || free >= 0 && total >= 0 && free > total) return finish(null);
-            finish({battery: battery < 0 ? '—' : battery + '%', freeBytes: free, totalBytes: total, charging,
-              uptime: uptime < 0 ? '—' : Math.floor(uptime / 3600) + ' ч ' + Math.floor(uptime % 3600 / 60) + ' мин', disk: free < 0 ? '—' : formatBytes(free)});
+            finish({deviceKind, battery: battery < 0 ? '—' : battery + '%', freeBytes: free, totalBytes: total, charging,
+              uptime: uptime < 0 ? '—' : Math.floor(uptime / 3600) + t(' ч ') + Math.floor(uptime % 3600 / 60) + t(' мин'), disk: free < 0 ? '—' : formatBytes(free)});
           } catch { finish(null); }
         });
       }); } catch { releaseOpening(); finish(null); }
     });
-    for (const protocol of ['localls-status-v2', 'localls-status-v1']) {
+    for (const protocol of ['localls-status-v3', 'localls-status-v2', 'localls-status-v1']) {
       const telemetry = await readTelemetry(protocol); requireCurrent();
       if (telemetry) return telemetry;
     }

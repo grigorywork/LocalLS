@@ -49,7 +49,7 @@ const freePort = async () => { const s = net.createServer(); await new Promise(r
     assert.equal(await page.locator('#pendingDeviceCode').textContent(), pairing.syncCode(code, identity.publicKey));
     assert.equal(await pairing.loginAttempt(code, identity), false); // Being visible is not approval.
     await screenshot('02-server-request');
-    await page.locator('#approveHostDevice').click(); await page.locator('#hostDeviceCount').filter({hasText: '1 из 7'}).waitFor();
+    await page.locator('#approveHostDevice').click(); await page.locator('#hostDeviceCount').filter({hasText: '1 из 10'}).waitFor();
     await client.connect({...code, folder: '/'}, {method: 'key', privateKey: identity.privateKey}, code.pin);
     await page.locator('.device-state.online').waitFor();
     const source = path.join(temp, 'from-phone.bin'), bytes = crypto.randomBytes(256 * 1024); fs.writeFileSync(source, bytes);
@@ -58,17 +58,17 @@ const freePort = async () => { const s = net.createServer(); await new Promise(r
     assert.deepEqual(fs.readFileSync(path.join(shared, 'from-phone.bin')), bytes);
     await page.locator('#hostRecent').filter({hasText: 'from-phone.bin'}).waitFor({timeout: 8000});
     const publicState = await page.evaluate(() => window.localLS.state()); assert.ok(!JSON.stringify(publicState).includes('privateKey')); assert.ok(!JSON.stringify(publicState).includes('PRIVATE KEY'));
-    assert.equal(await page.locator('#hostDeviceCount').textContent(), '1 из 7'); await screenshot('03-server-on-dark');
+    assert.equal(await page.locator('#hostDeviceCount').textContent(), '1 из 10'); await screenshot('03-server-on-dark');
     await page.locator('#toggleHostQr').click(); await page.locator('#hostQrImage').waitFor({state: 'visible'}); await screenshot('04-server-qr-on');
     await page.locator('#toggleHostQr').click(); assert.equal(await page.locator('#hostQrImage').isVisible(), false); assert.equal(await page.locator('#hostQrImage').getAttribute('src'), null);
     client.disconnect(); await page.locator('#hostToggle').click(); await page.locator('#hostState').filter({hasText: 'Сервер выключен'}).waitFor();
     assert.deepEqual(fs.readFileSync(path.join(data, 'server-host.bin')), sealed);
     await app.close(); app = null; await launch();
-    assert.equal(await page.locator('#hostDeviceCount').textContent(), '1 из 7'); // Trusted devices also remain visible while off.
+    assert.equal(await page.locator('#hostDeviceCount').textContent(), '1 из 10'); // Trusted devices also remain visible while off.
     await page.locator('#hostToggle').click(); await page.locator('#hostState').filter({hasText: 'Сервер работает'}).waitFor();
     const restored = await page.evaluate(() => window.localLS.serverState()); assert.equal(restored.data.fingerprint, code.pin);
     assert.equal(await pairing.loginAttempt(code, identity), true); assert.deepEqual(fs.readFileSync(path.join(data, 'server-host.bin')), sealed);
-    await page.locator('.device-row button').click(); await page.locator('#hostDeviceCount').filter({hasText: '0 из 7'}).waitFor(); assert.equal(await pairing.loginAttempt(code, identity), false);
+    await page.locator('.device-row button').click(); await page.locator('#hostDeviceCount').filter({hasText: '0 из 10'}).waitFor(); assert.equal(await pairing.loginAttempt(code, identity), false);
     await page.locator('#hostToggle').click(); await page.locator('#hostState').filter({hasText: 'Сервер выключен'}).waitFor();
     await page.locator('#chooseSharedFolder').click(); assert.equal((await page.evaluate(() => window.localLS.serverState())).data.root, fs.realpathSync(nextShared));
     await page.locator('[data-drawer=settings]').first().click(); await page.locator('#lightMode').check(); await page.locator('#glassMode').check(); await page.locator('#outlineMode').check(); await page.locator('#theme').selectOption('red'); await page.locator('#saveSettings').click(); await page.locator('#saveStatus').filter({hasText: 'Сохранено'}).waitFor(); await page.locator('#closeDrawer').click(); await screenshot('05-server-light-glass-red');

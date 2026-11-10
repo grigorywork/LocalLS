@@ -12,7 +12,7 @@ final class CompactControlDrawable extends Drawable {
  CompactControlDrawable(Context c){
   density=c.getResources().getDisplayMetrics().density;
   int panel=ThemeCatalog.color(c,com.bitpoint.homeservercontrol.ui.R.attr.hscPanel);
-  fill=ThemeCatalog.index(c)==4?panel:blend(panel,ThemeCatalog.color(c,com.bitpoint.homeservercontrol.ui.R.attr.hscSecondaryButton),.28f);
+  fill=ThemeCatalog.light(c)?panel:blend(panel,ThemeCatalog.color(c,com.bitpoint.homeservercontrol.ui.R.attr.hscSecondaryButton),.28f);
   stroke=ThemeCatalog.glass(c)||ThemeCatalog.lightOutline(c)?SurfaceStyle.lineColor(c):blend(ThemeCatalog.color(c,com.bitpoint.homeservercontrol.ui.R.attr.hscStroke),ThemeCatalog.color(c,com.bitpoint.homeservercontrol.ui.R.attr.hscAccent),.16f);
   accent=ThemeCatalog.color(c,com.bitpoint.homeservercontrol.ui.R.attr.hscAccent);
  }

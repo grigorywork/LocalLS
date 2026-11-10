@@ -7,11 +7,11 @@ import java.io.File;
 import java.security.KeyPair;
 import java.util.concurrent.*;
 
-/** Explicit, foreground-only lifetime. No auto-start after reboot or process death. */
+/** Explicit foreground server; system restarts reuse user enablement. No boot auto-start. */
 public class EmbeddedServerService extends Service {
     static final String PREFS="embedded_sftp_settings", STOP="localls.embedded.STOP", AUTHORIZE="localls.embedded.AUTHORIZE_FIRST", AUTHORIZE_QR="localls.embedded.AUTHORIZE_QR";
     static volatile boolean running,starting,waitingForClient;
-    static volatile String status="Сервер выключен",fingerprint="";
+    static volatile String status=AppText.tr("Сервер выключен"),fingerprint="";
     static volatile int boundPort;
     static volatile long launchRequested;
     static volatile String lastStage="IDLE";
@@ -19,7 +19,7 @@ public class EmbeddedServerService extends Service {
     static void failure(String stage,Throwable error) {
         lastStage=stage;
         diagnostic="LocalLS Android / SDK "+Build.VERSION.SDK_INT+"\n"+ServerStartupFailure.report(stage,error);
-        status=ServerStartupFailure.hint(stage,error)+"\nКод: "+stage+" / "+error.getClass().getSimpleName();
+        status=ServerStartupFailure.hint(stage,error)+AppText.tr("\nКод: ")+stage+" / "+error.getClass().getSimpleName();
     }
     private static final Semaphore LISTENER_SLOT=new Semaphore(1,true);
     private final Object lifecycle=new Object();
@@ -33,7 +33,7 @@ public class EmbeddedServerService extends Service {
     private static volatile EmbeddedSftpServer pairingEndpoint;
     static void beginQrPairing(QrPairing invite){
         EmbeddedSftpServer endpoint=pairingEndpoint;
-        if(!running||endpoint==null||!fingerprint.equals(invite.pin)||boundPort!=invite.port)throw new IllegalStateException("Сервер изменился. Обнови QR");
+        if(!running||endpoint==null||!fingerprint.equals(invite.pin)||boundPort!=invite.port)throw new IllegalStateException(AppText.tr("Сервер изменился. Обнови QR"));
         endpoint.beginPairing(invite.nonce,invite.expires);
     }
     static String pendingQrKey(String nonce){EmbeddedSftpServer endpoint=pairingEndpoint;return running&&endpoint!=null?endpoint.pendingPairingKey(nonce):"";}
@@ -42,7 +42,7 @@ public class EmbeddedServerService extends Service {
     static void approveOpticalPairing(Context c,String nonce,String publicKey){c.startService(new Intent(c,EmbeddedServerService.class).setAction(AUTHORIZE_QR).putExtra("nonce",nonce).putExtra("public_key",publicKey).putExtra("optical",true));}
     static void revokeDevice(Context c,String publicKey)throws Exception{
         synchronized(ServerDevices.class){
-            if(starting)throw new IllegalStateException("Дождись завершения запуска сервера");
+            if(starting)throw new IllegalStateException(AppText.tr("Дождись завершения запуска сервера"));
             ServerDevices.remove(c,publicKey);EmbeddedSftpServer endpoint=pairingEndpoint;if(endpoint!=null)endpoint.revokeClient(publicKey);
             if(running){waitingForClient=ServerDevices.count(c)==0;status=runningStatus();}
         }
@@ -60,20 +60,33 @@ public class EmbeddedServerService extends Service {
         }
         return starting||launchRequested!=0;
     }
+    static void stop(Context c){c.getSharedPreferences(PREFS,0).edit().putBoolean("server_enabled",false).commit();c.stopService(new Intent(c,EmbeddedServerService.class));}
     static void start(Context c) {
         Intent i=new Intent(c,EmbeddedServerService.class);
-        launchRequested=SystemClock.elapsedRealtime();lastStage="DISPATCH";status="Запрашиваем запуск службы…";
+        launchRequested=SystemClock.elapsedRealtime();lastStage="DISPATCH";status=AppText.tr("Запрашиваем запуск службы…");
         try {if(Build.VERSION.SDK_INT>=26)c.startForegroundService(i);else c.startService(i);}
         catch(RuntimeException e) {launchRequested=0;failure("FOREGROUND",e);throw e;}
     }
     static void authorizeFirstClient(Context context,String publicKey) {
-        if(!running || !waitingForClient)throw new IllegalStateException("Сначала запусти сервер в ожидании телефона");
+        if(!running || !waitingForClient)throw new IllegalStateException(AppText.tr("Сначала запусти сервер в ожидании телефона"));
         context.startService(new Intent(context,EmbeddedServerService.class).setAction(AUTHORIZE).putExtra("public_key",publicKey));
     }
     private static String runningStatus() {
-        return waitingForClient?"Сервер готов, порт "+boundPort+". Ожидает первое устройство. Вход пока закрыт.":
-                "Сервер работает, порт "+boundPort+". Доступ устройств по сохранённым ключам.";
+        return waitingForClient?AppText.tr("Сервер готов, порт ")+boundPort+AppText.tr(". Ожидает первое устройство. Вход пока закрыт."):
+                AppText.tr("Сервер работает, порт ")+boundPort+AppText.tr(". Доступ устройств по сохранённым ключам.");
     }
+    private static volatile EmbeddedServerService activeService;
+    @Override public void onCreate(){super.onCreate();activeService=this;}
+    private Notification serverNotification(){
+        PendingIntent open=PendingIntent.getActivity(this,81,new Intent(this,EmbeddedServerActivity.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent stop=PendingIntent.getService(this,82,new Intent(this,EmbeddedServerService.class).setAction(STOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder builder=Build.VERSION.SDK_INT>=26?new Notification.Builder(this,"embedded_sftp"):new Notification.Builder(this);
+        return builder
+                .setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification).setContentTitle(AppText.tr("SFTP-сервер LocalLS"))
+                .setContentText(AppText.tr("Доступ по ключу к папке LocalLS. Нажми, чтобы открыть управление."))
+                .setContentIntent(open).setOngoing(true).addAction(0,AppText.tr("Остановить"),stop).build();
+    }
+    static void languageChanged(){EmbeddedServerService service=activeService;if(service!=null)service.startupWatchdog.post(()->{synchronized(service.lifecycle){if(service.destroyed||!running)return;if("RUNNING".equals(lastStage)||"WAITING_CLIENT".equals(lastStage))status=runningStatus();service.getSystemService(NotificationManager.class).notify(2210,service.serverNotification());}});}
     private void refreshAccessState(){synchronized(ServerDevices.class){synchronized(lifecycle){if(destroyed)return;waitingForClient=ServerDevices.count(this)==0;lastStage="RUNNING";status=runningStatus();}}}
     private void approve(Intent intent,int id) {
         if(destroyed || !running || !waitingForClient) {if(!running && !starting)stopSelf(id);return;}
@@ -98,28 +111,24 @@ public class EmbeddedServerService extends Service {
                 String normalized=EmbeddedSftpServer.normalizeAuthorizedKey(text);
                 synchronized(ServerDevices.class){if(intent.getBooleanExtra("optical",false))server.approveOptical(nonce,normalized);else server.approvePairing(nonce,normalized);applied=true;ServerDevices.add(this,normalized);}
                 refreshAccessState();
-            }catch(Exception error){synchronized(lifecycle){if(!destroyed){if(applied){failure("KEY",error);stopSelf();}else status=runningStatus()+" QR не подтверждён. Обнови код.";}}}
+            }catch(Exception error){synchronized(lifecycle){if(!destroyed){if(applied){failure("KEY",error);stopSelf();}else status=runningStatus()+AppText.tr(" QR не подтверждён. Обнови код.");}}}
         });
     }
     @Override public int onStartCommand(Intent intent,int flags,int id) {
-        if(intent!=null && AUTHORIZE.equals(intent.getAction())) {approve(intent,id);return START_NOT_STICKY;}
-        if(intent!=null && AUTHORIZE_QR.equals(intent.getAction())) {approveQr(intent);return START_NOT_STICKY;}
-        if(intent!=null && RETRY_SAVE.equals(intent.getAction())){if(autoReceive!=null)autoReceive.retry();else stopSelf(id);return START_NOT_STICKY;}
+        if(intent!=null && AUTHORIZE.equals(intent.getAction())) {approve(intent,id);return running||starting?START_STICKY:START_NOT_STICKY;}
+        if(intent!=null && AUTHORIZE_QR.equals(intent.getAction())) {approveQr(intent);return running||starting?START_STICKY:START_NOT_STICKY;}
+        if(intent!=null && RETRY_SAVE.equals(intent.getAction())){if(autoReceive!=null)autoReceive.retry();else stopSelf(id);return running?START_STICKY:START_NOT_STICKY;}
         launchRequested=0;lastStage="SERVICE_RECEIVED";
-        if(intent!=null && STOP.equals(intent.getAction())) { stopSelf();return START_NOT_STICKY; }
-        if(Build.VERSION.SDK_INT<26) { status="Встроенный сервер требует Android 8 или новее";stopSelf();return START_NOT_STICKY; }
-        if(running || starting) return START_NOT_STICKY;
+        if(intent!=null && STOP.equals(intent.getAction())) { getSharedPreferences(PREFS,0).edit().putBoolean("server_enabled",false).commit();stopSelf();return START_NOT_STICKY; }
+        if(intent==null&&!getSharedPreferences(PREFS,0).getBoolean("server_enabled",false)){stopSelf(id);return START_NOT_STICKY;}
+        if(Build.VERSION.SDK_INT<26) { status=AppText.tr("Встроенный сервер требует Android 8 или новее");stopSelf();return START_NOT_STICKY; }
+        if(running || starting) return START_STICKY;
         try {
         NotificationManager manager=getSystemService(NotificationManager.class);
-        manager.createNotificationChannel(new NotificationChannel("embedded_sftp","Файловый сервер LocalLS",NotificationManager.IMPORTANCE_LOW));
-        PendingIntent open=PendingIntent.getActivity(this,81,new Intent(this,EmbeddedServerActivity.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-        PendingIntent stop=PendingIntent.getService(this,82,new Intent(this,EmbeddedServerService.class).setAction(STOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-        startForeground(2210,new Notification.Builder(this,"embedded_sftp")
-                .setSmallIcon(com.bitpoint.homeservercontrol.ui.R.drawable.ic_cloud_notification).setContentTitle("SFTP-сервер LocalLS")
-                .setContentText("Доступ по ключу к папке LocalLS. Нажми, чтобы открыть управление.")
-                .setContentIntent(open).setOngoing(true).addAction(0,"Остановить",stop).build());
+        manager.createNotificationChannel(new NotificationChannel("embedded_sftp",AppText.tr("Файловый сервер LocalLS"),NotificationManager.IMPORTANCE_LOW));
+        startForeground(2210,serverNotification());
         } catch(RuntimeException e) {failure("FOREGROUND",e);stopSelf();return START_NOT_STICKY;}
-        starting=true;diagnostic="";lastStage="SERVICE_STARTING";status="Запуск сервера…";
+        starting=true;diagnostic="";lastStage="SERVICE_STARTING";status=AppText.tr("Запуск сервера…");
         SharedPreferences p=getSharedPreferences(PREFS,MODE_PRIVATE);
         p.edit().putBoolean("server_role",true).apply();
         final String user=p.getString("user","localls");
@@ -163,9 +172,10 @@ public class EmbeddedServerService extends Service {
                 if(!keep || destroyed)closeResources();
             }
         });
-        return START_NOT_STICKY;
+        getSharedPreferences(PREFS,0).edit().putBoolean("server_enabled",true).apply();
+        return START_STICKY;
     }
-    @Override public void onTimeout(int id,int type) { status="Сервер остановлен: Android ограничил время фоновой службы. Запусти его снова.";stopSelf(); }
+    @Override public void onTimeout(int id,int type) { status=AppText.tr("Сервер остановлен: Android ограничил время фоновой службы. Запусти его снова.");stopSelf(); }
     private void closeResources(){
         if(pairingEndpoint==server)pairingEndpoint=null;
         try{if(server!=null)server.close();}catch(Exception ignored){}finally{server=null;}
@@ -182,8 +192,8 @@ public class EmbeddedServerService extends Service {
     }
     @Override public void onDestroy() {
         synchronized(lifecycle){
-            destroyed=true;if(autoReceive!=null)autoReceive.close();startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;waitingForClient=false;
-            if(status.startsWith("Сервер работает") || status.startsWith("Сервер готов") || status.startsWith("Запуск"))status="Сервер выключен";
+            destroyed=true;if(activeService==this)activeService=null;if(autoReceive!=null)autoReceive.close();startupWatchdog.removeCallbacksAndMessages(null);running=false;starting=false;waitingForClient=false;
+            if(status.startsWith(AppText.tr("Сервер работает")) || status.startsWith(AppText.tr("Сервер готов")) || status.startsWith(AppText.tr("Запуск")))status=AppText.tr("Сервер выключен");
         }
         // The worker also sees resources whose constructors finished after destruction began.
         worker.execute(this::closeResources);worker.shutdown();receiptWorker.shutdown();stopForeground(true);super.onDestroy();

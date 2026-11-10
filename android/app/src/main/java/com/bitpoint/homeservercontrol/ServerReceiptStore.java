@@ -21,5 +21,5 @@ final class ServerReceiptStore extends SQLiteOpenHelper {
         String name(){return new java.io.File(path).getName().replaceAll("\\p{Cntrl}"," ");}
     }
     List<Entry> list(){ArrayList<Entry> out=new ArrayList<>();try(Cursor c=getReadableDatabase().rawQuery("SELECT path,sender,bytes,received FROM receipts ORDER BY id DESC LIMIT 100",null)){while(c.moveToNext())out.add(new Entry(c.getString(0),c.getString(1),c.getLong(2),c.getLong(3)));}return out;}
-    static String sender(Context context,String fingerprint){try{for(var device:ServerDevices.list(context))if(EmbeddedSftpServer.publicFingerprint(device.key).equals(fingerprint))return device.name;}catch(Exception ignored){}return "Устройство";}
+    static String sender(Context context,String fingerprint){try{for(var device:ServerDevices.list(context))if(EmbeddedSftpServer.publicFingerprint(device.key).equals(fingerprint))return device.name;}catch(Exception ignored){}return AppText.tr("Устройство");}
 }

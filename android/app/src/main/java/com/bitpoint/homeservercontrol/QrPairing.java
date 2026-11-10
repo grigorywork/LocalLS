@@ -14,7 +14,7 @@ final class QrPairing {
         if(!("server".equals(type)||"client".equals(type)) || !ConnectionEndpoint.validHost(host)
                 || !ConnectionEndpoint.validUser(user) || port<1 || port>65535
                 || !pin.matches("SHA256:[A-Za-z0-9+/]{43}") || !nonce.matches("[a-f0-9-]{36}"))
-            throw new IllegalArgumentException("Неверный QR LocalLS");
+            throw new IllegalArgumentException(AppText.tr("Неверный QR LocalLS"));
         this.type=type;this.host=host;this.port=port;this.user=user;this.pin=pin;this.nonce=nonce;this.expires=expires;publicKey=key;
     }
     static QrPairing invite(String host,int port,String user,String pin,long now){
@@ -36,7 +36,7 @@ final class QrPairing {
         if("client".equals(type))j.put("publicKey",publicKey);return j.toString();
     }
     static QrPairing decode(String text,long now)throws Exception{
-        if(text==null || text.length()>12000)throw new IllegalArgumentException("Неверный QR LocalLS");
+        if(text==null || text.length()>12000)throw new IllegalArgumentException(AppText.tr("Неверный QR LocalLS"));
         // The protocol has primitive fields only. Reject nesting before JSONTokener's
         // recursive parser so an untrusted camera payload cannot exhaust the stack.
         final char openObject=0x7b,closeObject=0x7d;
@@ -45,27 +45,27 @@ final class QrPairing {
             char ch=text.charAt(i);
             if(quoted){if(escape)escape=false;else if(ch=='\\')escape=true;else if(ch=='"')quoted=false;continue;}
             if(ch=='"'){quoted=true;continue;}
-            if(ch=='/'||ch=='#'||ch==0x27)throw new IllegalArgumentException("Нестандартный JSON в QR");
-            if(ch=='['||ch==']'||(ch==openObject&&(opened||ended)))throw new IllegalArgumentException("Неверная структура QR");
+            if(ch=='/'||ch=='#'||ch==0x27)throw new IllegalArgumentException(AppText.tr("Нестандартный JSON в QR"));
+            if(ch=='['||ch==']'||(ch==openObject&&(opened||ended)))throw new IllegalArgumentException(AppText.tr("Неверная структура QR"));
             if(ch==openObject)opened=true;
             if(ch==closeObject){opened=false;ended=true;}
         }
         JSONTokener parser=new JSONTokener(text);Object value=parser.nextValue();
-        if(!(value instanceof JSONObject)||parser.nextClean()!=0)throw new IllegalArgumentException("Неверный QR LocalLS");
+        if(!(value instanceof JSONObject)||parser.nextClean()!=0)throw new IllegalArgumentException(AppText.tr("Неверный QR LocalLS"));
         JSONObject j=(JSONObject)value;String type=j.getString("type");
         Set<String> allowed=new HashSet<>(Arrays.asList("format","version","type","host","port","user","pin","nonce","expires"));
         if("client".equals(type))allowed.add("publicKey");
-        if(j.length()!=allowed.size())throw new IllegalArgumentException("Неизвестные поля QR");
-        for(Iterator<String> it=j.keys();it.hasNext();)if(!allowed.contains(it.next()))throw new IllegalArgumentException("Неизвестные поля QR");
+        if(j.length()!=allowed.size())throw new IllegalArgumentException(AppText.tr("Неизвестные поля QR"));
+        for(Iterator<String> it=j.keys();it.hasNext();)if(!allowed.contains(it.next()))throw new IllegalArgumentException(AppText.tr("Неизвестные поля QR"));
         if(!"LocalLS-pairing".equals(j.get("format")) || !(j.get("version") instanceof Integer) || j.getInt("version")!=1
                 || !(j.get("port") instanceof Integer) || !(j.get("expires") instanceof Long || j.get("expires") instanceof Integer))
-            throw new IllegalArgumentException("Неподдерживаемый QR");
-        for(String key:new String[]{"type","host","user","pin","nonce"})if(!(j.get(key) instanceof String))throw new IllegalArgumentException("Неверное поле QR");
+            throw new IllegalArgumentException(AppText.tr("Неподдерживаемый QR"));
+        for(String key:new String[]{"type","host","user","pin","nonce"})if(!(j.get(key) instanceof String))throw new IllegalArgumentException(AppText.tr("Неверное поле QR"));
         long expires=j.getLong("expires");
-        if(expires<=now || expires-now>LIFETIME)throw new IllegalArgumentException("QR истёк. Покажи новый код на сервере и проверь время телефонов");
+        if(expires<=now || expires-now>LIFETIME)throw new IllegalArgumentException(AppText.tr("QR истёк. Покажи новый код на сервере и проверь время телефонов"));
         String key="";
         if("client".equals(type)){
-            if(!(j.get("publicKey") instanceof String))throw new IllegalArgumentException("Неверный публичный ключ");
+            if(!(j.get("publicKey") instanceof String))throw new IllegalArgumentException(AppText.tr("Неверный публичный ключ"));
             key=EmbeddedSftpServer.normalizeAuthorizedKey(j.getString("publicKey"));
         }
         return new QrPairing(type,j.getString("host"),j.getInt("port"),j.getString("user"),j.getString("pin"),j.getString("nonce"),expires,key);

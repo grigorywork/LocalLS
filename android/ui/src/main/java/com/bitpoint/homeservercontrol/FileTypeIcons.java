@@ -36,7 +36,7 @@ final class FileTypeIcons {
         int resource;
         int color;
         String badge = "";
-        boolean light = ThemeCatalog.index(context) == 4;
+        boolean light = ThemeCatalog.light(context);
         switch (type) {
             case FOLDER: resource=R.drawable.ic_type_folder; color=light?0xff997014:0xffe4bf6d; break;
             case IMAGE: resource=R.drawable.ic_type_file_image; color=light?0xff2563eb:0xff60a5fa; break;

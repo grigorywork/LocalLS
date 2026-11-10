@@ -1,4 +1,5 @@
 'use strict';
+const {t}=require('./i18n.cjs');
 const crypto=require('node:crypto'),fs=require('node:fs'),tls=require('node:tls'),https=require('node:https'),http=require('node:http'),path=require('node:path');
 const {utils}=require('ssh2');
 const call=(s,m,...a)=>new Promise((resolve,reject)=>s[m](...a,(e,v)=>e?reject(e):resolve(v)));
@@ -31,7 +32,7 @@ function agentRequest({host,port,token,action,pin,legacyHTTP=false}){
  if(!legacyHTTP&&(!pin||typeof pin.certificate!=='string'||!/^SHA256:[a-f0-9]{64}$/.test(pin.fingerprint)))fail('AGENT_TRUST_REQUIRED');
  return new Promise((resolve,reject)=>{const transport=legacyHTTP?http:https;const opts={host,port,path:'/'+action,method:action==='status'?'GET':'POST',headers:{Authorization:'Bearer '+token,Accept:'application/json'},timeout:8000};
  if(!legacyHTTP)Object.assign(opts,{minVersion:'TLSv1.2',rejectUnauthorized:true,ca:pin.certificate,checkServerIdentity:(_host,cert)=>{const observed='SHA256:'+crypto.createHash('sha256').update(cert.raw).digest('hex');if(observed!==pin.fingerprint)return new Error('AGENT_CERT_CHANGED');}});
- const req=transport.request(opts,res=>{let bytes=0,parts=[];res.on('data',chunk=>{bytes+=chunk.length;if(bytes>65536){req.destroy(new Error('AGENT_RESPONSE_LARGE'));return;}parts.push(chunk);});res.on('error',()=>reject(new Error('AGENT_FAILED')));res.on('end',()=>{if(res.statusCode!==200)return reject(new Error('AGENT_FAILED'));try{const data=JSON.parse(Buffer.concat(parts));resolve({ok:data.ok===true,running:data.sshd==='running',message:action==='status'?'Статус получен':'Команда отправлена агенту'});}catch{reject(new Error('AGENT_FAILED'));}});});
+ const req=transport.request(opts,res=>{let bytes=0,parts=[];res.on('data',chunk=>{bytes+=chunk.length;if(bytes>65536){req.destroy(new Error('AGENT_RESPONSE_LARGE'));return;}parts.push(chunk);});res.on('error',()=>reject(new Error('AGENT_FAILED')));res.on('end',()=>{if(res.statusCode!==200)return reject(new Error('AGENT_FAILED'));try{const data=JSON.parse(Buffer.concat(parts));resolve({ok:data.ok===true,running:data.sshd==='running',message:action==='status'?t('Статус получен'):t('Команда отправлена агенту')});}catch{reject(new Error('AGENT_FAILED'));}});});
  req.on('timeout',()=>req.destroy(new Error('AGENT_FAILED')));req.on('error',()=>reject(new Error(legacyHTTP?'AGENT_FAILED':'AGENT_TLS_FAILED')));req.end();
  });
 }

@@ -20,11 +20,11 @@ final class HostTrustStore {
     /** Compare and commit public QR fields together; a delayed task cannot replace newer trust. */
     static synchronized void pair(Context c,String host,int port,String user,String fingerprint)throws java.io.IOException{
         if(!ConnectionEndpoint.validHost(host)||!ConnectionEndpoint.validUser(user)||port<1||port>65535
-                ||fingerprint==null||!fingerprint.matches("SHA256:[A-Za-z0-9+/]{43}"))throw new java.io.IOException("Неверное подключение QR");
-        String previous=get(c,host,port);if(!previous.isEmpty()&&!previous.equals(fingerprint))throw new java.io.IOException("Ключ сервера изменился. Подключение заблокировано");
+                ||fingerprint==null||!fingerprint.matches("SHA256:[A-Za-z0-9+/]{43}"))throw new java.io.IOException(AppText.tr("Неверное подключение QR"));
+        String previous=get(c,host,port);if(!previous.isEmpty()&&!previous.equals(fingerprint))throw new java.io.IOException(AppText.tr("Ключ сервера изменился. Подключение заблокировано"));
         if(!prefs(c).edit().putString(key(host,port),fingerprint).putString(ServerConfig.KEY_LOCAL_HOST,host)
                 .putInt(ServerConfig.KEY_PORT,port).putString(ServerConfig.KEY_USER,user).putString(ServerConfig.KEY_MODE,ServerConfig.MODE_LOCAL)
-                .remove(ServerConfig.KEY_LAST_WORKING_HOST).commit())throw new java.io.IOException("Не удалось сохранить подключение");
+                .remove(ServerConfig.KEY_LAST_WORKING_HOST).commit())throw new java.io.IOException(AppText.tr("Не удалось сохранить подключение"));
     }
 
     /** Local trusted addresses only; never probes or discovers network devices. */

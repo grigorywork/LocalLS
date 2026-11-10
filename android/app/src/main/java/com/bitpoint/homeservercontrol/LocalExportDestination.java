@@ -52,9 +52,9 @@ final class LocalExportDestination implements LocalFileExporter.Destination {
         // SAF providers can return existing documents: never delete a selected user document.
         if(downloads && uri!=null)try{resolver.delete(uri,null,null);}catch(Exception ignored) { }
     }
-    @Override public InputStream readBack()throws Exception{InputStream in=resolver.openInputStream(uri);if(in==null)throw new IOException("Нет доступа к проверке копии");return in;}
-    void rename(String value)throws Exception{ContentValues values=new ContentValues();values.put(MediaStore.MediaColumns.DISPLAY_NAME,TransferPaths.name(value));if(resolver.update(uri,values,null,null)!=1)throw new IOException("Не удалось назначить имя копии");}
-    String location() { return downloads?"Загрузки / LocalLS":"Выбранная папка"; }
+    @Override public InputStream readBack()throws Exception{InputStream in=resolver.openInputStream(uri);if(in==null)throw new IOException(AppText.tr("Нет доступа к проверке копии"));return in;}
+    void rename(String value)throws Exception{ContentValues values=new ContentValues();values.put(MediaStore.MediaColumns.DISPLAY_NAME,TransferPaths.name(value));if(resolver.update(uri,values,null,null)!=1)throw new IOException(AppText.tr("Не удалось назначить имя копии"));}
+    String location() { return downloads?AppText.tr("Загрузки / LocalLS"):AppText.tr("Выбранная папка"); }
     Uri uri(){return uri;}
     boolean requiresReadBack(){return fallbackWrite;}
 }

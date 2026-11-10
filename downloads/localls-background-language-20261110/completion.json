@@ -1,0 +1,198 @@
+{
+  "at": "2026-11-10T21:20:12.523850+00:00",
+  "author": "MSS9LN",
+  "files": [
+    {
+      "label": "Android 1.41/code63",
+      "name": "LocalLS-1.41-code63-background-language-20261110.apk",
+      "path": "/workspace/shared/LocalLS-1.41-code63-background-language-20261110.apk",
+      "bytes": 2397170,
+      "sha256": "634a7c563580c092da297725dad0d418242fd382f1abfcf40602cfff903834b5"
+    },
+    {
+      "label": "Windows 1.43 x64",
+      "name": "LocalLS-1.43-Windows-x64-Setup-unsigned-background-language-20261110.exe",
+      "path": "/workspace/shared/LocalLS-1.43-Windows-x64-Setup-unsigned-background-language-20261110.exe",
+      "bytes": 95742601,
+      "sha256": "b7aa67c4c1c2c7f38b1172e7005d379921772343a10ce330211c7e4b9e4f5a44"
+    },
+    {
+      "label": "Fedora 1.44 x86_64",
+      "name": "LocalLS-1.44.0-Fedora-x86_64-background-language-20261110.rpm",
+      "path": "/workspace/shared/LocalLS-1.44.0-Fedora-x86_64-background-language-20261110.rpm",
+      "bytes": 88690609,
+      "sha256": "c3d5584fb4a0143f3dceedf46dbf4e18f1037204f92f3095d9e84221b9eca7bb"
+    },
+    {
+      "label": "Debian 13 / 1.44 amd64",
+      "name": "LocalLS-1.44.0-Debian13-amd64-background-language-20261110.deb",
+      "path": "/workspace/shared/LocalLS-1.44.0-Debian13-amd64-background-language-20261110.deb",
+      "bytes": 91904764,
+      "sha256": "0dd8a63b2cfe9aaf68ad21b9732cdd8fe56e8a5c3294a48e909189fb2081a11f"
+    }
+  ],
+  "androidFull": {
+    "at": "2026-11-10T20:57:30.810744+00:00",
+    "jvm": {
+      "tests": 495,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "previous481IdsPreserved": true,
+    "functionMatrixReferences": 102,
+    "pythonTests": 19,
+    "lint": {
+      "debug": {
+        "Warning": 104
+      },
+      "release": {
+        "Warning": 104
+      }
+    },
+    "runtime": "JVM/native Robolectric and isolated loopback",
+    "physicalDevices": false,
+    "stages": [
+      {
+        "name": "versions",
+        "exitCode": 0,
+        "seconds": 0.02
+      },
+      {
+        "name": "project-audit",
+        "exitCode": 0,
+        "seconds": 0.16
+      },
+      {
+        "name": "architecture-audit",
+        "exitCode": 0,
+        "seconds": 0.35
+      },
+      {
+        "name": "python-tests",
+        "exitCode": 0,
+        "seconds": 2.87
+      },
+      {
+        "name": "gradle-full",
+        "exitCode": 0,
+        "seconds": 874.65
+      }
+    ]
+  },
+  "postUi": {
+    "at": "2026-11-10T21:02:33.297243+00:00",
+    "tests": {
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "lint": {
+      "debug": {
+        "Warning": 104
+      },
+      "release": {
+        "Warning": 104
+      }
+    },
+    "productionDelta": [
+      "/workspace/LocalLS/android/app/src/main/java/com/bitpoint/homeservercontrol/AppearanceActivity.java"
+    ],
+    "fullRun": "android-full-6-verification.json",
+    "uniqueJVMIdsIncludingNewContrastRegression": 496
+  },
+  "nodeTests": {
+    "Windows": 100,
+    "Linux": 96
+  },
+  "gui": {
+    "Windows": {
+      "count": 9,
+      "scenarios": [
+        "ui-smoke",
+        "server-ui-smoke",
+        "glass-ui-smoke",
+        "qr-ui-smoke",
+        "queue-preview-ui",
+        "queue-eta-ui",
+        "connection-state-smoke",
+        "local-root-race",
+        "background-language"
+      ],
+      "runtime": "Windows ASAR in Linux Electron"
+    },
+    "Fedora": {
+      "count": 10,
+      "scenarios": [
+        "native-vault",
+        "ui-smoke",
+        "server-ui-smoke",
+        "glass-ui-smoke",
+        "qr-ui-smoke",
+        "queue-preview-ui",
+        "queue-eta-ui",
+        "connection-state-smoke",
+        "local-root-race",
+        "background-language"
+      ],
+      "runtime": "installed package / X11 Openbox container"
+    },
+    "Debian": {
+      "count": 10,
+      "scenarios": [
+        "native-vault",
+        "ui-smoke",
+        "server-ui-smoke",
+        "glass-ui-smoke",
+        "qr-ui-smoke",
+        "queue-preview-ui",
+        "queue-eta-ui",
+        "connection-state-smoke",
+        "local-root-race",
+        "background-language"
+      ],
+      "runtime": "installed package / X11 Openbox container"
+    }
+  },
+  "background": {
+    "at": "2026-11-10T21:04:18.635870+00:00",
+    "event": "long-background-GREEN",
+    "actualIdleMs": 1200000,
+    "observedScreenshotIntervalSeconds": 1201.0,
+    "sameSshIdentity": true,
+    "powerApiBlockerHeld": true,
+    "actualSftpBytesAfterIdle": 65536,
+    "sourceRuntime": "Linux Electron/Debian container; not physical sleep/Android Doze",
+    "logLabelNote": "Final generic PASS description still says35s; explicit runtime interval and screenshot timestamps confirm20minutes"
+  },
+  "androidSigner": "a2230c3032135def93cd5e8224ca3e26ad8e98f294b5e372a33b1e468caa221a",
+  "androidUpdateFrom": "1.40/code62 verified package/certificate/increasing code",
+  "pcPublisherSigned": false,
+  "interop": "current Android JVM backend/Node client:8MiB upload+download, same bytes and SSH pin; three preview transport fixtures",
+  "environmentInterruption": {
+    "at": "2026-11-10T20:38:31.714761+00:00",
+    "event": "environment-restart",
+    "lastObservedAlive": "2026-11-10T13:43:09Z",
+    "resumed": "2026-11-10T20:37:41Z",
+    "unverifiedInterval": true,
+    "continuousTestingClaimed": false,
+    "gradleFull5": "interrupted-no-BUILD-SUCCESSFUL",
+    "savedJVM": {
+      "tests": 494,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "latestSavedXML": "2026-11-10T13:47:30.915330+00:00",
+    "longIdle20min": "interrupted-no-PASS",
+    "frozenInputs": 654,
+    "changedInputs": []
+  },
+  "limits": [
+    "No physical Android Doze or native Windows/DWM/DPAPI testing",
+    "Linux GUI in Fedora44/Debian13 X11/Openbox containers; not Wayland/KDE",
+    "Manual suspend/power-off interrupts networking; idle inhibitor API verified",
+    "495 complete JVM tests then17 appearance tests after a presentation-only patch;496 unique IDs, not496 in one full run"
+  ]
+}

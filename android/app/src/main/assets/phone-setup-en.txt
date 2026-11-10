@@ -1,0 +1,20 @@
+LocalLS — quick start
+
+SERVER DEVICE
+Connect both devices to the same Wi-Fi. Start the server and show its QR code.
+
+CLIENT DEVICE
+Open the QR code from a file or scan it. Compare the code and approve the device on the server.
+
+FILES
+Choose a local folder and a server folder. Select files or folders, then choose the transfer direction. View progress, cancel and retry in Queue.
+
+BACKGROUND
+Keep the server notification enabled. On Android, allow unrestricted battery use for LocalLS if the phone stops the server in the background. The screen can be off.
+On a computer, close the window to keep LocalLS running in the tray. Quit stops its server. A computer cannot serve files while suspended or powered off.
+
+INCOMING FILES
+The server's shared folder receives uploads. Open it from the server screen. Choose the destination folder in Files when downloading.
+
+ACCESS
+Only approved devices can connect. Up to 10 devices can be authorized. Choose folders using the system picker; operating-system permissions still apply.

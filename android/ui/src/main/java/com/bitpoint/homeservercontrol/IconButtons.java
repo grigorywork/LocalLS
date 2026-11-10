@@ -26,22 +26,22 @@ final class IconButtons {
                 button.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP,"file_tab".equals(button.getTag())?16:14);button.setMinHeight(Math.round(48*button.getResources().getDisplayMetrics().density));button.setMaxLines(2);
             }else if("qr_action".equals(button.getTag())){
                 String caption=button.getText().toString();
-                int image=caption.startsWith("Обновить")?R.drawable.ic_action_restart:caption.startsWith("Сохранить")?R.drawable.ic_action_save:
-                        caption.startsWith("Разрешённые")?R.drawable.ic_action_key:caption.startsWith("Ключ")?R.drawable.ic_action_key:
-                        caption.startsWith("Включить")?R.drawable.ic_action_power:caption.startsWith("Назад")?R.drawable.ic_action_back:
-                        caption.contains("QR")?R.drawable.ic_action_qr:caption.contains("файлы")?R.drawable.ic_action_folder:R.drawable.ic_action_check;
+                int image=caption.startsWith(AppText.tr("Обновить"))?R.drawable.ic_action_restart:caption.startsWith(AppText.tr("Сохранить"))?R.drawable.ic_action_save:
+                        caption.startsWith(AppText.tr("Разрешённые"))?R.drawable.ic_action_key:caption.startsWith(AppText.tr("Ключ"))?R.drawable.ic_action_key:
+                        caption.startsWith(AppText.tr("Включить"))?R.drawable.ic_action_power:caption.startsWith(AppText.tr("Назад"))?R.drawable.ic_action_back:
+                        caption.contains("QR")?R.drawable.ic_action_qr:caption.contains(AppText.tr("файлы"))?R.drawable.ic_action_folder:R.drawable.ic_action_check;
                 apply(button,image);
             }else if("queue_action".equals(button.getTag())){
-                apply(button,button.getText().toString().startsWith("Очистить")?R.drawable.ic_action_delete:R.drawable.ic_action_close);
+                apply(button,button.getText().toString().startsWith(AppText.tr("Очистить"))?R.drawable.ic_action_delete:R.drawable.ic_action_close);
                 button.setTextSize(12);button.setGravity(Gravity.CENTER);button.setBackgroundTintList(null);button.setBackground(SurfaceStyle.panel(button.getContext()));
                 button.setTextColor(rowColours(ThemeCatalog.color(button.getContext(),R.attr.hscTextPrimary),ThemeCatalog.color(button.getContext(),R.attr.hscTextSecondary)));
                 Drawable glyph=button.getCompoundDrawablesRelative()[0];if(glyph!=null)glyph.setTintList(rowColours(ThemeCatalog.color(button.getContext(),R.attr.hscAccent),ThemeCatalog.color(button.getContext(),R.attr.hscTextSecondary)));
             }else if("file_toolbar".equals(button.getTag())){
                 String caption=button.getText().toString();
-                int image=caption.equals("Выше")?R.drawable.ic_action_up:caption.equals("Обновить")?R.drawable.ic_action_restart:
-                        caption.equals("Меню")?R.drawable.ic_action_menu:caption.startsWith("На сервер")||Boolean.TRUE.equals(button.getTag(R.id.fileTransferUpload))?R.drawable.ic_action_upload:R.drawable.ic_action_download;
+                int image=caption.equals(AppText.tr("Выше"))?R.drawable.ic_action_up:caption.equals(AppText.tr("Обновить"))?R.drawable.ic_action_restart:
+                        caption.equals(AppText.tr("Меню"))?R.drawable.ic_action_menu:caption.startsWith(AppText.tr("На сервер"))||Boolean.TRUE.equals(button.getTag(R.id.fileTransferUpload))?R.drawable.ic_action_upload:R.drawable.ic_action_download;
                 apply(button,image);button.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP,16);
-            }else apply(button, name.equals("serverQrToggle")?(button.getText().toString().startsWith("Скрыть")?R.drawable.ic_action_eye_off:R.drawable.ic_action_eye):name.isEmpty()?captionIcon(button.getText().toString()):icon(name));
+            }else apply(button, name.equals("serverQrToggle")?(button.getText().toString().startsWith(AppText.tr("Скрыть"))?R.drawable.ic_action_eye_off:R.drawable.ic_action_eye):name.isEmpty()?captionIcon(button.getText().toString()):icon(name));
         }
         if(view instanceof Button && !(view instanceof CompoundButton)){
             Button b=(Button)view;String tag=String.valueOf(b.getTag());
@@ -66,7 +66,7 @@ final class IconButtons {
         }
     }
     static void dashboardTab(Button button){
-        Context c=button.getContext();if(ThemeCatalog.index(c)!=4)return;
+        Context c=button.getContext();if(!ThemeCatalog.light(c))return;
         int fill=ThemeCatalog.color(c,"homeClientTab".equals(resourceName(button))?R.attr.hscSecondaryButton:R.attr.hscButton);
         if(button.getBackgroundTintList()!=null)fill=button.getBackgroundTintList().getColorForState(button.getDrawableState(),fill);
         button.setTextColor(android.graphics.Color.luminance(fill)>.4f?ThemeCatalog.color(c,R.attr.hscTextPrimary):c.getColor(R.color.button_text));
@@ -161,7 +161,7 @@ final class IconButtons {
     private static boolean navigation(Button button,int icon){
         if("serverReceiveButton".equals(resourceName(button)))return true;
         String caption=button.getText().toString().toLowerCase(java.util.Locale.ROOT);
-        for(String prefix:new String[]{"создать","сгенерировать","проверить","сохранить","сбросить","забыть","отозвать","удалить","обновить","повторить","экспорт","копировать","скопировать","показать","скрыть"})if(caption.startsWith(prefix))return false;
+        for(String prefix:new String[]{AppText.tr("создать"),AppText.tr("сгенерировать"),AppText.tr("проверить"),AppText.tr("сохранить"),AppText.tr("сбросить"),AppText.tr("забыть"),AppText.tr("отозвать"),AppText.tr("удалить"),AppText.tr("обновить"),AppText.tr("повторить"),AppText.tr("экспорт"),AppText.tr("копировать"),AppText.tr("скопировать"),AppText.tr("показать"),AppText.tr("скрыть")})if(caption.startsWith(prefix))return false;
 
         return icon==R.drawable.ic_action_key||icon==R.drawable.ic_action_qr||icon==R.drawable.ic_action_folder||icon==R.drawable.ic_action_info||
                 icon==R.drawable.ic_action_settings||icon==R.drawable.ic_action_palette||icon==R.drawable.ic_action_network||
@@ -169,23 +169,23 @@ final class IconButtons {
     }
     private static int captionIcon(String caption){
         String text=caption.toLowerCase(java.util.Locale.ROOT);
-        if(text.startsWith("назад")||text.startsWith("на главный"))return R.drawable.ic_action_back;
-        if(text.startsWith("закрыть")||text.startsWith("отмен"))return R.drawable.ic_action_close;
-        if(text.startsWith("обновить")||text.startsWith("повторить"))return R.drawable.ic_action_restart;
-        if(text.startsWith("включить")||text.startsWith("остановить"))return R.drawable.ic_action_power;
-        if(text.startsWith("скопировать")||text.startsWith("копировать"))return R.drawable.ic_action_copy;
-        if(text.startsWith("переименовать"))return R.drawable.ic_action_settings;
-        if(text.contains("инструкц")||text.startsWith("дополнительно"))return R.drawable.ic_action_info;
-        if(text.startsWith("отозвать")||text.startsWith("удалить"))return R.drawable.ic_action_delete;
+        if(text.startsWith(AppText.tr("назад"))||text.startsWith(AppText.tr("на главный")))return R.drawable.ic_action_back;
+        if(text.startsWith(AppText.tr("закрыть"))||text.startsWith(AppText.tr("отмен")))return R.drawable.ic_action_close;
+        if(text.startsWith(AppText.tr("обновить"))||text.startsWith(AppText.tr("повторить")))return R.drawable.ic_action_restart;
+        if(text.startsWith(AppText.tr("включить"))||text.startsWith(AppText.tr("остановить")))return R.drawable.ic_action_power;
+        if(text.startsWith(AppText.tr("скопировать"))||text.startsWith(AppText.tr("копировать")))return R.drawable.ic_action_copy;
+        if(text.startsWith(AppText.tr("переименовать")))return R.drawable.ic_action_settings;
+        if(text.contains(AppText.tr("инструкц"))||text.startsWith(AppText.tr("дополнительно")))return R.drawable.ic_action_info;
+        if(text.startsWith(AppText.tr("отозвать"))||text.startsWith(AppText.tr("удалить")))return R.drawable.ic_action_delete;
         if(text.contains("qr"))return R.drawable.ic_action_qr;
-        if(text.startsWith("экспорт"))return R.drawable.ic_action_upload;
-        if(text.startsWith("импорт")||text.startsWith("загрузить"))return R.drawable.ic_action_download;
+        if(text.startsWith(AppText.tr("экспорт")))return R.drawable.ic_action_upload;
+        if(text.startsWith(AppText.tr("импорт"))||text.startsWith(AppText.tr("загрузить")))return R.drawable.ic_action_download;
         if(text.contains(".pub"))return R.drawable.ic_action_key;
-        if(text.startsWith("сохранить"))return R.drawable.ic_action_save;
-        if(text.startsWith("отправить"))return R.drawable.ic_action_send;
-        if(text.contains("файл")||text.contains("папк")||text.contains("загрузки"))return R.drawable.ic_action_folder;
-        if(text.contains("ключ")||text.contains("устройств"))return R.drawable.ic_action_key;
-        if(text.startsWith("проверить")||text.contains("разрешить"))return R.drawable.ic_action_check;
+        if(text.startsWith(AppText.tr("сохранить")))return R.drawable.ic_action_save;
+        if(text.startsWith(AppText.tr("отправить")))return R.drawable.ic_action_send;
+        if(text.contains(AppText.tr("файл"))||text.contains(AppText.tr("папк"))||text.contains(AppText.tr("загрузки")))return R.drawable.ic_action_folder;
+        if(text.contains(AppText.tr("ключ"))||text.contains(AppText.tr("устройств")))return R.drawable.ic_action_key;
+        if(text.startsWith(AppText.tr("проверить"))||text.contains(AppText.tr("разрешить")))return R.drawable.ic_action_check;
         return R.drawable.ic_action_grid;
     }
     private static int icon(String name) {

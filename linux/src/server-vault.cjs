@@ -30,7 +30,7 @@ function readConfig(file, fallback) {
   if (!fs.existsSync(file)) return fallback;
   try {
     const config = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (!config || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535 || typeof config.root !== 'string' || !config.root || !Array.isArray(config.devices) || config.devices.length > 7 || typeof config.user !== 'string') throw new Error();
+    if (!config || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535 || typeof config.root !== 'string' || !config.root || !Array.isArray(config.devices) || config.devices.length > 10 || typeof config.user !== 'string') throw new Error();
     return config;
   } catch { throw new Error('SERVER_CONFIG_UNREADABLE'); }
 }

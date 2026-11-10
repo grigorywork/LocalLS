@@ -32,11 +32,11 @@ final class LocalServerDiscovery {
     /** Separate interface selection from bounded probing; tests supply an isolated loopback subnet. */
     static Result discover(String localIp,int port) {
         if (localIp == null) return new Result(localIp, Collections.emptyList(),
-                "Не удалось определить IPv4 этого телефона. Проверь Wi-Fi.");
+                AppText.tr("Не удалось определить IPv4 этого телефона. Проверь Wi-Fi."));
 
         int lastDot = localIp.lastIndexOf('.');
         if (lastDot <= 0) return new Result(localIp, Collections.emptyList(),
-                "Не удалось определить локальную /24 сеть.");
+                AppText.tr("Не удалось определить локальную /24 сеть."));
         String prefix = localIp.substring(0, lastDot + 1);
 
         ExecutorService pool = Executors.newFixedThreadPool(MAX_WORKERS);
@@ -65,12 +65,12 @@ final class LocalServerDiscovery {
             }
             Collections.sort(hits, LocalServerDiscovery::compareIpv4);
             String message = hits.isEmpty()
-                    ? "SSH-порт " + port + " в сети " + prefix + "0/24 не найден."
-                    : "Найдено устройств с открытым портом " + port + ": " + hits.size();
+                    ? AppText.tr("SSH-порт ") + port + AppText.tr(" в сети ") + prefix + AppText.tr("0/24 не найден.")
+                    : AppText.tr("Найдено устройств с открытым портом ") + port + ": " + hits.size();
             return new Result(localIp, hits, message);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return new Result(localIp, Collections.emptyList(), "Поиск отменён.");
+            return new Result(localIp, Collections.emptyList(), AppText.tr("Поиск отменён."));
         } finally {
             pool.shutdownNow();
         }

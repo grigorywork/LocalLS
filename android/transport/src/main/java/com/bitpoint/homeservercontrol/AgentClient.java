@@ -18,8 +18,8 @@ final class AgentClient {
         HttpURLConnection connection = null;
         try {
             if (!java.util.Arrays.asList("status","start","stop","restart").contains(action) || token==null || token.isEmpty()
-                    || token.length()>4096 || token.contains("\r") || token.contains("\n")) throw new Exception("Неверные параметры агента");
-            if(!legacyHTTP && (pin==null || !pin.matches("SHA256:[a-f0-9]{64}")))throw new Exception("Подтвердите HTTPS-сертификат агента");
+                    || token.length()>4096 || token.contains("\r") || token.contains("\n")) throw new Exception(AppText.tr("Неверные параметры агента"));
+            if(!legacyHTTP && (pin==null || !pin.matches("SHA256:[a-f0-9]{64}")))throw new Exception(AppText.tr("Подтвердите HTTPS-сертификат агента"));
             String method = "status".equals(action) ? "GET" : "POST";
             URL url = new URL(legacyHTTP?"http":"https", host, port, "/" + action);
             connection = (HttpURLConnection) url.openConnection();
@@ -48,10 +48,10 @@ final class AgentClient {
                 result.body = SecretRedactor.redact(response == null ? "" : readAll(response), token);
             }
             result.success = result.httpCode >= 200 && result.httpCode < 300;
-            if (!result.success) { result.error = "Агент отклонил запрос: HTTP " + result.httpCode; result.body=""; }
+            if (!result.success) { result.error = AppText.tr("Агент отклонил запрос: HTTP ") + result.httpCode; result.body=""; }
         } catch (Exception e) {
-            result.error = legacyHTTP ? "Агент не выполнил запрос. Проверьте адрес, порт и токен."
-                    : "HTTPS-агент недоступен. Проверьте сертификат, TLS, адрес, порт и токен. Токен не отправляется до проверки сертификата.";
+            result.error = legacyHTTP ? AppText.tr("Агент не выполнил запрос. Проверьте адрес, порт и токен.")
+                    : AppText.tr("HTTPS-агент недоступен. Проверьте сертификат, TLS, адрес, порт и токен. Токен не отправляется до проверки сертификата.");
         } finally {
             if (connection != null) connection.disconnect();
         }
@@ -63,7 +63,7 @@ final class AgentClient {
         byte[] buffer = new byte[2048];
         int n;
         while ((n = input.read(buffer)) >= 0) {
-            if (out.size() + n > 64 * 1024) throw new Exception("Ответ агента слишком большой");
+            if (out.size() + n > 64 * 1024) throw new Exception(AppText.tr("Ответ агента слишком большой"));
             out.write(buffer, 0, n);
         }
         return out.toString(StandardCharsets.UTF_8.name());

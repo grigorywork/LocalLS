@@ -17,7 +17,7 @@ final class StatusRibbon extends LinearLayout {
         super(c);this.first=first;this.second=second;setOrientation(HORIZONTAL);setGravity(Gravity.CENTER_VERTICAL);setBackground(SurfaceStyle.panel(c));setPadding(dp(6),0,dp(6),0);setWillNotDraw(false);
         group(first,com.bitpoint.homeservercontrol.ui.R.drawable.ic_action_history);
         group(second,com.bitpoint.homeservercontrol.ui.R.drawable.ic_action_restart);
-        third=new TextView(c);third.setText(server?"В сети: 0":"Не проверен");
+        third=new TextView(c);third.setText(server?AppText.tr("В сети: 0"):AppText.tr("Не проверен"));
         stateIcon=group(third,server?com.bitpoint.homeservercontrol.ui.R.drawable.ic_device_phone:com.bitpoint.homeservercontrol.ui.R.drawable.ic_status_shield_check);
         first.setTransformationMethod(new CompactText());second.setTransformationMethod(new CompactText());rule.setColor(SurfaceStyle.lineColor(c));
     }
@@ -27,16 +27,16 @@ final class StatusRibbon extends LinearLayout {
     }
     void trust(ServerStats stats){
         trusted=stats.authenticated&&stats.hostKeyTrusted&&!stats.hostKeyMismatch&&!stats.hostKeyNeedsTrust;
-        third.setText(stats.hostKeyMismatch?"Ключ изменён":trusted?"Ключ проверен":"Не проверен");
-        int color=ThemeCatalog.color(getContext(),stats.hostKeyMismatch?com.bitpoint.homeservercontrol.ui.R.attr.hscError:trusted?com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess:com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary);third.setTextColor(color);stateIcon.setColorFilter(color);third.setContentDescription(stats.hostKeyMismatch?"Ключ сервера отличается от сохранённого":trusted?"Ключ сервера совпадает с сохранённым, вход подтверждён":"Ключ сервера не подтверждён");
+        third.setText(stats.hostKeyMismatch?AppText.tr("Ключ изменён"):trusted?AppText.tr("Ключ проверен"):AppText.tr("Не проверен"));
+        int color=ThemeCatalog.color(getContext(),stats.hostKeyMismatch?com.bitpoint.homeservercontrol.ui.R.attr.hscError:trusted?com.bitpoint.homeservercontrol.ui.R.attr.hscSuccess:com.bitpoint.homeservercontrol.ui.R.attr.hscTextSecondary);third.setTextColor(color);stateIcon.setColorFilter(color);third.setContentDescription(stats.hostKeyMismatch?AppText.tr("Ключ сервера отличается от сохранённого"):trusted?AppText.tr("Ключ сервера совпадает с сохранённым, вход подтверждён"):AppText.tr("Ключ сервера не подтверждён"));
     }
-    void online(int count){third.setText("В сети: "+Math.max(0,count));third.setContentDescription("Сейчас подключено устройств: "+Math.max(0,count));}
+    void online(int count){third.setText(AppText.tr("В сети: ")+Math.max(0,count));third.setContentDescription(AppText.tr("Сейчас подключено устройств: ")+Math.max(0,count));}
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
     int preferredHeight(){return dp(28);}
     @Override protected void onMeasure(int width,int height){
         int available=Math.max(1,(MeasureSpec.getSize(width)-getPaddingLeft()-getPaddingRight())/3-dp(24));
         for(TextView label:new TextView[]{first,second,third}){
-            if(label==third&&trusted)label.setText(available<dp(82)?"Проверен":"Ключ проверен");
+            if(label==third&&trusted)label.setText(available<dp(82)?AppText.tr("Проверен"):AppText.tr("Ключ проверен"));
             CharSequence text=label.getTransformationMethod()==null?label.getText():label.getTransformationMethod().getTransformation(label.getText(),label);
             label.setTextSize(TypedValue.COMPLEX_UNIT_PX,dp(11));float wanted=label.getPaint().measureText(text.toString());if(wanted>available&&wanted>0)label.setTextSize(TypedValue.COMPLEX_UNIT_PX,Math.max(dp(9),dp(11)*available/wanted));
         }
@@ -45,10 +45,11 @@ final class StatusRibbon extends LinearLayout {
     @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);float width=(getWidth()-getPaddingLeft()-getPaddingRight())/3f;for(int i=1;i<3;i++){float x=getPaddingLeft()+width*i;canvas.drawRect(x,getHeight()/2f-dp(7),x+Math.max(1,dp(.75f)),getHeight()/2f+dp(7),rule);}}
     private static final class CompactText extends SingleLineTransformationMethod {
         @Override public CharSequence getTransformation(CharSequence source,View view){
-            String value=source==null?"—":source.toString();if(value.contains("Показатели")||value.contains("недоступ"))return "Нет данных";
-            if(value.contains("устарели"))return "Давно";
-            if(value.equals("Сейчас")||value.equals("Обновлено сейчас"))return "Сейчас";
-            return value.replaceFirst("^(Работает|Обновлено|Время работы:)\\s*","").replace(" сейчас","Сейчас");
+            String value=source==null?"—":source.toString();if(value.contains(AppText.tr("Показатели"))||value.contains(AppText.tr("недоступ")))return AppText.tr("Нет данных");
+            if(value.contains(AppText.tr("устарели")))return AppText.tr("Давно");
+            if(value.equals(AppText.tr("Сейчас"))||value.equals(AppText.tr("Обновлено сейчас")))return AppText.tr("Сейчас");
+            for(String prefix:new String[]{AppText.tr("Работает "),AppText.tr("Обновлено "),AppText.tr("Время работы:")})if(value.startsWith(prefix)){value=value.substring(prefix.length()).trim();break;}
+            return value.replace(AppText.tr(" сейчас"),AppText.tr("Сейчас"));
         }
     }
 }

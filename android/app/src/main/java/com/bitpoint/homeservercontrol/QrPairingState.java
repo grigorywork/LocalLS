@@ -22,8 +22,8 @@ final class QrPairingState {
         }catch(Exception expired){c.getSharedPreferences(ServerConfig.PREFS,0).edit().remove(PENDING).apply();return null;}
     }
     static void remember(Context c,QrPairing code,String publicKey)throws Exception{
-        if(!matchesCurrent(c,code))throw new IOException("Подключение изменилось");
-        if(!c.getSharedPreferences(ServerConfig.PREFS,0).edit().putString(PENDING,code.encode()).remove(key(code,publicKey)).commit())throw new IOException("Не удалось сохранить обмен QR");
+        if(!matchesCurrent(c,code))throw new IOException(AppText.tr("Подключение изменилось"));
+        if(!c.getSharedPreferences(ServerConfig.PREFS,0).edit().putString(PENDING,code.encode()).remove(key(code,publicKey)).commit())throw new IOException(AppText.tr("Не удалось сохранить обмен QR"));
     }
     static boolean confirmed(Context c,QrPairing code,String publicKey)throws Exception{
         return matchesCurrent(c,code)&&c.getSharedPreferences(ServerConfig.PREFS,0).getBoolean(key(code,publicKey),false);
@@ -33,8 +33,8 @@ final class QrPairingState {
                 .getBoolean(key(route.host,route.port,route.user,route.pin,publicKey),false);
     }
     static void complete(Context c,QrPairing code,String publicKey)throws Exception{
-        if(!matchesCurrent(c,code))throw new IOException("Подключение изменилось");
-        if(!c.getSharedPreferences(ServerConfig.PREFS,0).edit().putBoolean(key(code,publicKey),true).remove(PENDING).commit())throw new IOException("Не удалось сохранить привязку");
+        if(!matchesCurrent(c,code))throw new IOException(AppText.tr("Подключение изменилось"));
+        if(!c.getSharedPreferences(ServerConfig.PREFS,0).edit().putBoolean(key(code,publicKey),true).remove(PENDING).commit())throw new IOException(AppText.tr("Не удалось сохранить привязку"));
     }
     private static String key(QrPairing code,String publicKey)throws Exception{
         return key(code.host,code.port,code.user,code.pin,publicKey);

@@ -78,17 +78,17 @@ public class MetricChartView extends View {
         if (right <= left || bottom <= top) return;
         for (int i=0;i<=4;i++) {float y=top+(bottom-top)*i/4f;canvas.drawLine(left,y,right,y,gridPaint);}
         if (!unit.isEmpty()) {
-            boolean showNow=w>=dp(220);float nowWidth=labelPaint.measureText("сейчас");
+            boolean showNow=w>=dp(220);float nowWidth=labelPaint.measureText(AppText.tr("сейчас"));
             float available=w-dp(16)-(showNow?nowWidth+dp(12):0);
-            String full="Последние "+windowLabel,window=labelPaint.measureText(full)<=available?full:windowLabel;
+            String full=AppText.tr("Последние ")+windowLabel,window=labelPaint.measureText(full)<=available?full:windowLabel;
             if(showNow&&labelPaint.measureText(window)>available){showNow=false;available=w-dp(16);window=labelPaint.measureText(full)<=available?full:windowLabel;}
             float baseline=h-dp(3)-Math.max(0,labelMetrics.descent);
             canvas.drawText(window,dp(8),baseline,labelPaint);
-            if(showNow)canvas.drawText("сейчас",right-nowWidth,baseline,labelPaint);
+            if(showNow)canvas.drawText(AppText.tr("сейчас"),right-nowWidth,baseline,labelPaint);
         }
         int valid=0;for(Float v:values)if(v!=null&&!Float.isNaN(v))valid++;
         if(valid==0){
-            String empty="Нет замеров";float previous=labelPaint.getTextSize();labelPaint.setTextSize(dp(readable?12:10));labelPaint.getFontMetrics(labelMetrics);
+            String empty=AppText.tr("Нет замеров");float previous=labelPaint.getTextSize();labelPaint.setTextSize(dp(readable?12:10));labelPaint.getFontMetrics(labelMetrics);
             canvas.drawText(empty,left+(right-left-labelPaint.measureText(empty))/2,(top+bottom-labelMetrics.ascent-labelMetrics.descent)/2,labelPaint);
             labelPaint.setTextSize(previous);return;
         }

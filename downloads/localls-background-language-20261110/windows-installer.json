@@ -1,0 +1,12 @@
+[
+  {
+    "path": "LocalLS.exe",
+    "sha256": "fa0df7150778fe003948fe2ec9f9a4a4cee11ea7f22e2dd9121e0b432dd89f91",
+    "matchesPayload": true
+  },
+  {
+    "path": "resources/app.asar",
+    "sha256": "cf9b227b53f42b944ca02a794df4da74909c417ed117edb0499734dfabc63014",
+    "matchesPayload": true
+  }
+]

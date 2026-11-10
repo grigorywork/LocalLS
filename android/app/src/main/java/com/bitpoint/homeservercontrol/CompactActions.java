@@ -16,10 +16,10 @@ final class CompactActions {
         button.setTag(com.bitpoint.homeservercontrol.ui.R.id.compact_action_marker,true);
         // Keep the real button, its semantic tag, id, callbacks, enabled and visibility states.
         String full=button.getText().toString(),shorter=full;
-        if(full.equals("Скопировать данные подключения"))shorter="Копировать адрес";
-        if(full.equals("Экспортировать публичный ключ .pub"))shorter="Экспорт .pub";
-        if(full.equals("Сохранять в «Загрузки / LocalLS»"))shorter="Загрузки / LocalLS";
-        if(full.equals("Скопировать диагностику запуска"))shorter="Копировать отчёт";
+        if(full.equals(AppText.tr("Скопировать данные подключения")))shorter=AppText.tr("Копировать адрес");
+        if(full.equals(AppText.tr("Экспортировать публичный ключ .pub")))shorter=AppText.tr("Экспорт .pub");
+        if(full.equals(AppText.tr("Сохранять в «Загрузки / LocalLS»")))shorter=AppText.tr("Загрузки / LocalLS");
+        if(full.equals(AppText.tr("Скопировать диагностику запуска")))shorter=AppText.tr("Копировать отчёт");
         if(!shorter.equals(full)){button.setContentDescription(full);button.setText(shorter);}
         button.setMinWidth(0);button.setMinimumWidth(0);button.setMaxWidth(Integer.MAX_VALUE);
         ViewGroup.LayoutParams params=button.getLayoutParams();

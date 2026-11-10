@@ -1,4 +1,5 @@
 'use strict';
+const {t}=require('./i18n.cjs');
 const {EventEmitter} = require('node:events');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -23,7 +24,7 @@ class EmbeddedServer extends EventEmitter {
     super(); this.saveDevices = saveDevices; this.customTelemetry = telemetry; this.devices = []; this.clients = new Map(); this.received = 0; this.sent = 0; this.traffic = new TrafficHistory(); this.history = []; this.instance = null; this.invitation = null; this.pending = null;
   }
   restoreDevices(devices) {
-    if (this.instance || !Array.isArray(devices) || devices.length > 7) throw new Error('SERVER_CONFIG');
+    if (this.instance || !Array.isArray(devices) || devices.length > 10) throw new Error('SERVER_CONFIG');
     const normalized = devices.map(d => ({...d, ...publicIdentity(d.publicKey)}));
     if (new Set(normalized.map(d => d.id)).size !== normalized.length) throw new Error('SERVER_CONFIG');
     this.devices = normalized.map(({key, ...d}) => d);
@@ -31,7 +32,7 @@ class EmbeddedServer extends EventEmitter {
   async start({host = '0.0.0.0', port = 8022, user = 'localls', root, privateKey, devices = []}) {
     if (this.instance) throw new Error('SERVER_RUNNING');
     profile({host, port: port || 8022, user, folder: '.'});
-    if (!Number.isInteger(port) || port < 0 || port > 65535 || devices.length > 7) throw new Error('SERVER_CONFIG');
+    if (!Number.isInteger(port) || port < 0 || port > 65535 || devices.length > 10) throw new Error('SERVER_CONFIG');
     const key = utils.parseKey(privateKey); if (!key || key instanceof Error || !key.getPrivatePEM()) throw new Error('KEY_INVALID');
     const share = new SharedFiles(root), normalized = devices.map(d => ({...d, ...publicIdentity(d.publicKey)}));
     if (new Set(normalized.map(d => d.id)).size !== normalized.length) throw new Error('SERVER_CONFIG');
@@ -115,8 +116,8 @@ class EmbeddedServer extends EventEmitter {
     const offer = this.invitation, pending = this.pending, identity = publicIdentity(publicKey);
     if (!this.instance || !offer || offer.expires <= Date.now() || offer.nonce !== nonce || !pending || pending.id !== identity.id || pending.nonce !== nonce) throw new Error('QR_EXPIRED');
     if (!this.devices.some(d => d.id === identity.id)) {
-      if (this.devices.length >= 7) throw new Error('DEVICE_LIMIT');
-      const next = [...this.devices, {id: identity.id, publicKey: identity.publicKey, label: String(label || 'Устройство ' + (this.devices.length + 1)).replace(/[\x00-\x1f]/g, '').slice(0, 64), addedAt: Date.now()}];
+      if (this.devices.length >= 10) throw new Error('DEVICE_LIMIT');
+      const next = [...this.devices, {id: identity.id, publicKey: identity.publicKey, label: String(label || t('Устройство ') + (this.devices.length + 1)).replace(/[\x00-\x1f]/g, '').slice(0, 64), addedAt: Date.now()}];
       this.saveDevices(next); this.devices = next;
     }
     this.invitation = null; this.pending = null; this.emit('update'); return this.snapshot();

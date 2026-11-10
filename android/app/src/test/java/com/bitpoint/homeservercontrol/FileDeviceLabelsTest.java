@@ -30,8 +30,8 @@ public class FileDeviceLabelsTest {
             ReflectionHelpers.setField(a,"own",false);
             for(DeviceKind peer:DeviceKind.values()){
                 ReflectionHelpers.setField(a,"remoteKind",peer);ReflectionHelpers.callInstanceMethod(a,"buttons");
-                assertEquals(peer.label,ReflectionHelpers.<Button>getField(a,"serverTab").getText());
-                assertEquals("На "+peer.target+" (0)",ReflectionHelpers.<Button>getField(a,"send").getText());
+                assertEquals(peer==DeviceKind.PC?"Сервер-ПК":peer==DeviceKind.UNKNOWN?"Сервер":"Сервер-мобильный",ReflectionHelpers.<Button>getField(a,"serverTab").getText());
+                assertEquals("На сервер (0)",ReflectionHelpers.<Button>getField(a,"send").getText());
                 assertEquals("На "+local.target+" (0)",ReflectionHelpers.<Button>getField(a,"receive").getText());
                 assertEquals(Boolean.TRUE,ReflectionHelpers.<Button>getField(a,"send").getTag(com.bitpoint.homeservercontrol.ui.R.id.fileTransferUpload));
             }

@@ -5,16 +5,16 @@ final class TransferPaths {
     static String name(String value) {
         if(value==null || value.isEmpty() || value.equals(".") || value.equals("..") || value.length()>240
                 || value.indexOf('/')>=0 || value.indexOf('\\')>=0)
-            throw new IllegalArgumentException("Недопустимое имя файла или папки");
+            throw new IllegalArgumentException(AppText.tr("Недопустимое имя файла или папки"));
         for(int i=0;i<value.length();i++)if(Character.isISOControl(value.charAt(i)))
-            throw new IllegalArgumentException("Недопустимое имя файла или папки");
+            throw new IllegalArgumentException(AppText.tr("Недопустимое имя файла или папки"));
         return value;
     }
     static String relative(String value) {
-        if(value==null || value.length()>4000 || value.startsWith("/"))throw new IllegalArgumentException("Недопустимый путь");
+        if(value==null || value.length()>4000 || value.startsWith("/"))throw new IllegalArgumentException(AppText.tr("Недопустимый путь"));
         if(value.isEmpty())return value;
         String[] parts=value.split("/",-1);
-        if(parts.length>48)throw new IllegalArgumentException("Слишком много вложенных папок");
+        if(parts.length>48)throw new IllegalArgumentException(AppText.tr("Слишком много вложенных папок"));
         for(String part:parts)name(part);
         return value;
     }

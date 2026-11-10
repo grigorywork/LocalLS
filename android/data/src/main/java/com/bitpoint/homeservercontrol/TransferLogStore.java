@@ -37,7 +37,7 @@ final class TransferLogStore {
     static String render(Context context) {
         String value = context.getSharedPreferences(ServerConfig.PREFS, Context.MODE_PRIVATE)
                 .getString(ServerConfig.KEY_TRANSFER_LOG, "");
-        return value == null || value.trim().isEmpty() ? "История передач пока пуста." : value;
+        return value == null || value.trim().isEmpty() ? AppText.tr("История передач пока пуста.") : value;
     }
 
     static void clear(Context context) {
