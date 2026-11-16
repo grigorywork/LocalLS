@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Isolated real-agent HTTPS smoke tests; never operate a user's SSH service."""
-import http.client, json, os, pathlib, secrets, socket, ssl, subprocess, tempfile, time, unittest
+import http.client, json, os, pathlib, secrets, shutil, socket, ssl, subprocess, sys, tempfile, time, unittest
 AGENT = pathlib.Path(__file__).resolve().parents[1] / 'realme-agent/agent.py'
+PYTHON = sys.executable
+OPENSSL = shutil.which('openssl')
+POSIX_PERMISSIONS = os.name != 'nt'
 class AgentSecurityTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix='localls-agent-test-')
@@ -20,20 +23,22 @@ class AgentSecurityTest(unittest.TestCase):
     def write(self):
         p=self.root/'config.json';p.write_text(json.dumps(self.cfg));p.chmod(0o600)
     def run_failure(self):
-        self.write();p=subprocess.run(['python3',str(AGENT)],env={**os.environ,'LOCALLS_AGENT_CONFIG_DIR':str(self.root)},capture_output=True,text=True,timeout=5)
+        self.write();p=subprocess.run([PYTHON,str(AGENT)],env={**os.environ,'LOCALLS_AGENT_CONFIG_DIR':str(self.root)},capture_output=True,text=True,timeout=5)
         self.assertNotEqual(p.returncode,0);self.assertNotIn(self.token,p.stdout+p.stderr)
         return p.stderr
     def test_missing_certificate_has_no_http_fallback(self):
         self.assertIn('No HTTP fallback',self.run_failure())
     def test_legacy_http_requires_explicit_opt_in(self):
         self.cfg['tls']=False;self.assertIn('explicit allow_legacy_http',self.run_failure())
+    @unittest.skipUnless(POSIX_PERMISSIONS, 'POSIX mode bits are not enforced on Windows')
     def test_weak_private_file_permissions_are_rejected(self):
         (self.root/'agent-cert.pem').write_text('not-a-cert');(self.root/'agent-key.pem').write_text('not-a-key');(self.root/'agent-key.pem').chmod(0o644)
         self.assertIn('permissions 600',self.run_failure())
+    @unittest.skipUnless(OPENSSL, 'requires an OpenSSL executable for a throwaway certificate')
     def test_actual_https_auth_routes_and_token_preservation(self):
-        subprocess.run(['openssl','req','-x509','-newkey','rsa:3072','-nodes','-keyout',str(self.root/'agent-key.pem'),'-out',str(self.root/'agent-cert.pem'),'-days','2','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost'],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        subprocess.run([OPENSSL,'req','-x509','-newkey','rsa:3072','-nodes','-keyout',str(self.root/'agent-key.pem'),'-out',str(self.root/'agent-cert.pem'),'-days','2','-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost'],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         (self.root/'agent-key.pem').chmod(0o600);self.cfg['tls']=True;self.write();before=(self.root/'config.json').read_bytes()
-        self.proc=subprocess.Popen(['python3',str(AGENT)],env={**os.environ,'LOCALLS_AGENT_CONFIG_DIR':str(self.root)},stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        self.proc=subprocess.Popen([PYTHON,str(AGENT)],env={**os.environ,'LOCALLS_AGENT_CONFIG_DIR':str(self.root)},stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         context=ssl.create_default_context(cafile=str(self.root/'agent-cert.pem'))
         def request(path,token=None,method='GET'):
             c=http.client.HTTPSConnection('localhost',self.port,context=context,timeout=3)

@@ -49,12 +49,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run build:win
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node tools/verify-package.cjs
+          $taskInstaller = (Get-ChildItem artifacts -Recurse -Filter 'LocalLS-*-Windows-x64-Setup.exe' | Select-Object -First 1).FullName
+          if (-not $taskInstaller) { throw 'Installer not found' }
+          node tools/verify-package.cjs "$taskInstaller"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install and exercise genuine Windows application
         run: |
-          $taskVersion = (Get-Content ../VERSION).Trim()
-          $taskInstaller = Resolve-Path "artifacts/LocalLS-$taskVersion-Windows-x64-Setup.exe"
+          $taskInstaller = (Get-ChildItem artifacts -Recurse -Filter 'LocalLS-*-Windows-x64-Setup.exe' | Select-Object -First 1).FullName
+          if (-not $taskInstaller) { throw 'Installer not found' }
           $taskInstallDir = Join-Path $env:RUNNER_TEMP 'localls-installed'
           $taskProcess = Start-Process -FilePath $taskInstaller -ArgumentList '/S', "/D=$taskInstallDir" -WindowStyle Hidden -Wait -PassThru
           if ($taskProcess.ExitCode -ne 0) { throw 'Installer failed' }
@@ -68,11 +70,11 @@ jobs:
         with:
           name: LocalLS-Windows-verified
           path: |
-            desktop/artifacts/*Setup.exe
-            desktop/artifacts/win-unpacked/resources/app.asar
-            desktop/artifacts/VERIFICATION.json
+            desktop/artifacts/**/*Setup.exe
+            desktop/artifacts/**/win-unpacked/resources/app.asar
+            desktop/artifacts/**/VERIFICATION.json
             desktop/artifacts/BUILD_REPORT.*
-            desktop/artifacts/screenshots/
+            desktop/artifacts/**/screenshots/
           if-no-files-found: error
   fedora:
     runs-on: ubuntu-latest
@@ -97,16 +99,16 @@ jobs:
           npm run build:rpm
       - name: Install and exercise genuine Fedora package
         run: |
-          task_version=$(cat ../VERSION)
-          dnf -y install "artifacts/LocalLS-$task_version-Fedora-x86_64.rpm"
-          node tools/verify-package.cjs
+          task_rpm=$(ls artifacts/fedora-*/LocalLS-*-Fedora-x86_64.rpm)
+          dnf -y install "$task_rpm"
+          node tools/verify-package.cjs "$task_rpm"
           LOCALLS_TEST_EXECUTABLE=/opt/localls/localls bash tools/run-ui-fedora.sh
           python3 ../tools/package_build_report.py linux
       - uses: actions/upload-artifact@v4
         with:
           name: LocalLS-Fedora-verified
           path: |
-            linux/artifacts/*.rpm
+            linux/artifacts/**/*.rpm
             linux/artifacts/BUILD_REPORT.*
-            linux/artifacts/screenshots/
+            linux/artifacts/**/screenshots/
           if-no-files-found: error

@@ -1,4 +1,5 @@
 'use strict';
+const SYMLINKS = require('./symlink-support.cjs');
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
 const {EmbeddedServer,publicIdentity}=require('../src/embedded-server.cjs'),{Server,Transfers}=require('../src/core.cjs'),{FilePreview,previewConnection,LIMIT}=require('../src/file-preview.cjs'),{identity}=require('./ed25519-fixture.cjs');
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -42,7 +43,7 @@ test('remote preview preserves bytes, supplies bounded HTTP ranges and revokes c
   assert.equal((await h.client.list('/')).entries[0].name,'photo.png');assert.deepEqual(fs.readFileSync(path.join(h.root,'photo.png')),bytes);
  }finally{await h.close();}
 });
-test('local preview refuses active document types, symlinks and oversized files without reading or modifying them',async()=>{
+test('local preview refuses active document types, symlinks and oversized files without reading or modifying them',{skip: !SYMLINKS},async()=>{
  const h=await fixture();try{
   const png=path.join(h.folder,'photo.png');fs.writeFileSync(png,'local bytes');const linked=path.join(h.folder,'linked.png');fs.symlinkSync(png,linked);
   for(const name of ['run.html','image.svg','program.exe'])await assert.rejects(h.preview.open({requestId:h.requestId(),name,local:png}),/PREVIEW_FORMAT/);

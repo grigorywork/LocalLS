@@ -1,4 +1,5 @@
 'use strict';
+const SYMLINKS = require('./symlink-support.cjs');
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), crypto = require('node:crypto');
 const {utils} = require('ssh2');
@@ -57,7 +58,7 @@ test('Windows server transfers actual SFTP bytes, folders and telemetry without 
     assert.equal(f.server.snapshot().received, content.length); assert.equal(f.server.snapshot().sent, content.length);
   } finally { client.disconnect(); await f.close(); }
 });
-test('Windows SFTP rejects traversal, drive paths, ADS, symlinks, hard links and root deletion', async () => {
+test('Windows SFTP rejects traversal, drive paths, ADS, symlinks, hard links and root deletion', {skip: !SYMLINKS}, async () => {
   const key = identity(), f = await setup([{...publicIdentity(key.publicKey), key: undefined}]), client = new Server();
   try {
     const outside = path.join(f.folder, 'outside.txt'); fs.writeFileSync(outside, 'unchanged');

@@ -7,8 +7,10 @@ const {EmbeddedServer, publicIdentity} = require('../src/embedded-server.cjs');
 const {Server, Transfers, call} = require('../src/core.cjs');
 const {planDownload} = require('../src/transfer-plan.cjs');
 const {identity} = require('./ed25519-fixture.cjs');
+// Windows maps ':' to an alternate data stream and '?' to a wildcard, so POSIX names cannot exist there.
+const POSIX_NAMES = process.platform !== 'win32';
 
-test('Portable share classifies incompatible POSIX names as denied without weakening path policy', () => {
+test('Portable share classifies incompatible POSIX names as denied without weakening path policy', {skip: !POSIX_NAMES}, () => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'localls-portable-path-'));
   try {
     const share = new SharedFiles(folder);
@@ -22,7 +24,7 @@ test('Portable share classifies incompatible POSIX names as denied without weake
   } finally { fs.rmSync(folder, {recursive: true, force: true}); }
 });
 
-test('Real Fedora SFTP lists and downloads valid siblings beside incompatible POSIX filenames', async () => {
+test('Real Fedora SFTP lists and downloads valid siblings beside incompatible POSIX filenames', {skip: !POSIX_NAMES}, async () => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'localls-portable-listing-'));
   const root = path.join(folder, 'shared'), download = path.join(folder, 'download');
   fs.mkdirSync(root); fs.mkdirSync(download); fs.mkdirSync(path.join(root, 'nested'));

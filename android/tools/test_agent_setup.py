@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Real isolated wizard provisioning tests. Never stop or modify a user's SSH service."""
-import fcntl
 import base64
 import hashlib
 import importlib.util
@@ -16,12 +15,21 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('setup_agent', ROOT / 'realme-agent/setup_agent.py')
-setup = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(setup)
+# The installer targets POSIX hosts (Termux/Linux): it needs fcntl and mode bits.
+# Loading it on Windows would raise ImportError, so import lazily and skip the suite there.
+try:
+    import fcntl
+    spec = importlib.util.spec_from_file_location('setup_agent', ROOT / 'realme-agent/setup_agent.py')
+    setup = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(setup)
+    SETUP_IMPORT_ERROR = None
+except ImportError as error:
+    setup = None
+    SETUP_IMPORT_ERROR = str(error)
 SOURCE = (ROOT / 'realme-agent/agent.py').read_bytes()
 
 
+@unittest.skipUnless(setup, 'POSIX-only agent installer: ' + str(SETUP_IMPORT_ERROR))
 class AgentSetupTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='localls-setup-')

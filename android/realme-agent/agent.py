@@ -146,7 +146,8 @@ if __name__ == "__main__":
         private_key = Path(CFG.get("tls_key", str(BASE / "agent-key.pem")))
         if not certificate.is_file() or not private_key.is_file():
             raise SystemExit("TLS certificate is missing; run the updated installer. No HTTP fallback.")
-        if private_key.stat().st_mode & 0o077:
+        # Windows has no POSIX mode bits (st_mode is synthesized), so enforce only where they are meaningful.
+        if os.name != "nt" and private_key.stat().st_mode & 0o077:
             raise SystemExit("TLS private key requires permissions 600")
         context.load_cert_chain(str(certificate), str(private_key))
         server.socket = context.wrap_socket(server.socket, server_side=True, do_handshake_on_connect=False)
