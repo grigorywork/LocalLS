@@ -16,6 +16,20 @@ jobs:
         working-directory: android
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare owner signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.LOCALLS_RELEASE_STORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/localls-release.p12"
+            {
+              echo "LOCALLS_RELEASE_STORE=$RUNNER_TEMP/localls-release.p12"
+              echo "LOCALLS_RELEASE_STORE_PASSWORD=${{ secrets.LOCALLS_RELEASE_STORE_PASSWORD }}"
+              echo "LOCALLS_RELEASE_KEY_ALIAS=${{ secrets.LOCALLS_RELEASE_KEY_ALIAS }}"
+              echo "LOCALLS_RELEASE_KEY_PASSWORD=${{ secrets.LOCALLS_RELEASE_KEY_PASSWORD }}"
+              echo "LOCALLS_SIGNED=1"
+            } >> "$GITHUB_ENV"
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -52,14 +66,21 @@ jobs:
           test -f "$LOCALLS_SECURITY_FIXTURE/fixture.json"
           chmod +x gradlew
           ./gradlew --no-daemon :core:test :transport:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+      - name: Assemble owner-signed release
+        if: env.LOCALLS_SIGNED == '1'
+        run: ./gradlew --no-daemon :app:assembleRelease
       - name: Verify test APK
         run: python3 tools/verify_apk.py app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify signed release APK
+        if: env.LOCALLS_SIGNED == '1'
+        run: python3 tools/verify_apk.py app/build/outputs/apk/release/app-release.apk --require-release-signer --initial-release
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: LocalLS-Android-verification
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/release/app-release.apk
             android/app/build/reports/
             android/app/build/test-results/
             android/app/build/ui-previews/
