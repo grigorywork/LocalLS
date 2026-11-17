@@ -4,10 +4,12 @@ const {EventEmitter} = require('node:events');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
+const path = require('node:path');
 const {Server: SSHServer, utils} = require('ssh2');
 const {profile, fingerprint} = require('./core.cjs');
 const {syncCode} = require('./pairing.cjs');
 const {SharedFiles, serveFiles} = require('./server-files.cjs');
+const batch = require('./file-batch.cjs');
 const {TrafficHistory} = require('./traffic-history.cjs');
 
 function publicIdentity(value) {
@@ -90,7 +92,7 @@ class EmbeddedServer extends EventEmitter {
             this.history.push({...entry, at: Date.now(), device: meta.id, pending: temporary(entry.name)}); this.history = this.history.slice(-100);
           }
           this.emit('update');
-        }));
+        }, full => this.expand(full, meta.id)));
         session.on('subsystem', (accept, reject, info) => {
           if (!['localls-status-v1','localls-status-v2','localls-status-v3'].includes(info.name)) return reject();
           const channel = accept(), metrics = this.telemetry();
@@ -103,6 +105,18 @@ class EmbeddedServer extends EventEmitter {
     });
     client.on('tcpip', (_, reject) => { if (reject) reject(); });
     client.on('request', (accept, reject) => { if (reject) reject(); });
+  }
+  // A batch archive is only published through a rename after its last byte
+  // arrived, so expanding it here cannot race a still-uploading file.
+  expand(full, device) {
+    if (!batch.isBatchName(full)) return;
+    const remote = '/' + path.relative(this.share.root, full).split(path.sep).join('/');
+    return batch.extractArchive(full, this.share.root).then(result => {
+      this.history = this.history.filter(entry => !(entry.device === device && entry.remote === remote));
+      for (const file of result.files) this.history.push({name: file.name, remote: '/' + file.relative, received: file.size, sent: 0, at: Date.now(), device, pending: false});
+      this.history = this.history.slice(-100);
+      this.emit('update');
+    }).catch(() => { /* The archive stays untouched when extraction is not provably safe. */ });
   }
   invite(host) {
     if (!this.instance) throw new Error('SERVER_STOPPED');

@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path');
 const {call, name, safeDownloadName, remotePath} = require('./core.cjs');
+const batch = require('./file-batch.cjs');
 const LIMIT = 1000;
 function identity(file) {
   const st = fs.lstatSync(file, {bigint: true}); if (st.isSymbolicLink()) throw new Error('COPY_LINK');
@@ -54,7 +55,35 @@ function localUnique(folder, base, reserved) {
   for (let n = 0; n < 10000; n++) { const value = path.join(folder, n ? duplicate(base, n) : base); if (!fs.existsSync(value) && !reserved.has(value)) { reserved.add(value); return value; } }
   throw new Error('COPY_LIMIT');
 }
-async function planUpload({files, folder, sftp, binding, allowed, confirmOverwrite}) {
+async function planBatch({trees, sftp, canonical, reserved, binding}) {
+  if (trees.length < 2 || trees.some(tree => tree.source.directory || tree.files.length !== 1)) return null;
+  const candidates = [];
+  for (const tree of trees) {
+    const base = name(path.basename(tree.source.path)), remote = path.posix.join(canonical, base);
+    if (reserved.has(remote)) return null;
+    try { await timed(sftp, 'lstat', remote); return null; } catch (error) { if (error.code !== 2) return null; }
+    candidates.push({path: tree.source.path, base, snapshot: tree.files[0].snapshot});
+  }
+  if (!batch.canBatch(candidates.map(item => ({path: item.path, size: item.snapshot.size})))) return null;
+  const taken = new Set(), entries = [];
+  for (const item of candidates) {
+    let entry = item.base;
+    for (let n = 1; taken.has(entry) && n < 10000; n++) entry = duplicate(item.base, n);
+    if (taken.has(entry)) return null;
+    taken.add(entry); entries.push({path: item.path, name: entry});
+  }
+  try {
+    // Freeze the same inputs the per-file plan would have uploaded: a source
+    // that moved between scan and packing falls back to the normal path.
+    for (const item of candidates) verifySource({sourceSnapshot: item.snapshot});
+    const archive = await batch.createArchive(entries);
+    for (const item of candidates) reserved.add(path.posix.join(canonical, item.base));
+    const remote = path.posix.join(canonical, batch.archiveName());
+    reserved.add(remote);
+    return [{direction: 'upload', local: archive.file, remote, label: path.posix.basename(remote), overwrite: false, binding, sourceSnapshot: sourceSnapshot(archive.file), batch: {count: archive.count, total: archive.total, sources: entries.map(item => item.name)}}];
+  } catch { return null; }
+}
+async function planUpload({files, folder, sftp, binding, allowed, confirmOverwrite, batchSmall = true}) {
   const step = budget(), trees = [], selected = [...new Map([...new Set(files)].map(p => { if (typeof p !== 'string' || p.length > 4096 || p.includes('\0')) throw new Error('BAD_FILES'); const st = fs.lstatSync(p); if (st.isSymbolicLink()) throw new Error('COPY_LINK'); const item = {path: allowed(p), directory: st.isDirectory()}; return [item.path, item]; })).values()];
   const roots = selected.filter(a => !selected.some(b => b !== a && b.directory && path.relative(b.path, a.path) !== '..' && !path.relative(b.path, a.path).startsWith('..' + path.sep) && !path.isAbsolute(path.relative(b.path, a.path))));
   async function scan(file, relative, depth, tree) {
@@ -68,6 +97,9 @@ async function planUpload({files, folder, sftp, binding, allowed, confirmOverwri
   for (const source of roots) { const tree = {source, dirs: [], files: []}; await scan(source.path, '', 0, tree); trees.push(tree); }
   const canonical = await timed(sftp, 'realpath', remotePath(folder)), reserved = new Set(), jobs = [], created = [];
   const parent = await timed(sftp, 'lstat', canonical); if (!parent.isDirectory() || parent.isSymbolicLink()) throw new Error('COPY_FOLDER_CHANGED');
+  // Many small files become one archive and one upload. Any doubt (existing
+  // destination, unusual size, packing failure) falls back to the per-file plan.
+  if (batchSmall) { const packed = await planBatch({trees, sftp, canonical, reserved, binding}); if (packed) return packed; }
   try {
     for (const tree of trees) {
       const base = name(path.basename(tree.source.path));

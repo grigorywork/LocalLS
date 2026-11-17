@@ -318,7 +318,7 @@ class Transfers extends EventEmitter {
       } else throw new Error('BAD_DIRECTION');
       j.state='completed'; j.finished=Date.now();
     } catch(err) { j.state=j.controller.signal.aborted?'cancelled':'failed'; j.error=publicError(err); j.finished=Date.now(); }
-    finally { clearInterval(tick); j.speed=0; await localHandle?.close().catch(()=>{}); if(temp) { if(j.direction==='download') await fs.promises.unlink(temp).catch(()=>{}); else if(s) await call(s,'unlink',temp).catch(()=>{}); } clearTimeout(cancelTimer);signal.removeEventListener('abort',cancelCleanup);delete j.controller; this.publish(); }
+    finally { clearInterval(tick); j.speed=0; await localHandle?.close().catch(()=>{}); if(temp) { if(j.direction==='download') await fs.promises.unlink(temp).catch(()=>{}); else if(s) await call(s,'unlink',temp).catch(()=>{}); } if(j.batch && j.state==='completed') await fs.promises.unlink(j.local).catch(()=>{}); clearTimeout(cancelTimer);signal.removeEventListener('abort',cancelCleanup);delete j.controller; this.publish(); }
   }
 }
 module.exports={profile,endpoint,fingerprint,name,remotePath,safeDownloadName,call,publicError,Server,Transfers};

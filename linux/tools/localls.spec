@@ -3,7 +3,7 @@
 %global __strip /bin/true
 %global _binary_payload w9.xzdio
 Name: localls
-Version: 1.44.0
+Version: 1.45.0
 Release: 1
 Summary: LocalLS SSH/SFTP client and built-in QR server
 License: LicenseRef-Proprietary

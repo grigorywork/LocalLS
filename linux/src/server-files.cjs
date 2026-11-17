@@ -58,7 +58,7 @@ function attributes(st) {
 }
 function position(n) { if (!Number.isSafeInteger(n) || n < 0) throw new Error('BAD_OFFSET'); return n; }
 
-function serveFiles(s, share, traffic = () => {}, completed = () => {}) {
+function serveFiles(s, share, traffic = () => {}, completed = () => {}, published = () => {}) {
   const handles = new Map();
   let closed = false, requests = 0;
   const send = fn => { if (!closed) try { fn(); } catch {} };
@@ -152,6 +152,9 @@ function serveFiles(s, share, traffic = () => {}, completed = () => {}) {
     const from = share.mutable(source), to = share.mutable(target, true);
     if (fs.existsSync(to)) { if (!overwrite || !fs.statSync(from).isFile() || !fs.statSync(to).isFile()) throw new Error('DEST_EXISTS'); }
     fs.renameSync(from, to); observe(completed, {renamedFrom: path.posix.resolve('/', source), remote: path.posix.resolve('/', target), name: path.posix.basename(target)}); status(id);
+    // The client only ever publishes a completed upload through a rename, so
+    // this is the one point where a received archive is known to be whole.
+    observe(published, to);
   };
   bind('RENAME', (id, from, to) => rename(id, from, to, false));
   bind('EXTENDED', (id, extension, payload) => {

@@ -102,7 +102,22 @@ jobs:
           task_rpm=$(ls artifacts/fedora-*/LocalLS-*-Fedora-x86_64.rpm)
           dnf -y install "$task_rpm"
           node tools/verify-package.cjs "$task_rpm"
-          LOCALLS_TEST_EXECUTABLE=/opt/localls/localls bash tools/run-ui-fedora.sh
+          if [ "$(id -u)" = "0" ]; then
+            # Electron and gnome-keyring refuse to run as root inside a container.
+            # Exercise the installed RPM as an ordinary user and keep the GUI logs.
+            useradd --create-home --shell /bin/bash localls-ui
+            chown -R localls-ui:localls-ui artifacts
+            install -d -o localls-ui -g localls-ui /tmp/localls-gui
+            runuser -u localls-ui -- env \
+              LOCALLS_RUN_OUTPUT=/tmp/localls-gui \
+              LOCALLS_TEST_EXECUTABLE=/opt/localls/localls \
+              LOCALLS_UI_NO_SANDBOX=1 \
+              bash tools/run-ui-fedora.sh
+            mkdir -p "artifacts/gui-$(date -u +%Y%m%dT%H%M%SZ)"
+            cp -a /tmp/localls-gui/. "artifacts/gui-$(date -u +%Y%m%dT%H%M%SZ)/"
+          else
+            LOCALLS_TEST_EXECUTABLE=/opt/localls/localls bash tools/run-ui-fedora.sh
+          fi
           python3 ../tools/package_build_report.py linux
       - uses: actions/upload-artifact@v4
         if: always()

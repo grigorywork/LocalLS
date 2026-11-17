@@ -1,7 +1,7 @@
 {
   "name": "localls-desktop",
-  "version": "1.43.0",
-  "description": "LocalLS \u2014 Windows SSH/SFTP client and server",
+  "version": "1.44.0",
+  "description": "LocalLS — Windows SSH/SFTP client and server",
   "author": "MSS9LN",
   "license": "UNLICENSED",
   "private": true,

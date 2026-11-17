@@ -54,6 +54,25 @@ final class EmbeddedSftpServer implements AutoCloseable {
     }
     private volatile java.util.function.Consumer<Receipt> receiptListener=receipt->{};
     void onReceipt(java.util.function.Consumer<Receipt> listener){receiptListener=java.util.Objects.requireNonNull(listener);}
+    // Expanding runs off the SFTP thread so a slow archive never stalls the
+    // rename reply the sender waits for. One worker keeps disks from thrashing.
+    private java.util.concurrent.ExecutorService expander;
+    private synchronized java.util.concurrent.ExecutorService expander(){
+        if(expander==null||expander.isShutdown())
+            expander=java.util.concurrent.Executors.newSingleThreadExecutor(r->{Thread thread=new Thread(r,"localls-expand");thread.setDaemon(true);return thread;});
+        return expander;
+    }
+    private void expand(Path archive,org.apache.sshd.server.session.ServerSession session){
+        final String key;try{key=session.getAttribute(AUTH_KEY);}catch(RuntimeException ignored){return;}
+        try{expander().execute(()->{
+            try{for(BatchArchive.Published file:BatchArchive.expand(archive))receipt(file,key);}
+            catch(Exception ignored){/* An unproven archive is left for the owner. */}
+        });}catch(java.util.concurrent.RejectedExecutionException ignored){/* Server is stopping. */}
+    }
+    private void receipt(BatchArchive.Published file,String key){
+        try{TransferPaths.relative(file.name);receiptListener.accept(new Receipt(file.name,key,file.bytes,file.modified));receiver.accept(file.name);}
+        catch(RuntimeException ignored){/* A listener failure must not lose an extracted file. */}
+    }
     synchronized java.util.Set<String> onlineClientFingerprints(){
         java.util.Set<String> online=new java.util.HashSet<>();
         for(var session:sessions){String id=session.getAttribute(AUTH_KEY);if(session.isOpen()&&session.isAuthenticated()&&allowedClients.containsKey(id))online.add(id);}
@@ -275,7 +294,13 @@ final class EmbeddedSftpServer implements AutoCloseable {
                         if(options.contains(StandardOpenOption.WRITE) || options.contains(StandardOpenOption.APPEND))EmbeddedSftpServer.this.received(file.getFile(),session);
                     }
                 }
-                @Override public void moved(org.apache.sshd.server.session.ServerSession session,Path source,Path target,java.util.Collection<java.nio.file.CopyOption> options,Throwable error){if(error==null && Files.isRegularFile(target,LinkOption.NOFOLLOW_LINKS))EmbeddedSftpServer.this.received(target,session);}
+                @Override public void moved(org.apache.sshd.server.session.ServerSession session,Path source,Path target,java.util.Collection<java.nio.file.CopyOption> options,Throwable error){
+                    if(error!=null || !Files.isRegularFile(target,LinkOption.NOFOLLOW_LINKS))return;
+                    // A LocalLS sender uploads into a temporary name and only renames
+                    // after the last byte, so a published archive is always complete.
+                    if(BatchArchive.isArchive(target))EmbeddedSftpServer.this.expand(target,session);
+                    else EmbeddedSftpServer.this.received(target,session);
+                }
             });
             ssh.setSubsystemFactories(java.util.Arrays.asList(factory,new StatusSubsystem(()->telemetry.get()),new StatusSubsystem(()->telemetry.get(),"localls-status-v2"),new StatusSubsystem(()->telemetry.get(),"localls-status-v3")));
             CoreModuleProperties.AUTH_TIMEOUT.set(ssh,Duration.ofSeconds(20));
@@ -300,5 +325,8 @@ final class EmbeddedSftpServer implements AutoCloseable {
             catch(java.io.InterruptedIOException error){interrupted=true;throw error;}
             finally{if(interrupted)Thread.currentThread().interrupt();}
         }
+        java.util.concurrent.ExecutorService worker;
+        synchronized(this){worker=expander;expander=null;}
+        if(worker!=null)worker.shutdownNow();
     }
 }

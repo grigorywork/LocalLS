@@ -28,6 +28,34 @@ public class EmbeddedSftpServerTest {
     private EmbeddedSftpServer server(Path root) throws Exception {
         EmbeddedSftpServer server=new EmbeddedSftpServer();server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);return server;
     }
+    @Test public void publishedBatchArchiveExpandsIntoFilesAndDisappears()throws Exception{
+        Path root=temp.newFolder().toPath();
+        java.io.ByteArrayOutputStream buffer=new java.io.ByteArrayOutputStream();
+        try(java.util.zip.ZipOutputStream zip=new java.util.zip.ZipOutputStream(buffer)){
+            for(String[] item:new String[][]{{"one.txt","один"},{"two.txt","два"}}){
+                zip.putNextEntry(new java.util.zip.ZipEntry(item[0]));
+                zip.write(item[1].getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
+        }
+        String archive="LocalLS-20261117-101500-0123abcd.localls.zip";
+        try(EmbeddedSftpServer server=new EmbeddedSftpServer()){
+            int port=server.start("127.0.0.1",0,"localls",EmbeddedSftpServer.authorizedKey(clientPublic),host,root);Session s=session(port,"localls",true);s.connect();
+            try{ChannelSftp channel=(ChannelSftp)s.openChannel("sftp");channel.connect();
+                try{
+                    String temporary="/.localls-upload-batch.part";
+                    channel.put(new ByteArrayInputStream(buffer.toByteArray()),temporary);
+                    channel.rename(temporary,"/"+archive);
+                    long deadline=System.currentTimeMillis()+5000;
+                    while(!Files.exists(root.resolve("two.txt")) && System.currentTimeMillis()<deadline)Thread.sleep(20);
+                    assertEquals("один",new String(Files.readAllBytes(root.resolve("one.txt")),java.nio.charset.StandardCharsets.UTF_8));
+                    assertEquals("два",new String(Files.readAllBytes(root.resolve("two.txt")),java.nio.charset.StandardCharsets.UTF_8));
+                    assertFalse("The archive must not stay next to its files",Files.exists(root.resolve(archive)));
+                    assertFalse(Files.exists(root.resolve(temporary)));
+                }finally{channel.disconnect();}
+            }finally{s.disconnect();}
+        }
+    }
     @Test public void durableUploadResumesVerifiedPartialWithSameKeyAndRejectsCorruption()throws Exception{
         Path root=temp.newFolder().toPath();byte[] bytes=new byte[512*1024+7];new java.util.Random(291).nextBytes(bytes);
         String temporary=".localls-upload-resume.part";Files.write(root.resolve(temporary),Arrays.copyOf(bytes,131073));

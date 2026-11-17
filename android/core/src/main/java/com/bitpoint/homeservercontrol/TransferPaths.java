@@ -26,7 +26,8 @@ final class TransferPaths {
     }
     static boolean temporary(String value) {
         for(String part:value.replace('\\','/').split("/"))
-            if(part.startsWith(".localls-upload-") || part.startsWith(".import-"))return true;
+            if(part.startsWith(".localls-upload-") || part.startsWith(".import-") || part.startsWith(".localls-extract-")
+                    || (part.startsWith(".localls-") && (part.endsWith(".part") || part.endsWith(".previous"))))return true;
         return false;
     }
 }
