@@ -16,7 +16,11 @@ trap 'kill "$LOCALLS_XVFB_PID" 2>/dev/null || true' EXIT
 for attempt in {1..50}; do [ -S /tmp/.X11-unix/X99 ] && break; sleep .1; done
 openbox >"$LOCALLS_RUN_OUTPUT/wm.log" 2>&1 &
 dbus-update-activation-environment DISPLAY HOME XDG_CURRENT_DESKTOP XDG_CONFIG_HOME XDG_CACHE_HOME XDG_DATA_HOME XDG_RUNTIME_DIR
-node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("base64"))' | gnome-keyring-daemon --unlock --components=secrets >"$LOCALLS_RUN_OUTPUT/keyring-start.log" 2>&1
+# Feed the throwaway unlock password from a file: piping from a short-lived writer
+# makes the daemon close stdin first and Node dies with EPIPE on the broken pipe.
+head -c 32 /dev/urandom | base64 -w0 >"$XDG_RUNTIME_DIR/keyring-password"
+gnome-keyring-daemon --unlock --components=secrets <"$XDG_RUNTIME_DIR/keyring-password" >"$LOCALLS_RUN_OUTPUT/keyring-start.log" 2>&1 || true
+rm -f "$XDG_RUNTIME_DIR/keyring-password"
 export NODE_PATH=$LOCALLS_PROJECT_ROOT/node_modules
 export LOCALLS_TEST_APP=/opt/localls/resources/app.asar
 export LOCALLS_TEST_EXECUTABLE=$LOCALLS_PROJECT_ROOT/tools/test-executable.sh
