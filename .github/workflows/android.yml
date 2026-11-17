@@ -40,6 +40,12 @@ jobs:
       - name: Install isolated SSH test server
         run: python3 -m pip install asyncssh==2.21.1
       - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install desktop QR interoperability tools
+        working-directory: desktop
+        run: npm ci --omit=dev
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
